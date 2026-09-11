@@ -13,7 +13,7 @@ A three-layer paper engineering skill — mined from **102 best papers** (NeurIP
 [![Patterns Mined](https://img.shields.io/badge/Patterns-84%2B-red.svg)](#-knowledge-base)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-yellow.svg)](scripts/download_corpus.py)
 
-*Works as a [ZCode](https://zcode.ai) skill · runs fully offline on its bundled knowledge base*
+*Runs fully offline on its bundled knowledge base · 84+ mined patterns · 102 Paper DNA profiles*
 
 </div>
 
@@ -63,7 +63,7 @@ Important Problem → Real Research Gap → Non-trivial Insight → Necessary Me
 
 ```bash
 git clone https://github.com/<you>/sci-story-skill.git
-ln -sfn "$(pwd)/sci-story-skill" ~/.agents/skills/sci-story-skill   # register globally
+ln -sfn "$(pwd)/sci-story-skill" ~/.agents/skills/sci-story-skill   # make the skill discoverable
 ```
 
 Then just talk to your agent — the skill triggers on any paper-related task:
