@@ -1,0 +1,100 @@
+# thesis: This paper shows that diffusion models avoid memorization through implicit dynamical
+# regularization of the training dynamics — a generalization time τ_gen independent of n and a
+# memorization time τ_mem growing linearly with training-set size n open a widening early-stopping
+# window — because the empirical score's dataset-dependent high-frequency part is learned only
+# slowly (spectral bias), and therefore proposes stopping training within [τ_gen, τ_mem] as a
+# practical memorization safeguard.
+paper:
+  venue: NeurIPS
+  year: 2025
+  field: diffusion models / statistical physics of learning
+  task: understanding and preventing memorization in score-based generative models
+  problem: '"A key challenge is understanding the mechanisms that prevent their memorization of training data and allow generalization" — specifically the role of training dynamics in the generalization-to-memorization transition (abstract, §1)'
+  importance: '"Understanding the generalization properties of score-based generative methods is a central issue in machine learning"; memorization is empirically observed for small training sets and has copyright/privacy implications; guidelines needed "especially... in data-scarce domains (e.g., physical sciences)" (§1, §4)'
+  source: full
+
+paradigm:
+  existing_approach: explain the memorization→generalization transition via architectural regularization/limited capacity (n*(p) threshold) and finiteness of the learning rate (§1)
+  core_assumption: that the regime shift, when observed, must be attributable to those known regularization mechanisms
+  limitation: '"the regime shift described above is consistently observed even in models where all these regularization mechanisms are present. This suggests that the core mechanism behind the transition... lies elsewhere" (§1)'
+
+gap:
+  unresolved_problem: identify the mechanism controlling the transition from memorization to generalization during training — i.e., what the training dynamics itself contributes, beyond architecture and learning rate
+  evidence_for_gap: empirical puzzle (regime shift persists with all known regularizers, §1) plus theoretical hole — prior random-features analyses (Sciursus et al./[15]) computed only τ→∞ asymptotics, not the dynamics
+
+insight:
+  observation: monitoring FID and memorization fraction f_mem during U-Net training on CelebA reveals two distinct timescales — FID bottoms out at τ_gen ≈ 100K steps independent of n, while f_mem rises only after τ_mem which grows ∝ n (curves collapse when time is rescaled by τ/n, Fig. 2)
+  central_insight: the empirical score is irregular at low noise levels and decomposes into a low-frequency part near the population score and a high-frequency dataset-dependent part; spectral bias makes the network learn the former fast (τ_gen ~ O(1)) and the latter slowly, with memorization time scaling with n — a form of implicit dynamical regularization (§1 "theoretical picture", Fig. 1)
+  hypothesis: in a tractable random-features model, training timescales should map to inverse eigenvalues of the feature correlation matrix; two well-separated spectral bulks (ρ2 population-scale, ρ1 overfitting-scale ~ ψp/ψn) should reproduce the two-timescale phenomenology in the overparameterized regime (§3, Thm 3.2)
+
+method:
+  conceptual_change: treat memorization as a dynamical phenomenon on the training-time axis, not only a function of (n, p) at τ→∞ — introduce the two-timescale decomposition τ_gen/τ_mem as the object of study
+  mechanism: (numerics) U-Net DDPMs on grayscale 32×32 CelebA, n ∈ [128, 32768], p ∈ [1M, 16M], SGD with momentum, FID vs 10K test samples and nearest-neighbor memorization criterion ||x−a_μ1||²/||x−a_μ2||² < k (k=1/3) with 1,000-sample bootstrap CIs (§2); (theory) RFNN with second-layer-only gradient flow, replica-method derivation of the Stieltjes transform of the feature spectrum in the high-dimensional limit, Theorems 3.1–3.2 (§3)
+  formulation: OU forward process and score-matching loss (Eq. 1–4); memorization criterion (Eq. 6); τ related to eigenvalues via τ^{-1} = ψ_p/(Δt λ_min); spectral density ρ(λ) from the three-equation system (Thm 3.1, Eq. 15–19); regimes ρ = (1−(1+ψ_n)/ψ_p)δ(λ−s_t²) + (ψ_n/ψ_p)ρ1 + (1/ψ_p)ρ2 (Thm 3.2)
+
+claims:
+  - id: C1
+    claim: two timescales exist during score training — τ_gen (high-quality generation) independent of n, τ_mem (memorization onset) growing linearly with n, evidenced by curve collapse under τ/n rescaling — descriptive/quantitative
+    importance: central
+    evidence: §2, Fig. 2 (FID flat beyond τ_gen; f_mem collapse at τ/n ≈ 300; inset overfitting-time collapse in loss panel)
+  - id: C2
+    claim: the widening [τ_gen, τ_mem] window constitutes "implicit dynamical regularization... which allow[s] to avoid memorization even in highly overparameterized settings" — mechanistic
+    importance: central
+    evidence: abstract; Fig. 1 left; §2
+  - id: C3
+    claim: for n > n*(p) ≈ p the model cannot represent the empirical score — architectural regularization makes memorization vanish even at τ→∞ — descriptive (extends prior result [15])
+    importance: supporting
+    evidence: Fig. 3 (f_mem(τ_gen)=0 vs >0 regions in (n,p) plane); §3 (L_gen reduced for n > n*(p) = p)
+  - id: C4
+    claim: in the RFNN theory the two timescales correspond to two well-separated eigenvalue bulks — τ_gen to the population bulk ρ2 (order 1/Δt, independent of n), τ_mem to the overfitting bulk ρ1 (order ψ_n/Δt, scaling with n) — theoretical
+    importance: central
+    evidence: §3, Thm 3.1–3.2, Fig. 4–5 (E_score ~ O(ψ_n^−0.59); L_gen heatmaps shifting with τ)
+  - id: C5
+    claim: the key mechanism is "the irregularity of the empirical score at low noise level and large n" combined with spectral bias — the smooth interpolation approximating the population score is stable for long, and only very long training converges to the empirical-score minimum — explanatory
+    importance: central
+    evidence: §1 ("theoretical picture" paragraph); Fig. 1 left inset (1D score illustration)
+  - id: C6
+    claim: practical guidelines — early stopping within the window and capacity control — robustly avoid memorization, and the mechanism should extend to flow matching / stochastic interpolants; conditional settings show the same τ_mem ∝ n scaling — generalization
+    importance: supporting
+    evidence: §4 Conclusions and Limitations; SM Sect. B (conditional with CFG on Gaussian mixtures), SM Sect. A/D (Adam still exhibits both timescales)
+
+experiments:
+  - id: E1
+    research_question: RQ4-mechanistic — how do τ_gen and τ_mem depend on training-set size n?
+    setup: U-Net (p=4×10^6, W=32) on CelebA 32×32, n ∈ {512,...,32768}; FID and f_mem vs τ up to 1–4M SGD steps; losses at fixed t=0.01; τ/n collapse tests (§2, Fig. 2)
+    baseline: n/a (phenomenology measurement)
+    result: τ_gen ≈ 100K constant; τ_mem ∝ n (collapse at τ/n≈300); overfitting (train/test loss split) scales linearly with n and lags τ_mem; n=32768 shows no loss gap after 11M steps
+    interpretation: growing generalization window; memorization requires overfitting the empirical score
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ3-ablation — how does model capacity p interact with the dynamical window?
+    setup: vary base width W ∈ {16,32,64} (p from 1M to 16M) at various n; memorization fraction at τ=8τ_gen in the (n,p) plane; rescale time by W (§2 Fig. 3; SM)
+    baseline: fixed-capacity runs
+    result: transition line n*(p) separates f_mem(τ_gen)>0 from =0 regions; larger p shifts the transition, time rescaling by width collapses curves
+    interpretation: architectural regularization (n > n*(p)) and dynamical regularization are complementary regimes, as in Fig. 1's phase diagram
+    supported_claim: C3
+  - id: E3
+    research_question: RQ4-theoretical — does a tractable model reproduce the two-timescale phenomenology?
+    setup: RFNN score model with gradient flow on second layer; compute spectrum of U via replica/Stieltjes analysis; simulate training/test losses and E_score for ψ_n ∈ {4,...,32}, ψ_p=64; L_gen heatmaps over (ψ_n, ψ_p) at two stopping times (§3, Figs. 4–5, Thm 3.1–3.2)
+    baseline: τ→∞ asymptotics of [15]
+    result: two separated bulks → two timescales; τ_gen order 1/Δt (n-independent), τ_mem ~ ψ_p/Δt λ_min ~ ψ_n/Δt (scales with n); L_gen transition line moves with τ
+    interpretation: theory explains the numerics — memorization time is governed by the smallest eigenvalue of the overfitting bulk
+    supported_claim: C4, C5
+
+narrative:
+  introduction_roles: [Context (diffusion success; generalization central), Failure mode (zero-loss model reproduces training set), Existing explanations (architecture, learning rate) and their insufficiency, Insight (dynamical bias toward generalizing solutions), Theoretical picture (Fig. 1, three regimes), Method preview (U-Net numerics + random-features theory)]
+  introduction_move: poses the regime shift as an open mechanism question by elimination — architecture and learning rate are acknowledged then ruled out as complete explanations; the figure-1 "qualitative summary" in the introduction functions as the paper's thesis statement, with the phase diagram (memorization / architectural / dynamical regularization) previewed before any evidence
+  related_work_strategy: four thematically-bulleted paragraphs (empirical memorization studies; high-dimensional theory under empirical score; complementary implicit-regularization sources; spectral bias) each ending in what remains unexplained (§1 "Related works")
+  method_strategy: phenomenon-first — §2 establishes the two-timescale phenomenology with careful metrics (FID, nearest-neighbor criterion with robustness checks on k, bootstrap CIs), §3 then constructs the minimal theory whose eigenvalue structure maps one-to-one onto the observed timescales
+  experiments_strategy: numerics and analytics run in parallel tracks and are cross-validated (τ/n collapse in Fig. 2 ↔ ψ_n/Δt scaling in Fig. 5); capacity ablation bridges the two regimes; limitations paragraph lists five honest open points (§4)
+  conclusion_strategy: restate the implicit-regularization claim, assert generality to flow matching/stochastic interpolants, then itemize limitations (Adam vs SGD, conditional models, p range, richer data) and end with practical guidelines (§4)
+
+reviewer_defense:
+  strengths: threefold evidence (realistic U-Net/CelebA, synthetic data in SM, exactly solvable RFNN) pointing to the same scaling; metric robustness checks (k sensitivity, CIs); the theory is quantitative, not merely illustrative — it predicts the n-scaling of τ_mem
+  vulnerabilities: p range limited to 1M–16M (conceded); theory relies on random-features simplifications, zero-initialized second layer, Gaussian-ish data; τ_gen/τ_mem measured at fixed low noise level t=0.01; concurrent work (Favero et al.) overlaps — acknowledged; industrial-scale models only addressed indirectly via guidelines
+  anticipated_attacks: '"Adam changes everything" — preempted by SM showing both timescales persist under Adam (§4, SM A/D); "conditional models differ" — preempted by SM Sect. B toy experiment confirming τ_mem ∝ n with CFG; "memorization fraction criterion is arbitrary" — robustness across k∈{1/4,1/3,1/2} stated in §2; "learning-rate finiteness explains it" — positioned as complementary and ruled out as the sole cause in §1'
+
+writing:
+  paragraph_patterns: '"theoretical picture" paragraphs that narrate Fig. 1 panel by panel; limitations written as a bulleted list with each bullet pairing the concession and the partial mitigation already performed'
+  transition_patterns: numerics→theory handoff is explicit ("On the analytical side, we focus on..." §1); theory sections named by their role (Emergence of the two timescales / Generalization / Memorization)
+  terminology_patterns: Greek-letter timescale naming (τ_gen, τ_mem) used from abstract to conclusions without drift; ψ_p/ψ_n aspect ratios as the theory's control knobs; regime names capitalized and consistent (Memorization, Architectural Regularization, Dynamical Regularization) mapping directly onto the phase diagram

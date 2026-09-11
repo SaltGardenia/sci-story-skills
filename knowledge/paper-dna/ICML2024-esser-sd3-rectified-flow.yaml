@@ -1,0 +1,98 @@
+# thesis: This paper shows that rectified flow can be made the best-practice formulation for
+# high-resolution text-to-image synthesis because logit-normal timestep sampling biases
+# training toward perceptually-relevant intermediate noise levels, and pairs this with a
+# novel MM-DiT backbone (separate-modality weights with joint attention), and therefore
+# proposes Stable Diffusion 3 — an 8B-parameter family whose validation loss predictably
+# scales and correlates with human preference, outperforming SDXL and DALL-E 3.
+paper:
+  venue: ICML
+  year: 2024
+  field: generative models / text-to-image synthesis
+  task: high-resolution text-to-image generation with diffusion/rectified-flow transformers
+  problem: "rectified flow's better theoretical properties and conceptual simplicity \"is not yet decisively established as standard practice\" — prior advantages were shown only on small/medium class-conditional models, and the choice of probability path (noise schedule/timestep weighting) critically governs sampling efficiency (abstract, §1)"
+  importance: diffusion is the de-facto approach for text-to-image; sampling steps cost network evaluations, so the forward-path choice has direct speed and quality consequences, and which formulation wins at scale was unresolved (§1)
+  source: full
+paradigm:
+  existing_approach: diffusion formulations — DDPM/LDM (eps-prediction, linear schedule), EDM (F-prediction, normal log-SNR), cosine schedules with eps or v-prediction; plain rectified flow with uniform timesteps; architectures — UNet, UViT, DiT with cross-attention or shared weights (§2–3, §5.2)
+  core_assumption: that uniform timestep sampling (or the schedules inherited from ε-diffusion) is the right training distribution — even though the RF velocity target ϵ − x0 is hardest to predict at intermediate t, where the optimal prediction is neither the data mean nor the noise mean (§3.1)
+  limitation: "curved probability paths need many integration steps and accumulate error; cross-attention injection of a fixed text representation \"is not ideal\"; vanilla DiT underperforms UViT at scale (§1, §5.2, Fig. 4)"
+gap:
+  unresolved_problem: (i) which simulation-free training formulation is best at scale, under controlled comparison; (ii) a transformer backbone that lets text and image tokens exchange information bidirectionally; (iii) evidence that validation loss is a reliable, predictable scaling signal for text-to-image (§1 contributions i–iii)
+  evidence_for_gap: empirical — prior RF results limited to class-conditional models (§1); no systematic 60-way formulation comparison existed; loss–quality correlation unverified for T2I (§1)
+insight:
+  observation: "changing the timestep sampling distribution from uniform to π(t) is exactly equivalent to a loss re-weighting w_t^π = t/(1−t)·π(t) (Eq. 18) — so rectified flow's \"missing\" ingredient relative to well-tuned ε-diffusion is simply the noise-scale weighting, the same trick that made noise-predictive diffusion work (Ho et al. 2020) (§1, §3.1)"
+  central_insight: sample intermediate timesteps more often via a logit-normal distribution over log-SNR — biasing training toward the perceptually-difficult middle of the path — which turns RF into the globally best formulation (§3.1, Table 1)
+  hypothesis: if validation loss decreases smoothly with scale and tracks CLIP/FID, GenEval, and human preference, then the whole system can be engineered by loss, and larger models should additionally need fewer sampling steps (straighter learned paths) (§5.3.3, Table 6)
+method:
+  conceptual_change: treat the probability path (schedule + timestep sampler) as the primary design variable of diffusion training, to be selected by controlled large-scale ablation rather than inherited from DDPM
+  mechanism: (1) logit-normal timestep sampling π_ln(t; m, s) (plus mode and CosMap samplers) over RF, equivalent to weighted loss w_t^π (Eq. 18, 20–22); (2) MM-DiT — text and image token streams with separate weight sets but concatenated keys/values in joint attention (two-way flow of information), timestep+pooled-text modulation, 2×2 patching, depth d sizing hidden dim 64d (§4, Fig. 2); (3) QK-RMSNorm to fix attention-logit growth at high resolution (§5.3.2, Fig. 5); (4) resolution-dependent timestep shifting t_m = sqrt(m/n t_n)/(1+(sqrt(m/n)−1)t_n) justified by a constant-image uncertainty argument (Eq. 23–25); (5) aspect-ratio bucketing with extended/interpolated positional grids; DPO alignment post-training (App. C)
+  formulation: flow matching L_CFM as weighted noise prediction L_w = −E ½w_t λ'_t ‖ϵ_Θ(z_t,t) − ϵ‖² (Eq. 11–12); RF path z_t = (1−t)x0 + tϵ (Eq. 13); log-SNR shift λ_tm = λ_tn − 2log α (Eq. 25)
+claims:
+  - id: C1
+    claim: RF with logit-normal timestep sampling (rf/lognorm(0.00, 1.00)) is the best training formulation — the only family beating LDM-Linear eps/linear — consistently across metrics, datasets, sampler settings, and step counts (§1 contribution i; Table 1)
+    importance: central
+    evidence: comparative — 61-variant controlled study ranked by non-dominated sorting over CLIP/FID across 24 sampler/EMA/dataset settings (Table 1, Table 2); RF degrades least at low step counts (Fig. 3)
+  - id: C2
+    claim: MM-DiT outperforms DiT, CrossDiT, and UViT on validation loss, CLIP score, and FID at matched scale (§5.2)
+    importance: central
+    evidence: comparative — Fig. 4 training-dynamics comparison on CC12M
+  - id: C3
+    claim: "the model follows predictable scaling trends and lower validation loss correlates strongly with improved text-to-image performance on T2I-CompBench, GenEval, and human preference — \"Our results do not show saturation neither for image not for video models\" (§1 contribution iii, §5.3.3)"
+    importance: central
+    evidence: empirical — Fig. 8 scaling study (image + video, FLOPs vs loss), Fig. 10, Table 5/6
+  - id: C4
+    claim: the largest model (depth 38, 8B) outperforms state-of-the-art open (SDXL, SDXL-Turbo, PixArt-α) and closed (DALL-E 3) models on GenEval overall (0.74 with DPO at 1024²) and on human preference for prompt following, typography, and aesthetics (§5.3.3, Table 5, Fig. 7)
+    importance: central
+    evidence: comparative — Table 5 (GenEval), Fig. 7 (Parti-prompts human preference)
+  - id: C5
+    claim: larger models are more sample-efficient — fewer sampling steps reach peak performance, attributed to better-fitted straight paths with shorter path length (Table 6)
+    importance: supporting
+    evidence: "empirical — Table 6 (relative CLIP drop at 5/10/20 vs 50 steps: 4.30→2.71 at 5 steps from depth 15→38)"
+  - id: C6
+    claim: training-time choices transfer into deployment flexibility — resolution/aspect-ratio shifting (Eq. 23, human-preference-validated, Fig. 6), QK-norm for stable bf16 finetuning (Fig. 5), and encoder drop-out enabling flexible text-encoder configurations at inference (e.g., removing T5 with minor quality cost, Fig. 9)
+    importance: supporting
+    evidence: empirical — Fig. 5, 6, 9; §5.3.2
+experiments:
+  - id: E1
+    research_question: RQ4 (formulation selection) — which simulation-free training objective/parametrization wins under fully controlled conditions?
+    setup: 61 variants (eps/v/RF/EDM × schedules × timestep samplers with grids over m, s, Pm, Ps), two datasets (ImageNet, CC12M), fixed optimizer/architecture/samplers; rank by non-dominated sorting over CLIP+FID across 24 settings; best variant selected by minimal EMA validation loss (§5.1, Tables 1–2, Fig. 3)
+    baseline: eps/linear (LDM), EDM, v/cos, vanilla RF (uniform)
+    result: rf/lognorm(0.00,1.00) best average rank 1.54; only modified-timestep RF variants beat eps/linear; single-metric winners fail the other metric while lognorm stays balanced (Tables 1–2)
+    interpretation: the formulation ranking justifies RF as the backbone choice for everything downstream
+    supported_claim: C1
+  - id: E2
+    research_question: RQ4 (architecture selection) — which conditioning/backbone design scales best?
+    setup: convergence comparison of DiT, CrossDiT, UViT, MM-DiT on CC12M (validation loss, CLIP, FID); ablation of 3 vs 2 weight sets (§5.2, Fig. 4)
+    baseline: UViT, DiT, CrossDiT
+    result: "MM-DiT \"significantly outperforms the cross-attention and vanilla variants\"; small gain from 3 weight sets not worth the cost (§5.2)"
+    interpretation: bidirectional modality mixing, not just attention, is what scales
+    supported_claim: C2
+  - id: E3
+    research_question: RQ5 (scaling) — does loss predict quality, and does scale keep paying?
+    setup: models of depth 15–38 (up to 8B), 500k steps at 256², batch 4096, preencoded data with NSFW/aesthetics/dedup filtering; video continuation 140k steps (16 frames, 256²); validation loss vs FLOPs; GenEval and Parti-prompts human preference at 512²/1024² with DPO (§5.3, Figs. 7–10, 12, Table 5)
+    baseline: SDXL, SDXL-Turbo, PixArt-α, DALL-E 3, minDALL-E, SD v1.5/2.1, DALL-E 2, IF-XL
+    result: smooth loss decrease, no saturation; GenEval 0.74 (depth-38, 1024², DPO) beats DALL-E 3's 0.67; human preference favorable across categories (Table 5, Fig. 7)
+    interpretation: "validation loss is a \"simple and general measure of model performance\" — enabling loss-driven development at foundation scale"
+    supported_claim: C3, C4
+  - id: E4
+    research_question: RQ4 (efficiency/deployment ablations) — how do step count, model size, QK-norm, timestep shift, and text encoders interact?
+    setup: relative CLIP-score drop at 5/10/20 vs 50 steps by depth + path length (Table 6); attention logit/entropy tracking with and without QK-norm (Fig. 5); human preference for timestep shift values (Fig. 6); T5-removal ablation (Fig. 9)
+    baseline: unshifted timesteps; no QK-norm; full encoder stack
+    result: "bigger models need fewer steps; QK-norm prevents entropy collapse enabling bf16; shift α=3.0 strongly preferred at 1024²; T5 removal has \"no significant impact\" except complex prompts (§5.3.2–3.3, Figs. 5–6, 9, Table 6)"
+    interpretation: the system is tunable at deployment without retraining — a practical dividend of the formulation/architecture choices
+    supported_claim: C5, C6
+narrative:
+  introduction_roles: [Context (diffusion as de-facto), Design tension (forward-path choice), Candidate (rectified flow, under-adopted), Gap (not established at scale; text-injection suboptimal), Contributions (three numbered: formulation study, architecture, scaling study)]
+  introduction_move: frames the whole paper as an engineering-science argument — the intro states the sampling-cost stakes of path choice, concedes RF's unproven status, and promises a controlled 61-way study; contributions are ordered as study → architecture → scaling law, matching the paper's section order exactly
+  related_work_strategy: formalism-first — related work absorbed into §2's unified Kingma & Gao loss so all formulations become comparable reweightings of one objective (the taxonomy IS the related work)
+  method_strategy: "hypothesis-driven ablation — §3.1 opens with the intuition (\"the resulting velocity prediction target is more difficult for t in the middle\"), derives the weighting equivalence, then designs samplers (lognorm, mode, CosMap) to test it"
+  experiments_strategy: funnel structure — small controlled comparisons (§5.1–5.2) narrow the design space, then §5.3 scales the winner with loss as the guiding metric, closing with SOTA benchmarks and human preference as external validation
+  conclusion_strategy: no separate conclusion; §5.3.3 ends on deployment flexibility (text-encoder choice, released code/weights/data) — the release commitment itself is part of the argument
+reviewer_defense:
+  strengths: unmatched controlled breadth (61 formulations × 24 settings); every architectural choice ablated before scaling; loss–human-preference correlation demonstrated, not asserted; full release of data/code/weights
+  vulnerabilities: "training-data filtering and preencoding choices confound absolute comparisons with prior art; human preference studies use in-house rater pools; DPO post-training entangled in headline GenEval number; video results \"preliminary\""
+  anticipated_attacks: "\"EDM-style schedules already do this\" — edm/rf and edm/cos matched-weighting variants were run and lost (Table 1 rows); \"is this just DiT?\" — Fig. 4 shows CrossDiT (cross-attention DiT) significantly behind MM-DiT; \"lognorm hyperparameters look hand-picked\" — a 30-value (m, s) grid was searched, with the selected point ranked best on average (§5.1)"
+writing:
+  paragraph_patterns: "hypothesis → derivation → sampler-design paragraphs in §3.1; results paragraphs that read metric tables aloud (\"third-best scores two out of four times\")"
+  transition_patterns: "\"Having found a formulation ..., we now turn to...\" — each section consumes the previous section's winner; engineering obstacles (fp16 instability, positional encodings) given their own named paragraphs with fixes"
+  terminology_patterns: "variant naming convention rf/lognorm(m,s), edm(Pm,Ps) that makes the ablation table self-documenting; MM-DiT named and defined by mechanism (\"two independent transformers ... joining the sequences ... for the attention operation\", §4)"

@@ -1,0 +1,84 @@
+# thesis: This paper shows that current large language models are significantly undertrained —
+# for compute-optimal training, model size and training tokens should scale equally (a≈b≈0.5) rather
+# than favoring parameters (Kaplan: a=0.73) — because over 400 trained models reveal a compute-optimal
+# frontier where data matters as much as parameters, and therefore proposes Chinchilla, a 70B model
+# trained on 4× more tokens than Gopher under the same budget, which uniformly outperforms GPT-3,
+# Gopher, and MT-NLG.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: large language models / scaling laws
+  task: determining the compute-optimal allocation of a fixed training FLOPs budget between model size N and number of training tokens D
+  problem: '"We investigate the optimal model size and number of tokens for training a transformer language model under a given compute budget. We find that current large language models are significantly under-trained, a consequence of the recent focus on scaling language models whilst keeping the amount of training data constant" (Abstract); "Since it is typically only feasible to train these large models once, accurately estimating the best model hyperparameters for a given compute budget is critical" (§1)'
+  importance: large models are enormously expensive and mostly trained once; getting the allocation wrong wastes entire training runs; "Chinchilla uses substantially less compute for fine-tuning and inference, greatly facilitating downstream usage" (Abstract); "larger, high quality datasets will play a key role in any further scaling of language models" (§2)
+  source: full
+paradigm:
+  existing_approach: Kaplan et al. (2020) scaling laws — power-law relation between parameters and loss, recommending model size grow 5.5× per 10× compute while tokens grow only 1.8×; field practice (GPT-3, Gopher, MT-NLG) trains ~300B tokens regardless of size (§1, Table 1)
+  core_assumption: performance is primarily parameter-limited; training data can be held ~constant while parameters grow
+  limitation: '"current large language models are significantly under-trained"; Kaplan''s estimate method (fixed tokens, fixed LR schedule) systematically misestimates the loss of models trained on fewer tokens (§1, §2)'
+gap:
+  unresolved_problem: given a fixed FLOPs budget C, find N_opt(C) and D_opt(C) minimizing final pre-training loss L(N, D) s.t. FLOPs(N,D) = C (§1, Eq. 1)
+  evidence_for_gap: methodological critique — Kaplan et al. used a fixed 130B-token LR schedule for all models, so intermediate losses are overestimates, "underestimating the effectiveness of training models on less data than 130B tokens"; their runs were mostly <100M parameters (§2)
+insight:
+  observation: training-curve envelopes over 400 models (70M–16B parameters, 5B–500B tokens) show the FLOP-loss frontier is best hit by models trained far longer than 300B tokens (§3, Fig. 2)
+  central_insight: '"for compute-optimal training, the model size and the number of training tokens should be scaled equally: for every doubling of model size the number of training tokens should also be doubled" (Abstract) — the trade-off between N and D is symmetric, not parameter-dominated'
+  hypothesis: a predicted compute-optimal model — 4× smaller and 4× more data than Gopher at the same budget — should uniformly outperform the 280B Gopher on language modelling and downstream tasks (§1, §4)
+method:
+  conceptual_change: treat the compute budget as an allocation problem between parameters and data — co-equal resources — rather than data as a fixed backdrop to parameter scaling
+  mechanism: 'three independent estimation approaches on 400+ trained models: (1) minimum over training curves (fix model size, vary tokens; take envelope of minimal loss per FLOP); (2) IsoFLOP profiles (for fixed compute, fit parabola of loss vs model size, take minimum); (3) parametric loss model L̂(N,D) = E + A/N^α + B/D^β minimized under C ≈ 6ND with closed-form power-law frontier (Eq. 4) (§3, Figs. 2–4)'
+  formulation: N_opt ∝ C^a, D_opt ∝ C^b with fitted a ≈ 0.46–0.50, b ≈ 0.50–0.54 across the three approaches (Table 2), vs Kaplan's a=0.73, b=0.27; frontier N_opt(C) = G(C/6)^a with G = ((αA)/(βB))^((α+1)β/(α+β)) (Eq. 4)
+claims:
+  - id: C1
+    claim: '"for compute-optimal training, the model size and the number of training tokens should be scaled equally" — all three estimation approaches yield a ≈ b ≈ 0.5, "in clear contrast to previous work" (Kaplan a=0.73) (empirical/theoretical)'
+    importance: central
+    evidence: Table 2 (with bootstrap 10th/90th percentiles), Fig. 1 overlaid predictions
+  - id: C2
+    claim: '"current large language models are significantly under-trained" — e.g. a compute-optimal 280B model should be trained on 5.9T tokens, not 300B (descriptive/empirical)'
+    importance: central
+    evidence: Table 3 projections, §1
+  - id: C3
+    claim: Chinchilla (70B, 1.4T tokens) "uniformly and significantly outperforms Gopher (280B), GPT-3 (175B), Jurassic-1 (178B), and Megatron-Turing NLG (530B) on a large range of downstream evaluation tasks" (comparative)
+    importance: central
+    evidence: §4.2, Figs. 5–7, Tables 6–9
+  - id: C4
+    claim: Chinchilla reaches 67.5% average 5-shot MMLU, "greater than a 7% improvement over Gopher" (comparative)
+    importance: central
+    evidence: Abstract, §4.2, Table 6, Fig. 6 (+7.6%)
+  - id: C5
+    claim: a compute-optimal smaller model "uses substantially less compute for fine-tuning and inference", so benefits extend beyond training performance (practical)
+    importance: supporting
+    evidence: §1, Abstract
+  - id: C6
+    claim: learning-rate schedule length should approximately match training-token count for best final loss regardless of model size — the methodological error that biased prior scaling estimates (mechanistic)
+    importance: supporting
+    evidence: §2, Fig. A1
+experiments:
+  - id: E1
+    research_question: RQ3-flavored — how do N and D trade off in the loss at fixed compute? (three approaches)
+    setup: 400+ models, 70M–16B parameters, 5B–500B tokens, each size trained with four cosine cycle lengths; (1) envelope of training curves, (2) IsoFLOP profiles, (3) parametric fit L̂(N,D) (§3, Figs. 2–4, Table 2)
+    baseline: Kaplan et al. (2020) predictions
+    result: a≈0.50/b≈0.50, a≈0.49/b≈0.51, a≈0.46/b≈0.54 — all far from Kaplan's 0.73/0.27
+    interpretation: three independent methodologies converge on equal scaling
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ4-flavored (validation at scale) — does the predicted compute-optimal allocation actually win?
+    setup: train Chinchilla (70B, 1.4T tokens) with Gopher's compute budget; evaluate on language modelling (Pile, PG-19, WT103) and downstream suites (MMLU, BIG-bench, reading comprehension, QA, common sense) against Gopher/GPT-3/Jurassic-1/MT-NLG (Table 4, §4, Tables 5–9)
+    baseline: Gopher (280B) primarily; other frontier LLMs
+    result: Chinchilla outperforms Gopher on all evaluation suites and the other large models; MMLU 67.5% (+7.6% over Gopher); wins on all but four BIG-bench tasks
+    interpretation: the equal-scaling law transfers from FLOPs-scale experiments to frontier models
+    supported_claim: C3, C4
+narrative:
+  introduction_roles: [Context (500B-parameter era), Stakes (train-once decisions), Prior law (Kaplan), Contradiction preview (equal scaling), Question formalization (Eq. 1), Prediction + verification promise (Chinchilla), Practical benefits]
+  introduction_move: the paper corrects a misallocation the whole field made — it quotes Kaplan's 5.5×/1.8× rule precisely so the reader feels the size of the error; the question is formalized as a constrained optimization within the first page; Chinchilla is pre-announced as the falsification test before any methodology appears
+  related_work_strategy: organized by divergence — each related work paragraph ends with a specific methodological limitation of prior scaling analyses (fixed tokens, fixed LR schedule, small models, MoE fixed-token analysis) (§2)
+  method_strategy: triangulation-first — three estimation approaches presented as mutual validation, with an explicit discussion of their residuals and disagreements (§3.4); Table 2 with bootstrap percentiles quantifies the confidence
+  experiments_strategy: 'prediction→verification arc: estimate frontier (Fig. 1), state the Gopher-budget prediction (4× smaller, 4× more data), then execute it (E2); downstream evaluation mirrors Gopher''s paper for direct comparability (Table 5)'
+  conclusion_strategy: recap the three approaches, note data implications ("larger, high quality datasets will play a key role"), and flag the frontier as needing continued study
+reviewer_defense:
+  strengths: three independent estimation methods agreeing; 400+ model runs with bootstrap uncertainty; direct, at-scale falsification by training the predicted model; losses measured with matched LR schedules
+  vulnerabilities: analysis on smoothed training loss (footnote 2 argues it is an unbiased test-loss estimate in the infinite-data regime); models capped at 16B for estimation with extrapolation to 70B+; assumes C ≈ 6ND and power-law frontier (curvature observed and noted, Appendix E); the equal-scaling law is empirical, not derived; data-quality and data-availability constraints unaddressed (1.4T–5.9T token requirements)
+  anticipated_attacks: '"you just disagree with Kaplan on schedule choice" — §2 explicitly explains how the fixed 130B schedule biased Kaplan''s estimates and Fig. A1 supports the matching rule; "maybe losses at low compute distort the fit" — §3.4 discusses residuals and Huber weighting; "is training loss a fair proxy?" — footnoted argument plus downstream-task validation (§4)'
+writing:
+  paragraph_patterns: claim-then-evidence paragraphs with figure/table anchors; methodological criticism embedded in related work rather than a separate polemic
+  transition_patterns: '"In this work, we revisit the question: ..." pivot sentence; "We verify this by training ..." — every prediction is followed by its verification sentence'
+  terminology_patterns: '"compute-optimal" as the branded recurring term; approaches named ordinally (Approach 1/2/3) and kept consistent across figures and tables; model names italicized vs numbers'

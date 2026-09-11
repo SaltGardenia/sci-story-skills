@@ -1,0 +1,232 @@
+# thesis: This paper shows that LLMs perform dramatically worse in multi-turn conversation because
+# they make premature assumptions, attempt final answers too early, and over-rely on their own
+# earlier attempts, and therefore proposes sharded simulation — decomposing single-turn benchmarks
+# into per-turn shards — which reveals a 39% degradation decomposed into minor aptitude loss and
+# major unreliability growth.
+paper:
+  venue: ICLR
+  year: 2026
+  field: LLM evaluation / conversational AI
+  task: measuring and diagnosing LLM performance in multi-turn, underspecified conversation
+  problem: >-
+    LLM evaluation focuses on single-turn fully-specified instructions although "underspecification
+    occurs frequently in user instructions"; the paper measures "LLM performance in single- and
+    multi-turn settings" via large-scale simulation (Abstract)
+  importance: >-
+    "Ubiquitous performance degradation over multi-turn interactions is likely a reason for low
+    uptake of AI systems, particularly with novice users who are less skilled at providing
+    complete, detailed instructions" (§1); a call-to-action to LLM builders to prioritize
+    multi-turn reliability (§7.2)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Multi-turn evaluations that treat conversation as episodic — "conversation turns might relate
+    to each other, but the conversation can effectively be decomposed as an array of subtasks that
+    can be evaluated in isolation" (§1, §2)
+  core_assumption: >-
+    That episodic multi-turn benchmarks measure multi-turn capability; the paper argues "episodic
+    tasks move away from what is prevalent in human conversation: underspecification" (§1)
+  limitation: >-
+    Prior multi-turn settings "do not involve actively fusing the information to answer
+    underspecified user instructions" and do not allow direct single-vs-multi-turn comparison on
+    the same tasks (§2)
+gap:
+  unresolved_problem: >-
+    A controlled, scalable measurement of how much capability is lost when identical information
+    is delivered gradually and underspecified across turns (§1: "close this gap by creating a
+    simulation environment")
+  evidence_for_gap: >-
+    Citation pattern: conversation-log studies confirm underspecification prevalence (Herlihy et
+    al.); evaluation practice contradicts deployment reality (§1 para 1–2); the Translation
+    control later shows episodic sharding does NOT degrade (Table 4), isolating underspecification
+    as the cause
+insight:
+  observation: >-
+    In the sharded setting, average performance drops from ~90% (FULL) to ~65% — a 39% average
+    degradation — even in two-turn conversations, for all 15 LLMs including frontier models;
+    CONCAT performance (95.1% of FULL) rules out information loss from sharding (§6.1, Table 1)
+  central_insight: >-
+    The degradation decomposes into minor aptitude loss (A, −16%) and major unreliability growth
+    (U, +112%): "when LLMs take a wrong turn in a conversation, they get lost and do not recover"
+    — multi-turn failure is a variance problem, not just a competence problem (§6.2, Abstract)
+  hypothesis: >-
+    Four behavioral causes follow: premature answer attempts, over-reliance on previous (wrong)
+    attempts ("bloat"), loss-of-middle-turns recency effects, and verbosity-induced assumptions
+    (§6.2 list, App. F); if causes are behavioral, remedies like recap/repetition or lower
+    temperature should partially work (§7.1–7.2)
+method:
+  conceptual_change: >-
+    Repurpose single-turn benchmarks as multi-turn probes: "sharding" splits a fully-specified
+    instruction into order-constrained shards whose joint content is identical, so single- vs
+    multi-turn becomes a controlled variable rather than a confound (§3.1, App. B)
+  mechanism: >-
+    Sharded simulation loop (Fig. 3): user simulator (GPT-4o-mini) reveals ≤1 shard per turn;
+    assistant responds freely; a strategy classifier assigns one of seven response strategies
+    (clarification, refusal, hedging, interrogation, discussion, missing, answer attempt); answer
+    extractor + task evaluator score attempts; simulation ends on correct answer or shard
+    exhaustion. Simulation types FULL / CONCAT (single-turn controls), SHARDED, plus RECAP /
+    SNOWBALL agent-style variants (§3.3, §7.1)
+  formulation: >-
+    Metrics per instruction over N=10 simulations at T=1: average performance P = mean(Si);
+    aptitude A90 = 90th percentile (best-case); unreliability U90|10 = P90 − P10 (interpercentile
+    range) (§4.2)
+claims:
+  - id: C1
+    claim: >-
+      "All the top open- and closed-weight LLMs we test exhibit significantly lower performance in
+      multi-turn conversations than single-turn, with an average drop of 39% across six generation
+      tasks" (comparative)
+    importance: central
+    evidence: comparative — Table 1 (FULL vs SHARDED across 15 LLMs, 600 instructions, 200k+ simulations)
+  - id: C2
+    claim: >-
+      The drop is "a minor loss in aptitude and a significant increase in unreliability" —
+      unreliability rises +112% on average while aptitude drops only 16%; even strong and weak
+      models show similar multi-turn unreliability (~50-point best-vs-worst gap) (descriptive/decompositional)
+    importance: central
+    evidence: decompositional — Fig. 6b, §6.2 (A and U analysis)
+  - id: C3
+    claim: >-
+      Degradation is caused by underspecification across turns, not information sharding: CONCAT
+      single-turn performance averages 95.1% of FULL (comparative/control)
+    importance: central
+    evidence: controlled comparison — Table 1 CONCAT column; §6.1 argument
+  - id: C4
+    claim: >-
+      Root causes identified: premature answer attempts with wrong assumptions, over-reliance on
+      previous incorrect attempts (bloated answers), loss-of-middle-turns, and overly verbose
+      responses (mechanistic, behavioral)
+    importance: central
+    evidence: empirical/qualitative — Appendix F analyses; Fig. 9 (answer lengths); §6.2 list
+  - id: C5
+    claim: >-
+      Known remediations are inadequate: SNOWBALL repetition recovers only 15-20% of the gap;
+      lowering temperature does not fix multi-turn unreliability (~30% residual even at T=0);
+      test-time compute (o3, DeepSeek-R1) does not help (causal/negative results)
+    importance: central
+    evidence: ablation/negative — Table 2 (RECAP/SNOWBALL), Table 3 (temperature grid), §6.1 reasoning-model comparison
+  - id: C6
+    claim: >-
+      Two-turn conversations already trigger the effect, regardless of shard granularity; only
+      full single-turn specification restores reliability (generalization)
+    importance: supporting
+    evidence: empirical — gradual sharding experiment, Fig. 6c (2–8 shards, GPT-4o/4o-mini)
+experiments:
+  - id: E1
+    research_question: >-
+      RQ1 — does multi-turn underspecification degrade performance on the same tasks? (main
+      experiment, §5–6.1)
+    setup: >-
+      600 sharded instructions across Code (HumanEval/LiveCodeBench), Database (Spider), Actions
+      (BFCL), Math (GSM8K), Data-to-text (ToTTo), Summary (Summary of a Haystack); 15 LLMs;
+      FULL/CONCAT/SHARDED; N=10 sims each; >200,000 conversations (Table 1)
+    baseline: FULL (single-turn fully-specified) and CONCAT (control)
+    result: −39% average FULL→SHARDED degradation; CONCAT ≈ FULL
+    interpretation: the phenomenon ("Lost in Conversation") is universal, affecting frontier and small models alike
+    supported_claim: C1, C3
+  - id: E2
+    research_question: >-
+      RQ-decomposition — is the loss aptitude or reliability? (§6.2)
+    setup: A90/U90|10 metrics per instruction and model (Fig. 6a-b)
+    baseline: single-turn A/U relationships (higher aptitude → more reliable)
+    result: single-turn A and U anti-correlate as known; sharded A drops 16%, U rises 112%;
+      unreliability similar across model tiers
+    interpretation: multi-turn robustness is a distinct axis from single-turn capability
+    supported_claim: C2
+  - id: E3
+    research_question: >-
+      RQ-mechanism — why do models get lost? (Appendix F behavioral analyses)
+    setup: probing datasets with response-type tracking; answer length analysis (Fig. 9);
+      per-turn influence of first/last turns
+    baseline: —
+    result: four failure modes confirmed (premature attempts, bloat, middle-turn loss, verbosity)
+    interpretation: reasoning models' longer responses (avg 33% longer) explain why test-time
+      compute does not help (§6.1 end, App. F.4)
+    supported_claim: C4
+  - id: E4
+    research_question: >-
+      RQ-dose-response — does the effect depend on sharding granularity? (§6.3)
+    setup: 31 instructions expanded to shard sets of size 2–8; GPT-4o and GPT-4o-mini (Fig. 6c)
+    baseline: 1-shard (fully-specified)
+    result: degradation appears from 2 shards onward and is roughly stable
+    interpretation: any multi-turn underspecification triggers the effect; granularity is not the lever
+    supported_claim: C6
+  - id: E5
+    research_question: >-
+      RQ-remedy — can agent-style scaffolding or decoding changes fix it? (§7.1–7.2)
+    setup: RECAP/SNOWBALL simulation types (Table 2); temperature grid AT,UT ∈ {1.0, 0.5, 0.0}
+      (Table 3)
+    baseline: SHARDED with default temperature
+    result: SNOWBALL mitigates 15-20% of the FULL→SHARDED gap; T=0 leaves ~30% unreliability in
+      SHARDED
+    interpretation: patches help marginally; native multi-turn reliability is needed
+    supported_claim: C5
+  - id: E6
+    research_question: >-
+      RQ-scope — which tasks are susceptible? (Translation control, §7.3 Table 4)
+    setup: document translation sharded 2 sentences per turn; BLEU across FULL/CONCAT/SHARDED
+    baseline: fully-specified translation
+    result: no degradation (within 10%) — episodic task property
+    interpretation: >-
+      defines task properties for the effect: generative, multi-specification,
+      non-decomposable solutions
+    supported_claim: C3 (boundary condition)
+narrative:
+  introduction_roles: [Context (conversational promise), Failure of evaluation practice (episodic), Gap, Solution (sharded simulation), Headline result, Decomposition (aptitude/unreliability), Mechanisms preview, Implications preview]
+  introduction_move: >-
+    Audit-then-reveal intro: establish what LLMs promise as conversational interfaces, convict
+    existing evaluation of the episodic fallacy, present sharding as the controlled fix, then
+    front-load the striking numbers (90→65, −39%) and the memorable one-liner ("LLMs take a wrong
+    turn... they get lost"); the roadmap paragraph explicitly routes readers to an Implications
+    section, signaling a field-shaping paper rather than a method paper (§1)
+  related_work_strategy: >-
+    Chronological + conceptual critique: multi-turn evaluation history is retold as converging on
+    the episodic design flaw; user simulation approaches are surveyed and the automated choice is
+    scoped honestly ("a tool to study the LLM behavior... rather than user behavior", §2)
+  method_strategy: >-
+    Instrument-first: §3 fully specifies the simulation machinery (with a diagram and validator
+    properties P1–P5 in appendices) before any result; metrics get their own subsection with a
+    worked decomposition example (App. E) so the aptitude/unreliability split is understood before
+    results
+  experiments_strategy: >-
+    Headline → decomposition → mechanism → dose-response → remedies → scope boundary; negative
+    results (temperature, test-time compute) are given prominent roles as findings rather than
+    buried; each Implications subsection (§7.1–7.4) is anchored to a small dedicated experiment
+    (Tables 2–4)
+  conclusion_strategy: >-
+    Compact summary of phenomenon + failed remediations + call to builders (§8), followed by an
+    unusually candid three-part Limitations section that argues the simulation is a benign
+    lower bound ("the degradation observed... is most likely an underestimate", §9)
+reviewer_defense:
+  strengths: >-
+    Scale (200k+ simulations, 15 models, 6 tasks, 10 repeats) with control conditions (CONCAT)
+    that cleanly separate information sharding from turn structure; honest error audit of the
+    simulator (<5% error rate, <2% disfavoring the assistant, App. D Table 5); the Translation
+    control rules out the trivial "any sharding hurts" explanation
+  vulnerabilities: >-
+    (1) Fully automated LLM user simulator — conversations "are not representative of natural
+    human-AI conversation" (conceded, §9); (2) evaluation metrics inherited from single-turn
+    benchmarks (BLEU, LLM-judge Joint Score) may behave differently multi-turn; (3) analytical,
+    English-only tasks — creative and multilingual scope unestablished (conceded, §9); (4) the
+    four root causes are correlational/qualitative rather than causally isolated; (5) sharding
+    author-verified but GPT-4o-proposed — potential sharding bias
+  anticipated_attacks: >-
+    "T=0 fixes randomness" — directly tested and refuted (Table 3, §7.2) with the cascading-
+    deviation explanation; "shards leak less information than the full instruction" — pre-empted
+    by CONCAT control (§6.1) and sharding property that shards jointly preserve content (App. B);
+    "the simulation is adversarial/unrealistic" — the gradual sharding experiment (§6.3) and the
+    "benign testing ground... underestimate" argument (§9) absorb the attack by reframing
+writing:
+  paragraph_patterns: >-
+    Observation-then-number paragraphs in results ("At a high level, every model sees its
+    performance degrade..."); numbered implication subsections each pairing stakeholders with a
+    dedicated mini-experiment
+  transition_patterns: >-
+    Term-introduction discipline: the phenomenon is named once ("Lost in Conversation", §6.1)
+    then reused as an agent in prose; refinement sentences ("This refines our definition of the
+    lost in conversation phenomenon", §6.2) update the concept as evidence accrues
+  terminology_patterns: >-
+    Memorable naming throughout: "sharded instructions", "aptitude (A90)", "unreliability
+    (U10|90)", "SNOWBALL/RECAP"; small-font notation defined once (§4.2) and simplified
+    thereafter; the abstract's closing aphorism mirrored verbatim in the intro

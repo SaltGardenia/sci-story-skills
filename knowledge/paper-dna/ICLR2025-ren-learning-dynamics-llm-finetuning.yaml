@@ -1,0 +1,206 @@
+# thesis: This paper shows that many pathologies of LLM finetuning (hallucination amplification,
+# off-policy DPO confidence collapse, repetition) arise because softmax negative gradients squeeze
+# probability mass into the already-most-likely outputs, and therefore proposes a per-step
+# influence decomposition (A·K·G) that explains these phenomena and inspires "extend" SFT —
+# pre-training on y− too — to mitigate the squeezing effect.
+paper:
+  venue: ICLR
+  year: 2025
+  field: LLM finetuning theory / learning dynamics
+  task: explaining and improving instruction tuning (SFT) and preference tuning (DPO)
+  problem: >-
+    Understanding why counter-intuitive phenomena occur during finetuning — hallucination
+    amplification, the "repeater" phenomenon, decay of confidence on all responses during
+    off-policy DPO, and why on-policy variants outperform off-policy ones (§1, Abstract)
+  importance: >-
+    Finetuning is the central alignment pipeline ("instruction tuning... then preference tuning",
+    §1); a dynamical explanation unifies disparate observations and "inspires a simple, effective
+    method to improve alignment performance" (Abstract)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Analyses of LLM finetuning "use the perspective of their training targets, their status at the
+    end of training, or their relationships to reinforcement learning" (§1); empirical reports of
+    DPO confidence decay (Rafailov et al. 2024) without mechanism
+  core_assumption: >-
+    That finetuning algorithms differ in kind; the paper assumes they can be compared through one
+    gradient-flow lens and, technically, that the eNTK stays approximately stable during training
+    ("During the training, the relative influence of learning xu on all other different xo is
+    relatively stable", §2)
+  limitation: >-
+    Prior lenses cannot answer "After a GD update on xu, how does the model's prediction on xo
+    change?" — the per-step cross-example influence question (§2)
+gap:
+  unresolved_problem: >-
+    A uniform mechanistic account of SFT and preference-tuning dynamics, including "where has the
+    probability mass gone?" when all tracked responses lose confidence during DPO (§3.3)
+  evidence_for_gap: >-
+    Cited unexplained phenomena: repeater effect (Holtzman et al. 2020), hallucination
+    (Huang et al. 2023), DPO confidence decay (Rafailov et al. 2024), on-policy > off-policy
+    (Guo et al. 2024) (§1); the paper's own observation that "none of them increase during the
+    DPO phase... quite counter-intuitive" (§3.3)
+insight:
+  observation: >-
+    One-step change in log-probability decomposes exactly into three factors: A (the model's
+    current distribution shape), K (the empirical NTK similarity between examples), and G (the
+    loss's update vector); negative gradients through softmax push down (almost) all labels and
+    route the mass to the argmax (Prop. 1, §3.3 bullets)
+  central_insight: >-
+    The "squeezing effect": "the negative gradient will push down the model's predictions on
+    (almost) all possible output labels, moving this probability mass to the most-likely labels...
+    most serious when the negative gradient is imposed on an already-unlikely label" (§1) —
+    peakier pretrained models squeeze more, so off-policy DPO amplifies prior bias
+  hypothesis: >-
+    If squeezing is the mechanism, raising the likelihood of y− before DPO (an "extend" SFT
+    stage) should weaken the squeeze and improve post-DPO alignment win rates (§4.3)
+method:
+  conceptual_change: >-
+    Analyze finetuning as per-step influence flow between responses rather than by losses or
+    endpoints; treat the eNTK K as "a model-specific similarity measurement between different
+    input samples" (§2)
+  mechanism: >-
+    Decomposition Δ log π^t(y|x_o) = −η A^t(x_o) K^t(x_o,x_u) G^t(x_u,y_u) + O(η^2)
+    (Prop. 1, Eq. 3); sequence extension via causal masking producing a stacked V×V×M×L tensor K
+    (Eq. 5); DPO's G splits into positive/negative parts scaled by margin a = σ(·) and β
+    (Eq. 7); probing dataset D_prob with engineered response types (rephrases, permuted words,
+    cross-question responses) to trace influence (§4)
+  formulation: >-
+    A^t = I − 1π^⊤ (softmax Jacobian); K^t = empirical NTK of the logit network; G^t_SFT =
+    π^t(y|x_u) − y_u; G^t_DPO± = β(1−a)(π^t(y|x±) − y±) (Eq. 7); squeezing guarantees/trends for
+    L=1 logistic case proven in App. E
+claims:
+  - id: C1
+    claim: >-
+      SFT pulls up responses similar to y_u (via ∥K^t∥_F) before the global push-down dominates;
+      confidence on preferred responses to other questions y+_j≠u keeps rising — explaining why
+      SFT can "provide a response from (or partially from) another unrelated question"
+      (hallucination) (mechanistic)
+    importance: central
+    evidence: empirical — Fig. 3 panels 1–3 (response-type curves), §4.1
+  - id: C2
+    claim: >-
+      During off-policy DPO, confidence of nearly all responses decays and the mass is squeezed
+      into the argmax/greedy-decoding response, whose likelihood rises faster than y_u+ did under
+      SFT (−113 to −63 in 8 epochs) — explaining repetition/degeneration (mechanistic/causal)
+    importance: central
+    evidence: empirical + analytical — Fig. 4 last panel, §3.3 guarantees/trends, App. E proof for logistic regression
+  - id: C3
+    claim: >-
+      The framework explains the benefits of on-policy DPO and variants: they "unintentionally
+      mitigate this squeezing effect by constraining the strength of the negative gradient or the
+      positions of y_u−" (mechanistic/interpretive)
+    importance: central
+    evidence: interpretive — Fig. 2 panels 3–6, App. B.2.2 G-functions of IPO/SPIN/SPPO/SLiC, §3.2–3.3
+  - id: C4
+    claim: >-
+      Training SFT on both y_u+ and y_u− ("extend") mitigates the squeezing effect and improves
+      alignment: post-DPO win rates vs baseline reach 0.69 (ChatGPT judge) / 0.60 (Claude) (causal/practical)
+    importance: central
+    evidence: comparative — Fig. 5 (dynamics comparison), Table 1 (win rates by DPO epoch)
+  - id: C5
+    claim: >-
+      LLMs treat all ChatGPT-generated responses as mutually similar regardless of semantics — a
+      possible stylistic "fingerprint" (descriptive, exploratory)
+    importance: peripheral
+    evidence: empirical — Fig. 3 last panel (influence matrix), §4.1 closing; flagged for future work
+experiments:
+  - id: E1
+    research_question: >-
+      RQ-mechanism — does the decomposition predict SFT dynamics across response types? (§4.1)
+    setup: >-
+      Pythia 410M–2.8B, Qwen1.5-0.5B/1.8B; Anthropic-HH + UltraFeedback (5000 train examples);
+      probing set D_prob (500 prompts) with response types: y+, y−, GPT rephrases, y+_test,
+      random words, permuted y+, cross-question y+_j≠u; confidence logged every 25 updates (Fig. 3)
+    baseline: theoretical predictions from Eq. 5
+    result: y+ rises throughout; similar responses rise then fall; dissimilar (random/permuted)
+      monotonically fall; y+_j≠u rises steadily
+    interpretation: three-pressure trade-off (direct pull-up, K-mediated pull-up, softmax
+      push-down) explains all curves, including hallucination amplification
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      RQ-mechanism — does it predict DPO dynamics and locate the missing probability mass? (§4.2)
+    setup: same pipeline under off-policy DPO; track y±, their rephrases, margin gap, and
+      greedy-decoding (teacher-forced argmax) response confidence (Fig. 4)
+    baseline: SFT curves at similar η
+    result: all tracked responses decay; margin grows; greedy response rises fastest (−113 → −63)
+    interpretation: squeezing effect verified — mass flows to the model's prior-favored outputs
+    supported_claim: C2
+  - id: E3
+    research_question: >-
+      RQ-intervention — does neutralizing the squeeze improve alignment? (§4.3)
+    setup: >-
+      "Extend" pipeline: SFT on [x; y+] and [x; y−] (2 epochs) → identical DPO on both π_base and
+      π_extend; compare dynamics (Fig. 5) and win rates judged by ChatGPT and Claude3 over DPO
+      epochs (Table 1)
+    baseline: standard SFT → DPO
+    result: slower decay of all responses, weaker greedy-response rise under extend; win rate
+      0.47/0.47 pre-DPO (baseline better) rising to 0.69/0.60 by epoch 4
+    interpretation: making y− likely before DPO defuses the valley-region negative gradient
+    supported_claim: C4
+  - id: E4
+    research_question: >-
+      Assumption check — is the eNTK stability assumption empirically supported? (App. C/D)
+    setup: track ∥K∥_F stability and sign consistency across training (App. C, Figs. 7, 8, 9)
+    baseline: lazy-eNTK sufficient condition (Arora et al. 2019)
+    result: relative stability of K verified in both MNIST and LLM settings ("Appendix C provides a
+      more detailed discussion and experimental verification", §2)
+    interpretation: the decomposition's interpretability rests on a checked, not merely assumed, condition
+    supported_claim: C1, C2 (validity)
+narrative:
+  introduction_roles: [Context (learning dynamics tool), Domain (finetuning pipeline), Gap (static lenses), Insight preview (decomposition + squeezing), Applications (phenomena explained + method), Contribution]
+  introduction_move: >-
+    Theory-paper intro that sells a lens, not a model: open on the explanatory track record of
+    learning dynamics, position the paper against three existing analysis perspectives, name the
+    decomposition, then tease the counter-intuitive observations it explains; the squeezing
+    effect is introduced in the intro with a one-sentence mechanism (§1)
+  related_work_strategy: >-
+    Minimal inline positioning (no dedicated section); contrast is by analytical perspective
+    (targets/endpoints/RL-view vs dynamics); related phenomena (stiffness, local elasticity,
+    lazy NTK) folded into §2 and App. A
+  method_strategy: >-
+    Warm-up-first pedagogy: §2 builds the decomposition on MNIST/multi-label classification
+    before §3 handles sequence dependence (causal-mask merge) and the DPO loss; each subsection
+    ends by naming the question the next answers ("We will show next that...", §3.2)
+  experiments_strategy: >-
+    Verification-shaped: predictions stated in §3, then §4 checks each curve family against them
+    on two model families and two datasets; the intervention experiment (§4.3) is framed as
+    "inspired by this analysis" — theory-then-practice ordering; appendices carry assumption
+    checks and full grids
+  conclusion_strategy: >-
+    Restate the lens, list explained phenomena (crediting prior empirical observations), note
+    portability of the squeezing analysis to other systems with big negative gradients, and end
+    on the counter-intuitive practical method (§5)
+reviewer_defense:
+  strengths: >-
+    One closed-form decomposition generates many falsifiable curve predictions that are verified
+    across model families and datasets; the squeezing effect has an analytical proof in the
+    simplest setting (App. E); the proposed method follows from the mechanism rather than being
+    an unrelated trick
+  vulnerabilities: >-
+    (1) The eNTK stability assumption is approximate; error term O(η^2) hides second-order
+      effects (Prop. 1); (2) win-rate evaluation relies on LLM judges (ChatGPT/Claude) on a small
+      probing pipeline (Table 1); (3) the extend method trades off pre-DPO quality ("before DPO,
+      π_base is better", §4.3 — conceded); (4) interaction of squeezing with the two eNTK terms
+      of Eq. 7 explicitly deferred ("We left a more detailed analysis to our future work", §3.3);
+    (5) Razin et al. 2025 concurrent token-level analysis acknowledged as aligned (§3.3)
+  anticipated_attacks: >-
+    "Isn't this just NTK theory?" — pre-answered: lazy eNTK is "a sufficient but not necessary
+    condition" and stability is verified empirically (§2, App. C); "where's the evidence mass
+    goes to the argmax?" — dedicated final panel of Fig. 4 plus analytic derivation (§4.2, App.
+    E); "does the fix generalize?" — appendix extends experiments with training-data extension
+    (App. F, Fig. 22)
+writing:
+  paragraph_patterns: >-
+    Question-as-punchline paragraphs — "If everything we observe is becoming less confident,
+    where has the probability mass gone?" (§3.3) — where the paragraph's observations set up a
+    question answered immediately after; bulleted guarantee/trend lists for the squeezing effect
+  transition_patterns: >-
+    Forward hooks: "We will discuss how to understand the 'similarity'... in the next section"
+    (§3.1), "We will show next that..." (§3.2); consistent x_u/x_o (update/observe) notation
+    carries the whole argument
+  terminology_patterns: >-
+    Coined terms kept visible: "squeezing effect", "extend", "pull-up/push-down pressure";
+    response-type taxonomies get compact subscripted names (y_gpts+, y_rnd−, y+_j≠u) used
+    identically across text and figures

@@ -1,0 +1,96 @@
+# thesis: This paper shows that LMs suffer a pronounced "Artificial Hivemind" effect — repeated
+# intra-model outputs and, more critically, inter-model convergence on near-identical responses to
+# open-ended queries — because alignment and training priors overlap across model families, and
+# therefore proposes INFINITY-CHAT (26K real-world open-ended queries, a 6×17 taxonomy, and 31K
+# dense human annotations) as the first large-scale resource for diagnosing open-ended mode
+# collapse and miscalibration to pluralistic preferences.
+paper:
+  venue: NeurIPS
+  year: 2025
+  field: LLM evaluation / pluralistic alignment (Datasets & Benchmarks)
+  task: measuring open-ended output diversity and preference calibration of LMs
+  problem: '"scalable methods for evaluating LM output diversity remain limited, especially beyond narrow tasks such as random number or name generation, or beyond repeated sampling from a single model" (abstract)'
+  importance: LM homogeneity "rais[es] concerns about the long-term homogenization of human thought, as users are repeatedly exposed to similar outputs" (§1); ensembles built on homogeneous models "may not yield true diversity" (§1)
+  source: full
+
+paradigm:
+  existing_approach: diversity evaluations on stylized/synthetic tasks (persona generation, keyword storytelling, random numbers, poetry) and alignment datasets with sparse labels and single-reference quality (§1, §4.1)
+  core_assumption: that diversity can be assessed with narrow task batteries and that preference data with few annotators captures a consensus notion of quality
+  limitation: '"these settings fail to capture the open-endedness and pluralism of real-world user interactions"; "Most existing LM alignment datasets prioritize response correctness over diversity, and rarely include multiple distinctive responses to the same prompt" (§1, §2)'
+
+gap:
+  unresolved_problem: two research questions — (RQ1) "What types of open-ended queries do users actually pose to language models?" and (implicit RQ2) do LMs collapse within and across families, and are models/reward models/judges calibrated to human preference distributions over alternative responses?
+  evidence_for_gap: dataset audit (narrow benchmarks, sparse annotations) plus the absence of any cross-model convergence study on real open-ended prompts ("the first systematic analysis of cross-model output convergence", §3)
+
+insight:
+  observation: 25 models × 50 samples on "Write a metaphor about time" collapse into two clusters — "time is a river" and "time is a weaver" — across model families and sizes (Fig. 1); even at top-p 0.9, t=1.0, 79% of intra-model query pools exceed 0.8 embedding similarity (§3, Fig. 4)
+  central_insight: homogeneity is not only a sampling/decoding problem but a cross-model phenomenon ("inter-model homogeneity... where different models independently converge on similar ideas with minor variations in phrasing"), so diversity cannot be restored by ensembling or decoding alone — it must be addressed at the training/alignment level (§3, Fig. 5–6)
+  hypothesis: if alignment pipelines assume a single consensus quality notion, then model-generated scores (perplexity, reward models, LM judges) should correlate with average human ratings markedly worse precisely on response subsets of similar quality or high annotator disagreement (§4.3)
+
+method:
+  conceptual_change: move diversity evaluation from synthetic psychometric tasks to in-the-wild open-ended queries, and move preference evaluation from point estimates to distributional annotations (25 annotators per item)
+  mechanism: (1) mine/filter WildChat single-turn GPT-4 queries via GPT-4o classification → 26,070 open-ended + 8,817 closed-ended queries; (2) build the first taxonomy of open-ended queries (6 top-level, 17 subcategories, Fig. 2); (3) sample responses from 70+ LMs (25 in main paper) at fixed decoding; measure intra/inter-model pairwise embedding similarity; (4) collect 31,250 human annotations (18,750 absolute + 12,500 pairwise; 25 annotators per item) and compare against LM perplexity, 6 reward models, 4 LM judges via Spearman/Pearson correlations on full vs similar-quality vs disagreed subsets (§2–4)
+  formulation: similarity via text-embedding-3-small pairwise averages; subset construction by Tukey's fences (k ∈ [0.5, 3.0]) for similar-quality and by Shannon entropy / P_disagree = 1 − (max(C_p1,C_p2)+0.5·C_tie)/C_total for disagreement; P_disagree formula (§4.3)
+
+claims:
+  - id: C1
+    claim: '"intra-model repetition, where a single model consistently generates similar responses" — 79% of cases exceed 0.8 average similarity even under aggressive sampling; min-p decoding still leaves 61.2% above 0.8 — descriptive'
+    importance: central
+    evidence: §3, Figs. 4–5
+  - id: C2
+    claim: '"inter-model homogeneity, where different models produce strikingly similar outputs" — cross-model pairwise similarity 71–82% (DeepSeek-V3 vs qwen-max 0.82; vs gpt-4o 0.81), including extended verbatim spans; GPT and Qwen API models converge even outside their families — descriptive'
+    importance: central
+    evidence: §3, Fig. 6; sources hypothesized (shared pipelines, synthetic-data contamination) but flagged as unclear (§3)
+  - id: C3
+    claim: INFINITY-CHAT is the first comprehensive taxonomy (6 top-level, 17 subcategories) and first large-scale resource of real-world open-ended queries, with the first dense (25-annotator) human preference data on alternative open-ended responses — descriptive (dataset contribution)
+    importance: central
+    evidence: §2, Figs. 1–2; §4.1 ("This is the first large-scale human-annotated dataset with dense human ratings on alternative responses")
+  - id: C4
+    claim: '"state-of-the-art LMs, reward models, and LM judges are less well calibrated to human ratings on model generations that elicit differing idiosyncratic annotator preferences, despite maintaining comparable overall quality" — correlations drop significantly on similar-quality and high-disagreement subsets for both absolute and pairwise setups — comparative'
+    importance: central
+    evidence: §4.3, Figs. 10–11; robustness via alternative subset methods (Tables 19–20)
+  - id: C5
+    claim: human preferences over open-ended alternatives are genuinely distributional — Shannon entropy of 25-annotator pairwise judgments is "skewed toward the higher end" with near-uniform support for many pairs — descriptive
+    importance: supporting
+    evidence: §4.1, Figs. 7, 9
+
+experiments:
+  - id: E1
+    research_question: RQ1 — what open-ended queries do users actually pose?
+    setup: GPT-4o-assisted filtering/classification of 37,426 WildChat queries; ambiguous-query revision; taxonomy induction with human agreement check (74.7% annotator agreement with automatic labels, App. A.1) (§2, App. B.1)
+    baseline: n/a (resource construction)
+    result: 26,070 open-ended queries across 6/17 categories; occurrence percentages per category (Fig. 2)
+    interpretation: establishes realistic coverage beyond stylized benchmarks
+    supported_claim: C3
+  - id: E2
+    research_question: RQ4-mechanistic — how homogeneous is LM generation within and across models?
+    setup: INFINITY-CHAT-100 (human-verified subset); 50 samples per query per model (25 main-paper models); average pairwise embedding similarity intra-model (Fig. 4) and inter-model heatmap (Fig. 6); min-p replication (Fig. 5); qualitative verbatim-overlap examples (§3, App. C)
+    baseline: diversity-oriented min-p decoding
+    result: intra-model 79% > 0.8 sim; min-p leaves 61.2% > 0.8; inter-model 71–82% similarity with family-crossing convergence patterns
+    interpretation: mode collapse survives decoding interventions; the Hivemind is cross-model
+    supported_claim: C1, C2
+  - id: E3
+    research_question: RQ1/RQ4 — do models match human preference distributions on alternative responses?
+    setup: 25-annotator absolute (18,750) and pairwise (12,500) labels on 50 prompts; model ratings from 56 LMs (perplexity), 6 reward models, 4 LM judges (two rubrics); Spearman/Pearson correlations on full vs filtered subsets (Tukey fences k=0.5–3.0; entropy/P_disagree top-60–95%) (§4.1–4.3, Figs. 10–11)
+    baseline: full-set correlation
+    result: correlations "drop significantly" on similar-quality and high-disagreement subsets across all three rater types; consistent under alternative subset-selection methods
+    interpretation: current scoring pipelines over-differentiate responses humans consider equal — a direct failure mode for RLHF-style training on open-ended tasks
+    supported_claim: C4, C5
+
+narrative:
+  introduction_roles: [Context (LMs fail open-ended creativity; homogenization stakes), Failure mode (narrow evaluations, ensemble caveat), Solution (INFINITY-CHAT: dataset + taxonomy), Findings preview (Hivemind effect; calibration failure), Resource positioning]
+  introduction_move: leads with the societal fear (homogenized human thought) before any dataset talk, then immediately blocks the obvious escape routes — ensembles and decoding tricks — so that the reader accepts a measurement resource as the necessary contribution; the Figure-1 river/weaver clustering is placed before the methods as an existence proof
+  related_work_strategy: three-essay structure (diversity collapse causes/mitigations; creativity measurement; pluralistic alignment and disagreement) each closing on what INFINITY-CHAT uniquely enables (§5)
+  method_strategy: dataset-paper conventions executed thoroughly — mining pipeline, taxonomy figure, annotation design with power analysis (25 annotators), then two study sections each with hypothesis stated before results
+  experiments_strategy: generative homogeneity first (establishing the phenomenon), then rating calibration (establishing the training-pipeline consequence); subset analyses sweep thresholds rather than reporting a single cut, with robustness tables in appendices
+  conclusion_strategy: short synthesis — resource + effect + foundation for mitigation — deferring mechanism questions and social implications to a detailed Limitations appendix that explicitly concedes English-only scope, embedding-similarity expressiveness limits, and "falls short of establishing the underlying mechanisms" (§6, App. A.1)
+
+reviewer_defense:
+  strengths: scale (26K queries, 70+ LMs, 31,250 dense annotations); the dense-annotation design (25 raters/item) makes distributional claims statistically meaningful; threshold sweeps and alternative subset methods guard against cherry-picking; the phenomenon is demonstrated qualitatively (verbatim overlaps) and quantitatively (similarity distributions)
+  vulnerabilities: English-only WildChat provenance (conceded); embedding similarity as the diversity metric "may lack sufficient expressiveness" (conceded); GPT-4o taxonomy labels at 74.7% human agreement (conceded); fixed decoding configuration without quality-diversity joint analysis (conceded); mechanism (why models converge) unestablished — hypothesized as shared data pipelines or synthetic contamination but "exact causes remain unclear" (§3)
+  anticipated_attacks: '"high similarity ≠ low diversity (metaphors are naturally canonical)" — mitigated by the breadth of the taxonomy and by showing near-identical outputs on fully open prompts (Fig. 6 examples); "25 annotators from one pool still share culture" — acknowledged implicitly via the individual-specific analysis framing; "correlation drops could be noise in small subsets" — addressed via multiple subset sizes (60–95%), varying k, and alternative selection methods (Tables 19–20)'
+
+writing:
+  paragraph_patterns: numbered-effect paragraphs ((1) intra-model... (2) inter-model...) reused verbatim across abstract, intro, and section 3 as the paper's spine; hypothesis-then-test paragraphs in §4 ("We hypothesize that models are less aligned with...")
+  transition_patterns: bridging sentence at §4's start ("Having established the generative homogeneity of LMs...") chains the two studies; figure captions carry interpretation ("The results show that correlations are notably lower in these two subsets")
+  terminology_patterns: coined terms capitalized and repeated (Artificial Hivemind, INFINITY-CHAT, intra-model repetition, inter-model homogeneity); careful naming of rater types (LMs vs reward models vs LM judges) kept distinct throughout; em-dash-heavy explanatory style

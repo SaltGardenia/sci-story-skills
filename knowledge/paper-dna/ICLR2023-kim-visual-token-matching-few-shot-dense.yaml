@@ -1,0 +1,82 @@
+# thesis: This paper shows that arbitrary dense prediction tasks can be learned few-shot by a
+# single model, because non-parametric patch-level matching over embedded image and label
+# tokens encapsulates any label structure while tiny task-specific bias parameters modulate the
+# similarity, and therefore proposes Visual Token Matching (VTM), a hierarchical ViT
+# encoder-decoder that matches 10-shot performance against fully supervised baselines.
+paper:
+  venue: ICLR
+  year: 2023
+  field: computer vision / few-shot learning
+  task: universal few-shot learning of arbitrary dense prediction tasks
+  problem: supervised dense prediction "require[s] a substantial amount of manually annotated pixel-wise labels, leading to a massive and often prohibitive per-task labeling cost", and existing few-shot methods "are specifically targeted to solve a restricted set of tasks" (§1 para 1–2); "no prior work in few-shot learning provided approaches to solve arbitrary dense prediction tasks in a universal manner" (§1 para 2)
+  importance: a universal learner would relieve the per-task annotation burden that transfer/multi-task learning only partially addresses (they assume known task relations and still need thousands of labels) (§1 para 1)
+  source: full
+paradigm:
+  existing_approach: task-specific few-shot methods (few-shot segmentation with class prototypes / binary masking, matching-based classification à la Matching Networks) (§1, §2.1, §4)
+  core_assumption: the prediction mechanism can encode task-specific priors (e.g., discrete categorical labels) into architecture and training
+  limitation: '"feature masking... implicitly relies on the discrete nature of labels" and fixed prediction mechanisms "cannot adapt to different semantics of tasks" — few-shot baselines "catastrophically underfit to novel tasks" (§5.2, Fig. 2)'
+gap:
+  unresolved_problem: a learner with (i) a task-agnostic unified architecture and (ii) a flexible, parameter-efficient adaptation mechanism, able to few-shot learn unseen tasks of arbitrary output structure (continuous or discrete) and novel semantics (§2.1 Desiderata)
+  evidence_for_gap: conceptual (no prior work attempts the universal problem, §2.1 opening; §4) + diagnostic (two named failure factors of adapted baselines, §5.2)
+insight:
+  observation: analogy-making in humans — "assign similar outputs to similar inputs, while flexibly changing the notion of similarity to the given context" (§1 para 3, Mitchell 2021) — is exactly what dense few-shot prediction needs
+  central_insight: if label patches are embedded by a shared encoder g (rather than interpolated raw as in Matching Networks), patch-level weighted matching becomes structure-agnostic — discrete or continuous labels collapse into one common embedding space (§3.1, Eq. 3)
+  hypothesis: keeping matching non-parametric while making only the similarity function adaptable (tiny bias parameters θ_T) should prevent over-fitting on few examples yet flexibly adapt to unseen task semantics
+method:
+  conceptual_change: stop parameterizing the task-to-label mapping and parameterize only the *similarity* — the task is "encapsulated" in how patches are matched, not in what is predicted
+  mechanism: Eq. 3 — query label patch g(y_j^q) = Σ_i Σ_k σ(f_T(x_j^q), f_T(x_i^k)) g(y_i^k); implemented as multi-head attention (Eq. 4–5) at four ViT hierarchies; BEiT-initialized shared ViT image encoder with per-task bias tuning (0.28% of parameters), from-scratch shared ViT label encoder, DPT-style conv decoder (§3.2)
+  formulation: channel-wise decomposition T → {T_c} of multi-channel labels to unify output spaces and augment tasks (§2); meta-training objective Eq. 6; test-time adaptation by bias fine-tuning on support-split episodes (Eq. 7)
+claims:
+  - id: C1
+    claim: VTM few-shot learns various unseen dense prediction tasks robustly, outperforming all adapted few-shot baselines by a large margin (comparative)
+    importance: central
+    evidence: Table 1 (10-shot, 10 tasks, 5-fold Taskonomy variant) + Fig. 2 qualitative
+  - id: C2
+    claim: with 10 labeled examples (<0.004% of full supervision) VTM is competitive with fully supervised baselines and sometimes outperforms them; with more shots (Fig. 3) it can surpass them on many tasks (comparative)
+    importance: central
+    evidence: Table 1 (e.g. SS mIoU 0.4097 vs InvPT 0.3900; SN mErr 11.4391 vs DPT 6.4414 best but few-shot VTM beats InvPT's 12.9249); Fig. 3 shots curve
+  - id: C3
+    claim: both non-parametric matching and task-specific adaptation are necessary — removing either degrades performance (mechanistic)
+    importance: central
+    evidence: 'Table 2 ablations (w/o Adaptation collapses on SS: 0.0002 mIoU; w/o Matching loses on high-level tasks but slightly wins on synthetic low-level ones like TE/K2)'
+  - id: C4
+    claim: adaptation works by flexibly changing the matching similarity to task-appropriate support patches (interpretability/mechanistic)
+    importance: supporting
+    evidence: Fig. 4 attention maps per task for the same query patch
+experiments:
+  - id: E1
+    research_question: RQ1 — does VTM improve the primary objective (few-shot dense prediction accuracy) on novel tasks?
+    setup: 5-fold Taskonomy split (2 test tasks/fold, disjoint semantics by design), 10-shot, per-task metrics (mIoU for SS, RMSE/mErr etc. elsewhere) (§5.1, Table 1)
+    baseline: few-shot — DGPNet, HSNet, VAT (adapted to general label spaces); supervised upper bounds — DPT (per-task), InvPT (multi-task)
+    result: large margins over few-shot baselines; parity or better vs supervised on several tasks
+    interpretation: task-agnostic matching + adaptation overcomes the discrete-label and fixed-mechanism failure factors diagnosed in §5.2
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ3 — which design components are load-bearing?
+    setup: component ablations Ours w/o Matching (parametric linear map) and w/o Adaptation (fully shared, no fine-tuning) (§5.2.1, Table 2)
+    baseline: full VTM
+    result: w/o Adaptation catastrophic on novel-semantic tasks; w/o Matching competitive only on algorithmically-generated low-level labels
+    interpretation: adaptation handles the train/test task discrepancy; matching carries high-level semantic transfer
+    supported_claim: C3
+  - id: E3
+    research_question: how does performance scale with support-set size, and is it robust to support choice?
+    setup: shots sweep (Fig. 3); 4 disjoint 10-shot support sets with mean±std (App. Table 3)
+    baseline: fully supervised DPT/InvPT as asymptotes
+    result: consistent improvement with more shots, "reaching or sometimes surpassing supervised baselines in many tasks" (§5.2)
+    interpretation: matching mechanism degrades gracefully and exploits even tiny supervision efficiently
+    supported_claim: C2
+narrative:
+  introduction_roles: [Context (dense prediction + labeling cost), Existing paradigms (transfer/multi-task, task-specific FSL), Gap (no universal FSL; two desiderata), Insight (analogy-making / matching with modulable similarity), Solution (VTM architecture), Contribution (4 numbered items incl. first problem formulation)]
+  introduction_move: defines the problem and its two desiderata *before* proposing anything — the desiderata function as acceptance criteria the method is then measured against; the cognitive-science analogy is used as a design compass, not decoration
+  related_work_strategy: exclusion-by-constraint — each few-shot line is ruled out by a specific incompatibility (prototype pooling fails on continuous labels, masked correlation assumes masking) rather than by results (§4)
+  method_strategy: general-form-first — Eq. 3 is presented as a generalization of Matching Networks with three named deltas (label embedding, adaptable similarity, decoder), then the architecture is derived as its realization (§3.1→3.2)
+  experiments_strategy: upper-bound framing — supervised baselines are explicitly "upper bounds of few-shot performance", so the surprise (matching them at 10 shots) is the headline; ablations map one-to-one onto the two desiderata
+  conclusion_strategy: restate problem→mechanism→result chain with the supervision-percentage quantities (<0.004%, <0.1%) as the memorable metrics
+reviewer_defense:
+  strengths: new problem formulation with principled desiderata; supervised baselines included as honest upper bounds; ablations directly test the desiderata; attention visualization supports the claimed mechanism
+  vulnerabilities: Taskonomy labels are synthetic/procedural for many tasks (TE, K2, OE), so "novel semantics" is bounded; few-shot baselines needed nontrivial adaptation (App. B) and use weaker ResNet-101 backbones while VTM uses BEiT-B — backbone confound admitted implicitly (§5.1 Implementation); multi-channel labels decomposed channel-wise (impact "negligible", claimed §2 but not deeply ablated)
+  anticipated_attacks: '"label decoder can leak the task" — pre-empted: no explicit token reconstruction loss so knowledge can flow to h, acknowledged as a deliberate choice after negative initial experiments (§3.3); "just bias tuning?" — Table 7 compares with supervised-baseline fine-tuning; support-set variance quantified (App. Table 3)'
+writing:
+  paragraph_patterns: desiderata paragraphs each ending in the tension they create ("general and unified while being able to flexibly adapt... without over-fitting few examples", §1)
+  transition_patterns: numbered contribution list mirrors section structure; results section leads with the phenomenon (large gap) and then explains it via two enumerated factors (§5.2)
+  terminology_patterns: consistent pairing "task-agnostic architecture" / "adaptation mechanism" reused verbatim from desiderata through ablation naming (Ours w/o Adaptation, w/o Matching)

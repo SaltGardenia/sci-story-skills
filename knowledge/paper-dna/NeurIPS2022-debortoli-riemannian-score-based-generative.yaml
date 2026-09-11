@@ -1,0 +1,87 @@
+# thesis: This paper shows that score-based generative models extend to Riemannian manifolds by
+# defining the forward noising process directly on the manifold (Langevin/Brownian dynamics toward
+# geodesic-Gaussian or uniform reference measures) and reversing it with manifold Stein scores
+# estimated via denoising score matching with geodesic random walk sampling, because the Euclidean
+# OU construction has no flat-space assumption to preserve, and therefore proposes RSGMs — with
+# convergence guarantees on compact manifolds — that marginally beat Riemannian CNFs, Moser Flow,
+# and stereographic SGMs on spherical earth/climate data and scale to high-dimensional tori, SO(3),
+# and hyperbolic space.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: generative models on manifolds / diffusion models
+  task: density estimation and sampling for distributions supported on Riemannian manifolds
+  problem: '"Existing SGMs assume that data is supported on a Euclidean space, i.e. a manifold with flat geometry. In many domains such as robotics, geoscience or protein modelling, data is often naturally described by distributions living on Riemannian manifolds and current SGM techniques are not appropriate" (Abstract)'
+  importance: manifold-supported data spans protein modelling, cell development, geoscience, robotics, high-energy physics (§1); RSGMs bring SGMs' remarkable empirical performance to these domains (Abstract)
+  source: full
+paradigm:
+  existing_approach: Euclidean SGMs (OU noising to N(0, I_d), time-reversal with score matching); manifold alternatives — Riemannian CNFs (Mathieu & Nickel 2020), Moser Flow (Rozen et al. 2021), wrapped/mixture density approaches (§1, §2, §6)
+  core_assumption: generative modeling requires a flat ambient space with Gaussian reference measure
+  limitation: current SGM techniques "are not appropriate" for manifold data; manifold flows scale poorly (Moser Flow slow to train; both Moser and stereographic SGM expensive to evaluate — §6.1)
+gap:
+  unresolved_problem: build the full SGM machinery on a manifold — (i) a noising process converging to an easy-to-sample reference, (ii) a manifold time-reversal formula, (iii) approximate SDE sampling on M, (iv) tractable score approximation when transition kernels are only infinite Sturm–Liouville sums (§3)
+  evidence_for_gap: enumerated missing components in §3; the transition-kernel intractability on compact manifolds is the named technical obstacle (§1)
+insight:
+  observation: 'the time-reversal SDE''s drift depends only on Stein scores, and the denoising score matching identity generalizes: ∇log p_t = arg min of the DSM loss over L²(P_t), with an implicit loss form `im_t = ∫{½‖s‖² + div(s)}dP_t (Prop. 3.3) that avoids needing the intractable kernel''s score'
+  central_insight: define the forward process as Langevin dynamics on M targeting a convenient invariant density (Riemannian normal, exponential-wrapped Gaussian, or uniform on compact manifolds where the process is simply Brownian motion) — the Euclidean OU process is recovered exactly when M = R^d — and reverse it using geodesic random walks plus score losses (Table 2) that require only transition-kernel evaluations or adjoint-divergence terms (§3.1–3.4)
+  hypothesis: RSGMs will match or beat existing manifold generative models on spherical scientific data while scaling better with manifold dimension, and admit convergence bounds on compact manifolds (§1, §4)
+method:
+  conceptual_change: replace "add Gaussian noise" with "run a geometrically natural diffusion toward a manifold reference measure" — geometry is respected end-to-end rather than projected away
+  mechanism: forward dX_t = −½∇U(X_t)dt + dB^M_t with U chosen per manifold (Riemannian normal via exp^{-1} drift, wrapped Gaussian, uniform); reverse dY_t = {−b(T−t,Y_t) + s_θ(T−t,Y_t)}dt + dB via time-reversal (Eq. 4); sampling by Geodesic Random Walk (Algorithm 1); training by DSM losses in Table 2 (denoising, implicit/denominator-function, and sliced score matching variants for different kernel availability), Algorithm 2 pipeline (§3, §4)
+  formulation: 'time-reversed drift b*(t,x) = −b(T−t,x) + s_θ(T−t,x); compact-manifold convergence bound: on compact M, "the total variation distance between p_∞ and p_ref is bounded" with explicit constants from the spectral gap (§4, Theorems on compact manifolds)'
+claims:
+  - id: C1
+    claim: RSGMs extend SGMs to Riemannian manifolds with all four required components (noising, time-reversal, sampling, score estimation) functioning on general complete boundaryless manifolds (theoretical/methodological)
+    importance: central
+    evidence: §3 (components i–iv), Algorithm 2
+  - id: C2
+    claim: on compact manifolds, convergence guarantees hold — bounds on the distance between the terminal distribution and the reference measure via Sturm–Liouville/spectral analysis (theoretical)
+    importance: central
+    evidence: §4
+  - id: C3
+    claim: on earth & climate science spherical datasets (volcanoes, earthquakes, floods, wildfires), RSGMs perform marginally better than Riemannian CNF, Moser Flow, Kent mixtures, and stereographic SGM while being cheaper to train/evaluate than Moser Flow (comparative)
+    importance: central
+    evidence: §6.1, Table 4
+  - id: C4
+    claim: RSGMs scale better with manifold dimension — on wrapped-Gaussian targets on the d-torus, Moser Flow's loss "scales poorly with the dimension" while RSGMs maintain performance (comparative)
+    importance: central
+    evidence: §6.2 (torus T^d experiments)
+  - id: C5
+    claim: RSGMs handle regularity and time-complexity demands on SO(3) (protein-like rotamers) and hyperbolic space, demonstrating breadth across manifold types (empirical)
+    importance: supporting
+    evidence: §6.3, §6.4
+experiments:
+  - id: E1
+    research_question: RQ1/RQ4 — does RSGM beat manifold baselines on real scientific spherical data?
+    setup: 4 earth/climate event datasets on S²; extend SGM likelihood computation to manifolds (App. D); compare log-likelihood vs Riemannian CNF, Moser Flow, Kent mixture, stereographic SGM (§6.1, Table 4)
+    baseline: Mathieu & Nickel (2020), Rozen et al. (2021), Kent mixtures, stereographic projection SGM
+    result: '"all benchmarked methods have comparable performance ... with RSGM performing marginally better on most datasets"; Moser slow to train, Moser + stereographic expensive to evaluate'
+    interpretation: RSGM wins on the practical axes (training/evaluation cost) and slightly on likelihood
+    supported_claim: C3
+  - id: E2
+    research_question: RQ4 — how do methods scale with manifold dimension?
+    setup: wrapped Gaussian targets on T^d with varying d; compare test losses (§6.2)
+    result: Moser Flow loss degrades with dimension; RSGM scales
+    interpretation: score-based diffusion is the right substrate for high-dimensional manifolds
+    supported_claim: C4
+  - id: E3
+    research_question: RQ6-flavored — does RSGM behave regularly and efficiently on structured groups and non-compact spaces?
+    setup: synthetic targets on SO(3) (§6.3) and hyperbolic space (§6.4); evaluate regularity and time complexity
+    result: RSGMs model both targets (per §6.3–6.4)
+    interpretation: generality beyond spheres/tori
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (SGM success on Euclidean data), Failure mode (flat-geometry assumption), Domain motivation list (proteins, geoscience, robotics...), Solution preview (RSGM with four components), Theory promise (convergence bounds), Empirical promise (earth/climate data, better scaling)]
+  introduction_move: mirror the SGM recipe component-by-component and show where flatness is secretly used — the four-component decomposition (§3) makes the extension look inevitable rather than heroic; compact-manifold kernel intractability is announced early as the technical crux to establish difficulty
+  related_work_strategy: §5 separates manifold generative models (CNFs, Moser Flow) from Euclidean SGM improvements; positioned as the first full SGM-on-manifolds treatment
+  method_strategy: decomposition-first — each of the four required components gets its own subsection with the manifold-general construction and the Euclidean recovery check ("One recovers the standard Ornstein–Uhlenbeck noising process ... when M = R^d"); multiple score losses (Table 2) offered as a menu matched to kernel availability
+  experiments_strategy: real-data credibility first (earth/climate), then dimension-scaling stress test, then structural breadth (SO(3), hyperbolic); honest hedging where margins are small ("marginally better on most datasets")
+  conclusion_strategy: 'benefits enumerated (scalability, applicability, robustness, capacity), then two forward paths: manifolds with boundary/alternative noising, and stochastic control/Schrödinger bridges on manifolds'
+reviewer_defense:
+  strengths: complete end-to-end construction with theory (compact-manifold convergence); Euclidean-limit sanity check; breadth of manifolds and losses; open code (riemannian-score-sde)
+  vulnerabilities: real-data gains are "marginal" on simple tasks (authors' words); score losses require kernel evaluations or adjoint computations that may be costly on general manifolds; geodesic random walk discretization error; compact-manifold theory does not cover hyperbolic-space experiments; future work concedes boundary-less assumption and simple Langevin noising
+  anticipated_attacks: '"Moser Flow is also a manifold model" — head-to-head with cost/quality trade-offs reported (§6.1–6.2); "kernels are intractable on compact manifolds" — the central technical contribution is precisely the loss menu (implicit/adjoint losses, Prop. 3.3, Table 2) that sidesteps exact kernels; "why not stereographic projection?" — included as a baseline and shown computationally expensive (§6.1)'
+writing:
+  paragraph_patterns: 'numbered-component architecture ("Four components are required: i) ... iv) ..."); each construction followed by its Euclidean-specialization check; experiment subsections led by task motivation then method list'
+  transition_patterns: '"We now move to the Riemannian manifold setting"; "We start by evaluating ... Then, we test ... Eventually, we evaluate" — explicit experiment-sequence roadmap in §6''s opening'
+  terminology_patterns: precise geometric vocabulary maintained (geodesic distance, Sturm–Liouville decomposition, volume form, Riemannian normal); RSGM/SGM naming pair; Algorithm 1/2 split between sampling primitive and full model

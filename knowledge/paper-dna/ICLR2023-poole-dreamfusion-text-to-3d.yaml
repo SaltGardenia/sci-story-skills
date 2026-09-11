@@ -1,0 +1,76 @@
+# thesis: This paper shows that a frozen 2D text-to-image diffusion model can serve as a prior
+# for 3D synthesis, because probability density distillation yields a loss whose gradient (with
+# the U-Net Jacobian dropped) points toward higher density under the diffusion model, and
+# therefore proposes DreamFusion — Score Distillation Sampling applied to a randomly
+# initialized, shaded NeRF optimized purely by gradient descent with no 3D data.
+paper:
+  venue: ICLR
+  year: 2023
+  field: generative models / text-to-3D synthesis
+  task: zero-shot text-to-3D object and scene generation
+  problem: '"Adapting [text-to-image diffusion] to 3D synthesis would require large-scale datasets of labeled 3D data and efficient architectures for denoising 3D data, neither of which currently exist" (Abstract)'
+  importance: '"simulators and digital media like video games and movies demand thousands of detailed 3D assets"; hand-modeling in Blender/Maya "requir[es] a great deal of time and expertise", so text-to-3D could "lower the barrier to entry" (§1 para 2)'
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: 3D generative models trained on voxels/point clouds (scarce 3D data); GANs on renderings for single categories; Dream Fields — CLIP-guided NeRF optimization, "tend to lack realism and accuracy" (§1)
+  core_assumption: sampling from a generative model must happen in the same space the model was trained on ("diffusion models trained on pixels have traditionally been used to sample only pixels", §2.1)
+  limitation: no 3D data at scale; CLIP-based optimization gives weak realism because a retrieval embedding is a coarse prior
+gap:
+  unresolved_problem: how to sample from a 2D diffusion model in an arbitrary differentiable image parameterization (a NeRF) rather than in pixel space?
+  evidence_for_gap: empirical — minimizing the diffusion training loss directly in a DIP "did not produce realistic samples even when using an identity DIP" (§2.1); the gradient contains an ill-conditioned U-Net Jacobian term (Eq. 2)
+insight:
+  observation: the diffusion training loss gradient has three factors — noise residual, U-Net Jacobian, generator Jacobian — and the U-Net Jacobian is expensive and poorly conditioned; dropping it still leaves a useful score-following direction (§2.1, Eq. 2→3)
+  central_insight: perturb the rendered image with noise at a random timestep and follow the (guided) score to higher density — this is the gradient of a weighted probability density distillation KL (Appendix A.4, Eq. 4), i.e. "sampling via optimization" in parameter space (§2.1)
+  hypothesis: with strong classifier-free guidance (mode-seeking is desirable here), a NeRF optimized by SDS from random cameras should converge to coherent, view-consistent 3D
+method:
+  conceptual_change: stop treating the diffusion model as a sampler in its own output space and treat it as a frozen critic that "predicts image-space edits" on renderings of an optimizable object
+  mechanism: per iteration — random camera/light → render shaded NeRF → SDS gradient ∇θ L_SDS = E w(t)(ε̂_φ(z_t;y,t) − ε)∂x/∂θ (no backprop through the U-Net) → update NeRF; view-dependent prompt conditioning (front/side/back/overhead) (§3.2 step 3)
+  formulation: SDS as gradient of weighted KL(q(z_t|g(θ);y,t) || p̂_φ(z_t;y,t)) (Eq. 4); NeRF variant on mip-NeRF 360 with albedo + Lambertian shading, normals from density gradients, textureless-render randomization against flat-geometry degeneracy, background MLP + bounding sphere, opacity/orientation regularizers (§3.1)
+claims:
+  - id: C1
+    claim: DreamFusion generates high-fidelity, coherent 3D objects/scenes from text with no 3D training data and no modification to the diffusion model (demonstrative/generalization)
+    importance: central
+    evidence: Fig. 1 gallery, Fig. 4 (iterative refinement), project page; §5 Discussion
+  - id: C2
+    claim: DreamFusion outperforms CLIP-guided baselines (Dream Fields, CLIP-Mesh) on CLIP R-Precision despite those baselines training with CLIP (comparative, with acknowledged unfairness)
+    importance: central
+    evidence: Table 1 — color R-Precision 77.5 (B/16) vs 74.2/75.8; geometry (textureless) 46.6 vs ~1.3 for reimplementation, on 153 COCO prompts
+  - id: C3
+    claim: accurate 3D geometry requires the combination of view augmentation, view-dependent prompts, illumination, and textureless renders (mechanistic/ablation)
+    importance: supporting
+    evidence: Fig. 6 + Fig. 7 ablation ladder — each addition improves geometric R-Precision, full renderings improve by +12.5% (§4 Ablations)
+  - id: C4
+    claim: SDS is a general sampling-via-optimization mechanism for DIPs, e.g. producing constrained images (Fig. 2 symmetric frog) (generalization)
+    importance: supporting
+    evidence: Fig. 2 comparison with ancestral sampling; §2.1 "enables new transfer learning applications because it operates in parameter space"
+experiments:
+  - id: E1
+    research_question: RQ1 — does DreamFusion improve the primary objective (prompt-3D consistency)?
+    setup: 153 object-centric COCO prompts, CLIP R-Precision on color and textureless (Geo) renders, 1 seed/prompt (§4, Table 1)
+    baseline: Dream Fields, CLIP-Mesh, reimplementation of Dream Fields with own NeRF; GT MS-COCO images as oracle
+    result: beats baselines on color renders (approaching GT oracle) and dramatically on geometry (42.5–58.5 vs ~1.3)
+    interpretation: a distributional diffusion prior is far more informative for 3D than a CLIP retrieval embedding
+    supported_claim: C2
+  - id: E2
+    research_question: RQ3 — which components drive geometric quality? (ablation)
+    setup: progressive ablation Base → +ViewAug → +ViewDep → +Lighting → +Textureless, measured on albedo/shaded/textureless R-Precision (Fig. 6–7, §4)
+    baseline: simplified base model
+    result: each addition improves geometry; base model scores highest on albedo yet has multi-headed, flat geometry
+    interpretation: '"albedo renders can be deceiving" — appearance metrics mask geometric degeneracy; the anti-degeneracy machinery is load-bearing'
+    supported_claim: C3
+narrative:
+  introduction_roles: [Context (text-to-image success), Importance (3D asset demand), Existing paradigms (3D-data GANs, Dream Fields), Gap (no 3D data; pixel-space sampling assumption), Insight preview (distillation loss → SDS), Solution (DreamFusion pipeline)]
+  introduction_move: moves from "diffusion works for images" to "everything else needs modality-specific data" in one paragraph, then sells 3D by economic need (asset pipeline pain) before any technical claim — importance precedes gap
+  related_work_strategy: inline in intro — each 3D-generative lineage dismissed with a one-clause limitation (scarce data / category-specific / low realism), converging on Dream Fields as the nearest neighbor to be improved by swapping the prior
+  method_strategy: question-as-heading — "How can we sample in parameter space, not pixel space?" (§2.1) frames the method as the answer to a single sharply-posed question; negative result (diffusion-loss minimization fails) is shown before the fix
+  experiments_strategy: one table for competitive claims + one ablation ladder for mechanism + qualitative galleries; openly flags the CLIP-evaluation unfairness rather than hiding it
+  conclusion_strategy: limitations-first "Discussion" (no conclusion section) — concedes oversaturation/oversmoothing, seed homogeneity (mode-seeking reverse KL), 64×64 detail ceiling, ill-posedness of 2D→3D lifting
+reviewer_defense:
+  strengths: no retraining of any 2D model; evaluation borrows the incumbent's own protocol; ablation isolates each anti-degeneracy trick
+  vulnerabilities: 1 seed per prompt (Table 1 note); metric (CLIP R-Precision) partially overfit for baselines that train on CLIP and arguably correlated with the diffusion prior's own text conditioning; qualitative results not user-studied; heavy engineering stack (Shampoo, TPUv4, 1.5 h/asset)
+  anticipated_attacks: '"just minimize the diffusion loss?" — pre-empted with the negative result and Jacobian analysis (§2.1); "mode-seeking means no diversity" — conceded explicitly with the reverse-KL diagnosis (§5); "painted-on-flat-geometry" — pre-empted by textureless rendering and orientation loss (§3.1), residual cases acknowledged (§5)'
+writing:
+  paragraph_patterns: numbered procedural lists (§3.2 steps 1–4) inside a research paper — algorithm written as a recipe with rationale clauses ("We found using a wide range of camera locations to be critical...")
+  transition_patterns: §3 opens by explicitly recasting §2 ("Now that we have demonstrated how a diffusion model can be used as a loss... we will construct our specific algorithm")
+  terminology_patterns: names the loss once and owns it — "Score Distillation Sampling (SDS)" with a justification of each word ("uses score functions instead of densities... a sampler because..."); guided quantities consistently hatted (ε̂, p̂)

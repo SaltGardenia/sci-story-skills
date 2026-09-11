@@ -1,0 +1,224 @@
+# thesis: This paper shows that distance correlation (and its partial variant) can be deployed
+# directly in deep networks because, unlike CCA, it needs no dimension matching or specialized
+# deep algorithms — only feature distances — and therefore proposes it as a versatile loss/
+# regularizer for network independence, cross-network conditioning, and disentanglement.
+paper:
+  venue: ECCV
+  year: 2022
+  field: representation analysis / statistical tools for deep learning
+  task: comparing, conditioning, and regularizing neural network feature spaces
+  problem: >-
+    "systematic comparison of function, especially across different networks, remains difficult
+    and is often carried out layer by layer" (Abstract); conditioning one model on another —
+    asking "what has ΘX learned that ΘY has not?" — is unresolved when feature spaces differ in
+    dimension and lack a common coordinate system (§1)
+  importance: >-
+    Comparison of functional behavior is "an essential step in understanding what they are
+    learning (and what they are not), and for identifying strategies for regularization or
+    efficiency improvements" (Abstract); conditioning enables new analyses (e.g., what ViT learns
+    beyond ResNets) and new training objectives (diverse models, disentanglement)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Layer-by-layer representation-similarity tools (CKA, SVCCA/PW-CCA, DeepCCA, stochastic CCA)
+    for comparing networks; MI-based/adversarial objectives for invariance and disentanglement;
+    kernel repulsion terms for ensemble diversity (§1.1)
+  core_assumption: >-
+    That deep deployment of correlation measures requires specialized algorithms — "deep variants
+    of CCA involve specialized algorithms... deep versions of partial CCA have not been reported";
+    and (in disentanglement practice) that penalizing residual norm ‖r‖² is a stand-in for
+    independence (§1, §6)
+  limitation: >-
+    CCA efficiency bottlenecks limit deployment; CKA-type tools give similarity but not
+    conditioning; divergence measures require "the probability measures are defined on the same
+    domain" (§1)
+gap:
+  unresolved_problem: >-
+    A measure that (a) works across feature spaces of different dimensions, (b) captures
+    nonlinear dependence, (c) supports conditioning (partial correlation), and (d) drops into
+    training as a differentiable loss with minor adjustments (§1 "More general use cases", §3)
+  evidence_for_gap: >-
+    Logical inventory: each existing tool fails at least one requirement — CCA needs dimension
+    matching and deep variants are specialized; MI measures need a common probability space;
+    CKA measures similarity only (§1); the absence of any "deep versions of partial CCA" (§1)
+insight:
+  observation: >-
+    Distance correlation R(X,Y) = 0 iff X ⊥ Y, is defined for arbitrary dimensions, captures
+    nonlinear dependence (Fig. 1 examples), and — crucially — "as long as feature distances can be
+    calculated, the differences between the shallow and the deep versions of distance correlation
+    are minimal at best" (§1 "This work")
+  central_insight: >-
+    The U-centered-matrix Hilbert-space construction of Székely & Rizzo makes partial distance
+    correlation a projection: pdCov(x,y;z) = ⟨P_{z⊥}(x), P_{z⊥}(y)⟩ — so "what does X learn that Z
+    does not" becomes a directly computable, differentiable quantity (§2, Def. 2, Eq. 4)
+  hypothesis: >-
+    If DC/PDC are cheap and differentiable in deep pipelines (minibatch stochastic estimates),
+    they should serve as effective losses across a broad suite: independent features for
+    transfer-attack robustness (§4), cross-network information accounting (§5), and
+    disentanglement (§6)
+method:
+  conceptual_change: >-
+    Replace similarity-by-projection (CCA/CKA) with dependence-by-distances: correlation is
+    computed on double-centered distance matrices, making it dimension-agnostic and
+    nonlinearity-sensitive by construction (§2)
+  mechanism: >-
+    (1) Empirical DC on minibatches: distance matrices A, B of size m×m per batch (Eq. 1–2);
+    (2) constrained block stochastic gradient iteration adapted from [70] for the two-network
+    objective (Alg. 1, Eq. 6–7), with convergence guarantee (Prop. 1, via Theorem 6 of [70]) —
+    though "empirically... simply applying SGD is sufficient" (§3);
+    (3) use patterns: minimize DC between two networks' features (Eq. 9, α=0.05); maximize PDC
+    between a network's features conditioned on another network and BERT-embedded class labels
+    (Eq. 10); replace ‖r‖² residual penalty with dCor([f¹..f^k], r) in semi-supervised
+    disentanglement (Eq. 11)
+  formulation: >-
+    DC: R²_n(x,y) = V²_n(x,y)/√(V²_n(x,x)V²_n(y,y)) with doubly-centered distance matrices
+    (Def. 1); PDC: R*²(x,y;z) = ⟨P_{z⊥}(x), P_{z⊥}(y)⟩/(‖P_{z⊥}(x)‖‖P_{z⊥}(y)‖) with U-centered
+    matrices and projection onto the complement of Ẽ (Def. 2, Eq. 4); complexity O(n²p) full /
+    O(m²p) per minibatch (§3)
+claims:
+  - id: C1
+    claim: >-
+      Training f2 with a DC penalty against f1's features ("independent features") substantially
+      reduces transferability of adversarial examples between same-architecture networks — "more
+      than 10% absolute improvement in accuracy under PGD attack on Resnet-18 and
+      Mobilenet-v3-small" — with comparable clean accuracy (causal/comparative)
+    importance: central
+    evidence: comparative — Table 1 (CIFAR10 + 4 ImageNet architectures × FGM/PGD at ϵ ∈
+      {0.03,0.05,0.1}); Fig. 2 (Picasso independence visualization)
+  - id: C2
+    claim: >-
+      Distance correlation is "a reasonable alternative for CKA" for within- and cross-model
+      layer-similarity analysis, reproducing and extending the ViT-vs-ResNet findings (initial
+      1/6 layers similar; last layers least similar) (descriptive/comparative)
+    importance: supporting
+    evidence: descriptive — Fig. 3a-b heatmaps (ViT-Base/16 + Resnets on ImageNet), §5.1
+  - id: C3
+    claim: >-
+      Partial DC quantifies residual information: which network "contains more information for the
+      ground truth classes" and what remains after conditioning one on the other — "This
+      capability has not been shown before" (descriptive/novel capability)
+    importance: central
+    evidence: empirical — Table 2 (R²(X,GT), R²((X|Y),GT) across ViT/ResNet/VGG/DenseNet pairs
+      with BERT label embeddings); reveals Resnet-50 > Resnet-152 in linguistic information
+  - id: C4
+    claim: >-
+      Maximizing PDC in the loss makes ViT (conditioned on ResNet) attend to subject regions
+      outside ResNet's focus in Grad-CAM — "Such experiments help understand how ViT learns beyond
+      Resnets" (descriptive/interpretive)
+    importance: supporting
+    evidence: qualitative — Fig. 4 (Grad-CAM before/after conditioning), §5.2 Results (b)
+  - id: C5
+    claim: >-
+      Replacing the ‖r‖² penalty with DC in semi-supervised disentanglement improves attribute
+      control without affecting residual features (causal, modest evidence)
+    importance: supporting
+    evidence: qualitative — Fig. 5 (FFHQ generations, CLIP-labeled attributes); §6 rationale that
+      ‖r‖² is "sub-optimal" (nonzero r can still be independent)
+experiments:
+  - id: E1
+    research_question: >-
+      Does enforcing feature independence between two networks resist transfer attacks? (§4)
+    setup: >-
+      Train f1 with CE; train f2 with CE + α·Loss_DC(g1(x),g2(x)) (Eq. 9, α=0.05); generate
+      FGM/PGD (40 iters) attacks on f1, evaluate f2 accuracy on them; CIFAR10/ResNet18 (200
+      epochs) + ImageNet (40 epochs) on Mobilenet-v3-small, Efficientnet-B0, ResNet34, ResNet152
+      (Table 1)
+    baseline: two networks trained independently with CE only ("Baseline")
+    result: >-
+      large robustness gains under transfer (e.g., CIFAR10 PGD ϵ=0.1: 27.41 → 36.11;
+      Mobilenet PGD ϵ=0.05: 24.81 → 33.77), clean accuracy within ~1-5 points
+    interpretation: independence of feature spaces decorrelates the adversarial vulnerabilities
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      Can DC replace CKA for architecture-comparison analyses? (§5.1)
+    setup: DC heatmaps over all layer pairs within ViT-Base/16 and three ResNets, then across
+      ViT×ResNets (63-layer ViT blocks; Fig. 3)
+    baseline: CKA results of Raghu et al. [57]
+    result: consistent with CKA (ViT small blocks with higher shallow-to-deep similarity; ResNet
+      few large blocks; initial 1/6 layers most similar across models)
+    interpretation: adds a dependence measure without neuron-count constraints to the analysis toolkit
+    supported_claim: C2
+  - id: E3
+    research_question: >-
+      Can we measure what one network knows beyond another? (§5.2)
+    setup: DC of features vs BERT-embedded ImageNet class names; PDC of features conditioned on
+      the other network's features (Table 2); then fine-tune ΘX maximizing PDC((g1|g2), gt)
+      (Eq. 10, lr 1e-5, α=1) and visualize with Grad-CAM (Fig. 4)
+    baseline: test accuracy as the proxy for information content
+    result: ViT variants highest information (consistent with accuracy); Resnet-50 > Resnet-152
+      anomaly; conditioned ViT shifts attention to regions outside ResNet's focus
+    interpretation: conditioning produces a quantitative + visual account of residual knowledge
+    supported_claim: C3, C4
+  - id: E4
+    research_question: >-
+      Does DC improve disentanglement? (§6)
+    setup: >-
+      Semi-supervised disentanglement setup of [21] on FFHQ with CLIP-labeled attributes;
+      StyleGAN2 generator; replace L_res=‖r‖² with dCor([f¹..f^k], r) (Eq. 11)
+    baseline: >-
+      [21]'s ‖r‖² penalty
+    result: attribute edits (age, gender) without affecting residual features like posture (Fig. 5)
+    interpretation: independence is the right target, and DC measures it directly
+    supported_claim: C5
+narrative:
+  introduction_roles: [Hook (hypothetical comparison scenario), Formalization (conditioning question), Generalization (basket of tasks a/b/c), Candidate tool audit (CCA), Solution (distance correlation), Contribution scope]
+  introduction_move: >-
+    Tool-revival intro: a thought experiment ("a fully functional computational model of the
+    visual system... was somehow provided to us") establishes the comparison problem, the paper
+    generalizes it to three familiar tasks (fairness, disentanglement, ViT-vs-CNN), audits CCA as
+    the obvious candidate and finds it wanting, then introduces the "less widely known" statistical
+    concept as the drop-in fix whose deep deployment requires "quite minor" adjustments (§1)
+  related_work_strategy: >-
+    Four labeled tracks (similarity between networks / information-theoretic divergences /
+    repulsion-diversity / distance correlation), each a compact citation cluster ending at the
+    gap the paper fills; DC lineage kept for §2 (§1.1)
+  method_strategy: >-
+    Review-then-operationalize: §2 is a self-contained statistics review ending in conditioning;
+    §3 handles only what deep deployment actually changes (minibatch estimation, block
+    stochastic gradients, convergence caveat) — an unusually honest "the deep version is barely
+    different" section
+  experiments_strategy: >-
+    Application-survey structure: one section per use case, each with its own Goal/Rationale/
+    Setup/Results skeleton; difficulty ordered by evidential strength (quantitative robustness
+    table first, then analysis, then qualitative disentanglement last)
+  conclusion_strategy: >-
+    Short property-summary conclusion ("offers various properties that are often enforced using
+    alternative means, that are often far more involved") plus a prediction of "numerous other
+    applications" (§7); notable post-hoc citation ethics note crediting concurrent DC-for-
+    disentanglement work in §6
+reviewer_defense:
+  strengths: >-
+    One primitive powers four heterogeneous applications, demonstrating versatility; the
+    statistical properties (0 iff independence, arbitrary dimensions) are inherited from
+    established theory rather than newly claimed; efficiency analysis is explicit (O(m²p) per
+    minibatch, Alg. 1) with convergence guarantee (Prop. 1)
+  vulnerabilities: >-
+    (1) Robustness gains are transfer-attack-only — no white-box or adaptive-attack evaluation,
+    and clean accuracy drops slightly (Table 1); (2) DC/PDC computation is O(n²) in batch size,
+    a scaling ceiling the paper handles by minibatching but doesn't stress-test; (3) disentangle-
+    ment evidence is purely qualitative (Fig. 5, no DCI/MIG metrics); (4) Table 2's
+    "information" interpretation relies on BERT label embeddings as ground-truth proxy — a
+    constructed target, and the Resnet-50 vs Resnet-152 inversion is explained post hoc;
+    (5) SGD suffices empirically, so the constrained-iteration theory (Prop. 1) is not load-bearing
+    in practice
+  anticipated_attacks: >-
+    "CCA/CKA already do this" — answered head-on in §1 (dimension matching, specialization,
+    no partial/deep variant) and empirically in §5.1 (DC matches CKA findings while adding
+    conditioning); "isn't DC for disentanglement known?" — a candid note credits the concurrent
+    [43] and apologizes for the overlap (§6), converting a potential novelty attack into a
+    transparency point
+writing:
+  paragraph_patterns: >-
+    Goal/Rationale/Setup/Results mini-skeleton repeated across application sections (§4–6) —
+    a lab-notebook architecture; benefit lists as numbered items (§2 "Benefits of Distance
+    Correlation": 1. zero-iff-independence, 2. arbitrary dimensions)
+  transition_patterns: >-
+    Question-form transitions ("What Remains When 'Taking out' Y from X", §5.2 title) carry the
+    narrative between applications; the intro's three use cases (a/b/c) are picked up one per
+    later section
+  terminology_patterns: >-
+    Careful distinction maintained between DC and PDC throughout; subscripted network notation
+    (ΘX, ΘY, g1(x), g2(x)) fixed across text, equations, and tables; hedged claims for
+    qualitative results ("to some extent", "can, to some extent, prevent", §4 Rationale)

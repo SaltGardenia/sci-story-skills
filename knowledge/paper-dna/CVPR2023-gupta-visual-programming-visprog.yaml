@@ -1,0 +1,100 @@
+# thesis: This paper shows that complex compositional visual tasks can be solved without
+# any task-specific training because the in-context learning ability of LLMs suffices to
+# generate python-like programs that orchestrate off-the-shelf models, and therefore
+# proposes VisProg, a neuro-symbolic system that turns natural-language instructions into
+# executable visual programs with interpretable rationales.
+paper:
+  venue: CVPR
+  year: 2023
+  field: compositional visual reasoning / neuro-symbolic AI
+  task: natural-language-driven compositional visual reasoning (VQA, image-pair reasoning, knowledge tagging, image editing)
+  problem: "solving \"the infinitely long tail of complex tasks\" in natural language without \"a well curated dataset for each task\" (§1 para 1)"
+  importance: "\"neuro-symbolic approaches like VisProg are an exciting avenue to easily and effectively expand the scope of AI systems to serve the long tail of complex tasks\" (Abstract)"
+  source: full
+paradigm:
+  existing_approach: end-to-end trainable systems via massive pretraining + supervised multitask training (§1 para 1); neural module networks (NMNs) that compose differentiable modules with learned/REINFORCE-trained layout generators (§1 para 4, §2)
+  core_assumption: task competence must come from gradient-based training on curated task data; program layout generation itself must be learned (§1 paras 1, 4)
+  limitation: "curated per-task datasets \"make it challenging to scale to the infinitely long tail\"; NMN parsers are \"brittle\" and weak answer supervision is costly; composition scope limited to one task (§1 paras 1, 4)"
+gap:
+  unresolved_problem: "an AI system that, given only a natural-language instruction, \"generate[s] and execute[s] the corresponding visual program without any training\" (§3, quoted question \"What if...\")"
+  evidence_for_gap: "worked example of an instruction (\"Tag the 7 main characters...\") that is \"beyond the scope of end-to-end trained systems\" because it requires detection + knowledge retrieval + classification composed on the fly (§1 para 2)"
+insight:
+  observation: "GPT-3 few-shot translation demo — prompting with two English-to-French pairs yields the third translation without finetuning (§3); similarly, programs for in-context examples \"can typically be constructed without an accompanying image\" (§3)"
+  central_insight: program generation is itself an in-context learning task — prompt the LLM with (instruction, program) pairs and it generalizes to novel instructions, deciding per instance which of the 20 modules to compose (§2, §3)
+  hypothesis: such generated programs, executed over trained vision models + python subroutines, will match or beat trained task-specific models and extend to tasks no single model can do, while yielding interpretable rationales (§1 paras 4–5)
+method:
+  conceptual_change: stop training the composer — demote the LLM from answer generator to program generator, and demote neural models from end-to-end systems to library modules invoked by the program
+  mechanism: "20 modules (neural: OWL-ViT, DSFD, MaskFormer, CLIP, ViLT, Stable Diffusion; symbolic: python/image-processing) each implemented as a Python class with parse/execute/html methods (Code 1); a GPT-3 prompt of instruction→program pairs produces a program; an interpreter steps through lines updating a variable state; html outputs are stitched into a visual rationale (§3)"
+  formulation: "program = sequence of steps \"name of a module, module's input argument names and values, and an output variable name\" (§3); no equations — the formal object is the program/interpreter state (dict mapping variable names to values)"
+claims:
+  - id: C1
+    claim: "VisProg \"avoids the need for any task-specific training\", adapting to any task via a few in-context examples (descriptive/practical)"
+    importance: central
+    evidence: "Abstract; §1 footnote 1 (\"training refers to gradient-based learning\"); §3–4 (31/16/14/10 annotated examples per task)"
+  - id: C2
+    claim: "On compositional VQA, VisProg beats a base VQA model — \"an impressive gain of 2.7 points\" over ViLT-VQA on GQA (comparative)"
+    importance: central
+    evidence: §1 para 5; Table 1 (47.8 → 50.5 voting, 50.0 curated)
+  - id: C3
+    claim: "VisProg performs NLVR zero-shot on image pairs — \"strong zero-shot accuracy of 62.4% ... without ever training on image pairs\" (generalization)"
+    importance: central
+    evidence: "§1 para 5; Table 2 (upper bound ViLT-NLVR finetuned: 76.3)"
+  - id: C4
+    claim: VisProg solves tasks beyond single end-to-end models — factual knowledge tagging (63.7% tagging F1, 80.6% localization F1) and language-guided image editing (59.8% accuracy) (practical)
+    importance: central
+    evidence: §5.2; Tables 3–4
+  - id: C5
+    claim: Visual rationales enable error diagnosis and user-driven instruction tuning with significant gains (tagging F1 63.7→75.7; editing 59.8→66.4) (causal)
+    importance: supporting
+    evidence: §5.3; Fig. 9; Tables 3–4 (Original vs Modified rows)
+experiments:
+  - id: E1
+    research_question: RQ5 — how does prompt size affect performance (scaling of in-context examples)?
+    setup: GQA val and NLVR val, 1–24 in-context examples, 5 runs with random seeds, majority voting (§5.1, Fig. 7)
+    baseline: none (trend analysis)
+    result: performance increases progressively with example count; NLVR saturates earlier; voting consistently better than averaging
+    interpretation: program generation is a genuine in-context learning task, consistent with CoT/self-consistency findings
+    supported_claim: C1
+  - id: E2
+    research_question: RQ1 — does VisProg beat trained baselines on GQA?
+    setup: GQA testdev subset, prompting strategies (random/voting/curated) vs ViLT-VQA (Table 1)
+    baseline: ViLT-VQA 47.8
+    result: 50.5 (voting), 50.0 (curated, 5× less compute than voting)
+    interpretation: modular decomposition over a single-image QA model improves compositional accuracy and interpretability (§4.1)
+    supported_claim: C2
+  - id: E3
+    research_question: RQ4 — can a single-image system generalize to multi-image reasoning zero-shot?
+    setup: NLVRv2 full test set; VisProg decomposes statements into per-image questions + python logic (§4.2, Table 2)
+    baseline: ViLT-NLVR finetuned on pairs (76.3 upper bound)
+    result: 62.4 zero-shot
+    interpretation: composition transfers a single-image skill to a new input structure without training
+    supported_claim: C3
+  - id: E4
+    research_question: RQ1 — can VisProg do tasks no single model can?
+    setup: 100 annotated knowledge-tagging instructions / 253 instances; 107 editing instructions across 65 images, manually scored (§4.3–4.4, Tables 3–4)
+    baseline: "none — \"an impossible task for object detectors alone\" (§5.2)"
+    result: 63.7 tagging F1, 80.6 localization F1, 59.8 editing accuracy
+    interpretation: LLM as implicit knowledge base + CLIP classification + SD inpainting composes a new capability
+    supported_claim: C4
+  - id: E5
+    research_question: RQ3 — do rationales have operational utility (diagnosis + improvement)?
+    setup: manual inspection of ~100 rationales per task for error breakdown (Fig. 8); instruction tuning experiment (Fig. 9, Tables 3–4)
+    baseline: original instructions
+    result: leading error source identified per task (e.g. incorrect programs 16% on GQA); modified instructions give +12.0 tagging F1, +6.6 editing accuracy
+    interpretation: interpretability is not cosmetic — it closes a human-in-the-loop improvement loop
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (general-purpose AI pursuit), Failure mode (long tail unserved), Solution sketch (decompose via LLM), Concrete example (Big Bang tagging), Existing paradigm (NMNs) and two named advantages, Interpretability promise, Task suite preview, Quantified results, Contributions]
+  introduction_move: opens with a motivating walkthrough (tag TV characters) that makes the reader feel the task decomposition manually before naming the system; positions against NMNs with two specific contrasts (non-differentiable modules OK; in-context program generation) rather than a broad literature sweep; states numbers in the intro to make the no-training claim credible immediately
+  related_work_strategy: contrast-driven, three blocks (program generation/execution; LLMs for vision; LLM reasoning in NLP) each ending in the axis on which VisProg differs (composition determined per instance; richer module signatures; executed by real modules not the LLM)
+  method_strategy: capability-inventory-first — Fig. 2 module map before any task; a literal code listing (Code 1) as the method description, signaling engineering simplicity as a feature
+  experiments_strategy: breadth-first — four heterogeneous tasks to demonstrate generality; ablations on prompting (a hyperparameter unique to this paradigm) rather than architecture; error analysis elevated to a first-class section (5.3) because rationales are a contribution
+  conclusion_strategy: one-paragraph restatement + future directions (better prompting, user feedback), no numbers repeated
+reviewer_defense:
+  strengths: no-training claim is verifiable from the protocol (explicit footnote defining training vs in-context learning); quantitative gains even against finetuned-benchmark upper bounds (NLVR); novel task suites with public annotations
+  vulnerabilities: "still behind finetuned upper bound on NLVR (62.4 vs 76.3); GQA evaluated on a self-created subset \"to limit the money spent\" (§4.1) — non-standard split; evaluation partly manual (editing correctness); module performance caps system performance (\"replacing the ViLT-VQA model with a better VQA model ... could improve performance by up to 24%\", §5.3)"
+  anticipated_attacks: "\"is this just CoT for vision?\" — preempted in §2 by distinguishing LLM-executed reasoning from module-executed programs; \"fixed compositions like Socratic Models?\" — preempted by per-instance composition (§2); \"modules do the work, not the LLM\" — implicitly conceded in error analysis (§5.3) and framed as a strength (swap modules to improve)"
+writing:
+  paragraph_patterns: "rhetorical questions as paragraph pivots (\"What if, we could describe the task...\"); example-first explanation — every mechanism is introduced through a concrete instruction before its definition"
+  transition_patterns: numbered contributions list closes the intro; each task section repeats the fixed skeleton (task → evaluation → prompts), making the 4-task suite feel like one experiment replicated
+  terminology_patterns: "\"visual program\" / \"visual rationale\" capitalized concepts used consistently; small-caps names (VISPROG, ViLT) preserved from layout; module names chosen to be self-documenting for the LLM (\"descriptive module names ... to allow GPT-3 to understand\", §3) — naming as interface design"

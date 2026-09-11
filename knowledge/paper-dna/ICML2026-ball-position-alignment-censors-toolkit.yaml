@@ -1,0 +1,65 @@
+# thesis: This position paper argues that AI alignment methods are dual-use censorship and
+# manipulation tools, because every alignment technique suppresses or alters model output in a
+# purpose-agnostic way that malicious state actors and model providers can repurpose, and
+# therefore proposes oversight (transparency, verifiable-alignment benchmarks), competitive
+# model pluralism, and researcher/user awareness as mitigations — not a halt to alignment.
+paper:
+  venue: ICML
+  year: 2026
+  field: AI alignment / policy (Position track)
+  task: raising awareness of and mitigating the dual-use (censorship/manipulation) potential of alignment methods
+  problem: "\"modern AI alignment methods \u2013 originally designed to prevent harmful output \u2013 are dual-use technologies that may easily be misused by malicious actors for censorship and manipulation\"; yet misuse of alignment methods specifically is far less studied than general AI risks (Abstract, \u00a71 \"How is This New?\")"
+  importance: "\"Growing numbers of users turn to AI for information retrieval, granting these models unprecedented power to shape public knowledge and opinion\", coinciding with authoritarian drift and an AI oligopoly that exacerbate misuse risk (\u00a71 Why Now?)"
+  source: full
+paradigm:
+  existing_approach: alignment research aims at ever-more robust safeguards (jailbreak arms race, preference alignment, guardrails); risk work addresses general AI systems "from a high-level and often hypothetical angle", with censorship documented only as isolated instances (§1)
+  core_assumption: "\"we in the alignment community have always been confident that we are on the right side of history\" \u2014 alignment methods are presumed inherently protective (\u00a71 opening)"
+  limitation: "\"there is nothing inherent in alignment methodology that guarantees benevolent outcomes. Whoever defines those 'intentions and values' fundamentally determines whether the resulting system serves safety or oppression\" (\u00a72)"
+gap:
+  unresolved_problem: no systematic mapping of alignment techniques to their dual-use potential, no systematization of ongoing weaponization, and no mitigation agenda for the ecosystems that enable it
+  evidence_for_gap: literature-structure argument — prior work either hypothetical or case-study isolated (Huang et al. 2025; Noels et al. 2025; Qiu et al. 2026); the paper's contribution list i–iv names each missing piece
+insight:
+  observation: alignment is defined neutrally — "make AI systems behave in line with human intentions and values" (Ji et al. 2025) — and the same machinery that withholds bomb-making instructions can withhold historical facts or political opinions (§2 opening)
+  central_insight: the three-stage control stack (pre-training data curation → post-training alignment → inference-time intervention) is a complete censorship toolkit whose difficulty/depth trade-off is precisely characterized — from fundamental (pre-training, high resources) to persistent (RLHF, moderate) to superficial-but-easy (system prompts, negligible resources) (Table 1, §3)
+  hypothesis: naming the toolkit now — while adoption, oligopoly, and authoritarianism are rising — enables mitigations (transparency/auditing, pluralism, awareness) before informational dominance becomes entrenched
+method:
+  conceptual_change: reinterpret "alignment" from a moral good to a purpose-agnostic output-control technology whose benevolence is entirely a function of who defines the objectives
+  mechanism: four-part argument — (i) technique-to-misuse mapping across the control stack with an access/resources/expertise/ease/depth table (Table 1); (ii) documented weaponization cases (CAC's "core socialist values" mandate and keyword-filtering pipelines, DeepSeek/Ernie Bot refusals, Grok realignment, Western models' Simplified-Chinese self-censorship via contaminated corpora); (iii) ecosystem analysis (adoption as information source, LLM oligopoly with market-entry barriers and market-access coercion, democratic backsliding); (iv) mitigations (§5)
+  formulation: misuse criteria — applications qualify when they (i) violate UDHR-recognized rights or (ii) "serve the private interests of a small number of powerful actors" without user visibility or recourse (§2.2)
+claims:
+  - id: C1
+    claim: current alignment techniques across the entire control stack are repurposable for censorship and manipulation, with method-specific access/depth characteristics (analytical position commitment)
+    importance: central
+    evidence: "\u00a73.1\u20133.3 + Table 1 (pre-training: fundamental but costly; post-training: persistent; inference-time: superficial, easy, low-resource)"
+  - id: C2
+    claim: weaponization of alignment methods is already ongoing, by both authoritarian states and actors within democracies (evidence-based position commitment)
+    importance: central
+    evidence: §2.4/§3 Real-World Evidence — CAC 2023 measures, DeepSeek/Ernie Bot Tiananmen refusals, Grok's politically-directed realignment, US administration pressure on DEI content
+  - id: C3
+    claim: the current ecosystem (mass AI-mediated information access, LLM oligopoly, democratic backsliding with 15 consecutive years of declining global internet freedom) makes misuse increasingly likely and consequential (contextual position commitment)
+    importance: central
+    evidence: §4.1–4.3 (Tamkin et al. 2024 usage; Reuters survey 18%→34% weekly use; Vesteinsson et al. 2025; Nord et al. 2025)
+  - id: C4
+    claim: "mitigations exist without stopping alignment: transparency to independent auditors, standardized benchmarks for information suppression and political bias (verifiable alignment), competitive model pluralism (\"Neutrality Through Diversity\"), public awareness, and genuine researcher reflection in ethics statements (prescriptive commitment)"
+    importance: central
+    evidence: §5.1–5.4 (EU AI Act disclosure extension; gaps in existing censorship/bias benchmarks; Ashurst et al. 2022 finding that most impact statements are superficial)
+  - id: C5
+    claim: alignment research must not be halted — it is "necessary to prevent serious harm" — the position is about considering intentional misuse, not abandoning safeguards (scope commitment)
+    importance: supporting
+    evidence: §1 "In a Nutshell", §5.4 ("Why We Do Not Call for Stopping AI Alignment")
+experiments: []  # Position paper — no experiments; evidence is documentary (legislation text, journalism, audit studies, usage surveys) plus the analytical Table 1 mapping
+narrative:
+  introduction_roles: [Context (alignment community's self-image), Uncomfortable claim (methods already weaponized), Why Now (adoption + authoritarianism + oligopoly), How is This New (gap vs prior risk work), Contribution list (i–iv), Scope disclaimer (do not halt alignment)]
+  introduction_move: opens with an identity challenge ("we have always been confident that we are on the right side of history") addressed to the readers' own field, then deploys the nuclear-physics dual-use analogy to make the claim respectable; "Why Now?" and "How is This New?" as literal subheadings pre-empt the two most likely dismissals before any evidence is shown
+  related_work_strategy: gap-defining — every cited prior work is classified as either hypothetical (Berryhill, Hendrycks), or isolated-instance (Huang, Noels, Qiu), establishing that the systematic mapping is genuinely missing (§1)
+  method_strategy: structured-catalog approach — threats (§2.1), misuse criteria (§2.2), actors (§2.3), realism (§2.4) before the technical mapping (§3) and its supporting cases; each technique section ends with "Dual-Use Potential" and "Real-World Evidence" subsections in fixed order
+  experiments_strategy: none; the Table 1 access/depth matrix functions as the paper's formal object, and every empirical claim is footnoted to journalism, legislation, or published audit studies
+  conclusion_strategy: brief restatement (dual-use acknowledged, cases documented, pluralism/transparency preserved) — the weight of the paper is in §5's constructive agenda rather than the conclusion
+reviewer_defense:
+  strengths: technique mapping is granular and verifiable against public documentation; misuse criteria (UDHR + concentrated-private-interest) give the normative claims determinate content; engages both extreme alternative views (halt alignment; risks exaggerated) rather than strawmen
+  vulnerabilities: normative line between alignment and censorship is admittedly culture-dependent (§2.2 concession); documented cases concentrate on China and Grok — extrapolation to other providers is inferential; mitigation proposals (audits, pluralism) require legal reach that the paper itself notes is absent in key jurisdictions (US regulatory repeal, §5.1)
+  anticipated_attacks: "\"alignment should be stopped\" \u2014 \u00a76.1 steelmans the libertarian/paternalism objection and answers via \u00a75.4's necessity claim; \"the risks are exaggerated\" \u2014 \u00a76.2 counters with documented instances and DSA/AI Act precedent that regulators already treat the risk as real; \"not our responsibility\" \u2014 the researcher-awareness argument (\u00a75.3) locates duty in the community that builds the toolkit"
+writing:
+  paragraph_patterns: question-as-heading architecture throughout (What are the Threats? What is Misuse? Who are Malicious Actors? How Realistic? So, What Should We Do?) — the paper interrogates itself in the reader's voice
+  transition_patterns: fixed subsection cadence inside §3 (method description → Dual-Use Potential → Real-World Evidence) creating a forensic rhythm
+  terminology_patterns: coined framing terms used consistently ("dual-use", "control stack", "informational dominance", "verifiable alignment"); dictionaries and statutes quoted verbatim for definitional grounding

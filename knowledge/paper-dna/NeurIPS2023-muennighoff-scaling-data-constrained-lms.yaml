@@ -1,0 +1,99 @@
+# thesis: This paper shows that repeated data is nearly as valuable as fresh data for up to ~4
+# epochs with rapidly diminishing returns after ~16 epochs, because token value decays exponentially
+# with repetitions, and therefore proposes a data-constrained extension of the Chinchilla scaling
+# laws plus complementary strategies (code augmentation, relaxed filtering) for training when
+# unique data runs out.
+paper:
+  venue: NeurIPS
+  year: 2023
+  field: LLM scaling laws
+  task: compute-optimal LLM training under a data constraint
+  problem: '"what should we do when we run out of data?" — how to allocate compute (parameters vs epochs) and what return to expect when the amount of unique training data is limited (§1)'
+  importance: Chinchilla-optimal scaling implies data exhaustion — "Villalobos et al. estimate that even high-quality English language data will be exhausted by the year 2024"; many languages "are already data-constrained" (§1)
+  source: full
+
+paradigm:
+  existing_approach: scaling laws (Kaplan et al.; Chinchilla) fit on single-epoch training, prescribing balanced scaling of parameters and data (§2, Eq. 2–3)
+  core_assumption: '"Prior work assumes that the necessary data to support scaling is unlimited" — every training token is unique (§3)'
+  limitation: Chinchilla-style extrapolation to e.g. a 530B model "would require training on a massive 11 trillion tokens"; some work explicitly advocates against reusing data, and the one exception (Galactica, 4.25 epochs) lacks a controlled comparison against single-epoch unique-data training (§1)
+
+gap:
+  unresolved_problem: quantify the trade-off between additional compute (via repeated epochs) versus additional data collection, and derive optimal compute allocation when D is capped (§1)
+  evidence_for_gap: logical + empirical — no prior experiment isolates multi-epoch LLM training against a single-epoch unique-data control at matched compute; Hernandez et al. only up-sample 0.1% subsets (§8)
+
+insight:
+  observation: 400+ training runs (10M–9B parameters, up to 1500 epochs, up to 900B tokens) show loss differences are negligible for up to 4 epochs but repeated-token value decays predictably to zero (abstract, §6)
+  central_insight: repeated tokens lose roughly (1 − 1/R_D*) of their value per repetition — an exponential decay that can be folded into the Chinchilla loss as "effective" data D′ and parameters N′, making scaling laws extensible to the data-constrained regime (§3.1, Eq. 5–6)
+  hypothesis: a two-constant extension (half-lives R_D* ≈ 15, R_N* ≈ 15) should predict loss across all repetition/compute budgets, implying optimal allocation shifts toward more epochs relative to Chinchilla (§3.1, Fig. 1)
+
+method:
+  conceptual_change: treat data as a constrained resource with its own budget D_C and split Chinchilla's D into unique tokens U_D and repetitions R_D (symmetrically N into U_N and R_N) (§3, Eq. 4)
+  mechanism: parametric fit — replace D and N in the Chinchilla formula with exponentially decayed effective quantities D′ = U_D + U_D·R_D(1 − e^{−R_D/R_D*}) and N′ (§3.1, Eq. 5–6); fit on 182 runs; validate on Fixed-Unique-Data (Allocation, §5) and Fixed-FLOPs (Return, §6) protocols
+  formulation: L(N,D) = A/N′^α + B/D′^β + E with D′, N′ per Eq. 5–6 (§3.1); constraint argmin L(N,D) s.t. FLOPs(N,D) = C, U_D ≤ D_C (Eq. 4)
+
+claims:
+  - id: C1
+    claim: '"with constrained data for a fixed compute budget, training with up to 4 epochs of repeated data yields negligible changes to loss compared to having unique data" — descriptive/comparative'
+    importance: central
+    evidence: IsoFLOP sweeps at three budgets; 8.7B model at 4 epochs only 0.5% higher validation loss than single-epoch (§6, Fig. 4–5)
+  - id: C2
+    claim: '"with more repetition, the value of adding compute eventually decays to zero" — with a fitted half-life R_D* ≈ 15 (i.e., ~16 epochs) — descriptive/quantitative'
+    importance: central
+    evidence: data-constrained scaling law fit and extrapolation (§6, Fig. 5 right; App. A)
+  - id: C3
+    claim: the proposed data-constrained scaling law predicts loss in the repeated-data regime better than assuming Chinchilla holds for repeated data — comparative
+    importance: central
+    evidence: proximity of empirical points to parametric fit (Fig. 5 left); IsoLoss contours, empirical vs predicted (Fig. 3)
+  - id: C4
+    claim: in the data-constrained regime, optimal allocation gives compute to both parameters and epochs, with epochs scaled slightly faster than Chinchilla predicts — comparative/theoretical
+    importance: central
+    evidence: Allocation experiments with fixed data budgets (§5, Fig. 1 right, Fig. 3)
+  - id: C5
+    claim: mixing in Python code provides a 2× increase in effective tokens even when evaluating only natural language tasks — comparative
+    importance: supporting
+    evidence: 10 mixing rates on 19 NL downstream tasks (§7, Fig. 6)
+  - id: C6
+    claim: data filtering is primarily effective for noisy datasets; perplexity filtering helps, deduplication does not (on clean C4) — comparative
+    importance: supporting
+    evidence: filtering experiments at doubled budget + noisy-dataset replication in App. O (§7)
+
+experiments:
+  - id: E1
+    research_question: RQ4-equivalent (Allocation) — with a fixed data budget, how should compute be split between parameters and epochs?
+    setup: D_C fixed at 100M/400M/1.5B tokens; sweep parameters and epochs (93 models for 100M); GPT-2 architecture on C4 (§5, Fig. 3)
+    baseline: single-epoch compute-optimal model per Chinchilla
+    result: '>50% loss reduction attainable by repeating and oversizing (~20–60× more parameters and epochs, ~7000× more FLOPs) (§5)'
+    interpretation: one-epoch models "significantly under-utilize their training data"
+    supported_claim: C4
+  - id: E2
+    research_question: RQ4 (Return) — how does the value of repeated data decay with total tokens?
+    setup: three FLOP budgets × eight data budgets, up to 44 epochs; validation curves + final test loss vs parametric fit (§6, Figs. 4–5)
+    baseline: models assuming repeated data is worth the same as new data; Chinchilla prediction
+    result: 4 epochs ≈ negligible loss gap (0.5% at 8.7B); fit tracks decay with R_D* ≈ 15; law fails only for diverging runs (44 epochs) which it "significantly underestimates" (§6)
+    interpretation: repeating is a viable scaling lever with a predictable cliff
+    supported_claim: C1, C2, C3
+  - id: E3
+    research_question: RQ1-analogue — do complementary data strategies (code mixing, filtering) improve downstream performance when data is constrained?
+    setup: D_C = 84B tokens; Python from The Stack at 10 mixing rates; dedup/perplexity filtering on clean C4 and a noisy dataset (App. O); evaluation on 19 NL tasks, 114 scores per model (§7, Fig. 6)
+    baseline: pure repetition at same budget
+    result: code filling up to 50% shows no deterioration (2× effective tokens); perplexity filtering effective, deduplication not on clean data (§7)
+    interpretation: code + repetition compound — doubling data with code then repeating 4 epochs ≈ 8× tokens "just as good as having had 8× more unique data" (§7)
+    supported_claim: C5, C6
+
+narrative:
+  introduction_roles: [Context (Chinchilla compute-optimality), Stakes (data exhaustion estimate), Question (what when we run out of data), Prior partial evidence (Galactica lacks control), Program (400+ runs, new scaling law), Findings preview (4 epochs free; diminishing returns), Complementary strategies preview]
+  introduction_move: opens inside the Chinchilla result and immediately escalates it to a deadline ("exhausted by the year 2024"), poses the question as a direct quotation from prior work, then disqualifies the only existing multi-epoch evidence for lacking a control — establishing that the paper's contribution is precisely the controlled comparison; numbers (400 models, 900B tokens) are deployed as credibility early
+  related_work_strategy: three-block landscape (LLMs / scaling laws / alternative data strategies), each block ending on the specific hole this paper fills (e.g., code mixing "generally do not provide any ablation") (§8)
+  method_strategy: formulation-first — Background formalizes Allocation vs Return as named questions (§2), Method introduces the split U_D/R_D and the decayed effective quantities before any result; experiments then map one-to-one onto the two named questions
+  experiments_strategy: Allocation first (§5), Return second (§6), practical strategies third (§7) with a mid-paper metric switch — loss for same-distribution comparisons, 19-task downstream evaluation when data distributions differ, with the switch explicitly justified (§7)
+  conclusion_strategy: 'restate the law and the epoch finding ("despite recommendations of earlier work"), quantify the code bonus (2×), then close with an explicit horizon warning: "there are limits on the scaling horizon" (§9)'
+
+reviewer_defense:
+  strengths: scale and control — 400+ runs, nested data subsets (Fig. 2 ensures subset consistency), three protocols mirroring Chinchilla's methodology exactly
+  vulnerabilities: GPT-2 architecture and ≤9B scale may not transfer to frontier models; the law underestimates diverging runs (conceded §6); downstream evaluation suite limited to 19 tasks; C4 (English web text) only
+  anticipated_attacks: '"repetition is known to cause memorization/overfitting" — preempted by reporting held-out test loss and dedicating Appendix H to overfitting (§4); "Hernandez et al. already showed repetition hurts" — preempted in §8 by distinguishing whole-corpus epochs from 0.1% subset up-sampling; "excess parameters hurt" — conceded in §5 with pointer to regularization as future fix'
+
+writing:
+  paragraph_patterns: results paragraphs lead with the qualitative finding, then give a concrete quantified instance ("only 0.5% higher validation loss") as proof (§5–6)
+  transition_patterns: the paired nouns Allocation/Return are coined in Background and then used as section organizers and figure labels, giving the paper a two-axis backbone (§2, Fig. 1)
+  terminology_patterns: disciplined notation D_C, U_D, R_D, U_N, R_N with primed effective variants; "epochs" and "repetitions" carefully distinguished (epochs − 1 = repetitions); bolded protocol names (Fixed Unique Data, Fixed FLOPs, Parametric Fit) echo Chinchilla's own trio

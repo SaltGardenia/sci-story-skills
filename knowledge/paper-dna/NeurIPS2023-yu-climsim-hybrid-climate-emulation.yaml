@@ -1,0 +1,95 @@
+# thesis: This paper shows that the bottleneck for hybrid ML-physics climate simulation is the
+# absence of accessible, coupling-compatible training data and workflows, because existing
+# efforts lack multi-scale data with a clean physics-ML interface, and therefore proposes
+# ClimSim(-Online): a 5.7-billion-sample dataset plus a containerized end-to-end pipeline for
+# offline training and online hybrid evaluation.
+paper:
+  venue: NeurIPS
+  year: 2023
+  field: climate emulation / scientific ML (Datasets & Benchmarks track)
+  task: learning ML parameterizations of subgrid-scale physics for hybrid ML-physics climate simulators
+  problem: building "stable, skillful emulators" of sub-resolution physics (storms, clouds, turbulence, rainfall, radiation) to outsource "compute-hungry, high-resolution simulations to ML emulators" in hybrid climate simulation (abstract)
+  importance: '"current climate simulators poorly represent clouds and extreme rainfall physics... despite stretching the limits of the world''s most powerful supercomputers", and projections inform climate policy; accurately representing cloud formation would demand "six orders of magnitude increase in computational power" (§1.1)'
+  source: full
+
+paradigm:
+  existing_approach: empirical/physically-inspired "parameterizations" for sub-grid processes; recent ML proofs-of-concept trained on coarse-grained high-resolution or bespoke datasets (§1.1)
+  core_assumption: that sub-resolution physics can be represented without explicitly resolving it — first by heuristic assumptions, now learnable from data
+  limitation: '"hybrid-ML climate simulations have yet to be stable and ready for operational use"; data must "contain all macro-scale variables that regulate the behavior of subgrid-scale physics and be compatible with hybrid ML-climate simulations" — uniformly high-resolution data is very expensive and coarse-graining causes coupling issues (§1.1)'
+
+gap:
+  unresolved_problem: '"the full potential of multi-scale simulations remains largely untapped due to a scarcity of existing datasets, exacerbated by the combination of operational simulation code complexity and the need for domain expertise"; plus "the absence of a straightforward method for testing learned ML emulators in hybrid settings" (§1.1)'
+  evidence_for_gap: field-level argument — ML experts are locked out by domain-specific data/workflows; offline metrics are known not to guarantee online stability (Ott et al.; Wang et al., §3), yet no public dataset+pipeline supports online testing
+
+insight:
+  observation: multi-scale (MMF-style) simulations provide "a clean interface between the learned high-resolution physics and the host climate simulator's macro-scale dynamics" — inputs are the host's macro-state variables, targets are the embedded simulators' tendencies (§1.1, §3)
+  central_insight: the interface variables of an existing multi-scale simulator (E3SM-MMF) are exactly the input/output specification an ML parameterization needs, so logging every grid column before/after the embedded physics yields a coupling-ready supervised dataset at planetary scale (§3)
+  hypothesis: releasing this data with a containerized online-coupling workflow will let ML researchers make progress on the true objective — online stability — which offline skill alone does not predict (§4.5, §5)
+
+method:
+  conceptual_change: treat the climate simulator's internal host↔embedded-simulator interface as a machine-learning regression benchmark boundary (x∈R^124→y∈R^128 standard; expanded 617→368; §3)
+  mechanism: dataset generation — E3SM-MMF run ~9,800 GPU-hours, 10 simulated years, 20-minute sampling, 21,600 cubed-sphere columns → 5.7B high-res samples (41.2TB) + two 100M-sample low-res variants (incl. aquaplanet); 8-year train/val, 2-year test with a one-month gap "to prevent test set contamination via temporal correlation" (§3); plus six ML baselines (MLP, RPN, CNN, HSR, cVAE, Encoder-Decoder) and a containerized hybrid-testing pipeline (§4, §5.1)
+  formulation: nonlinear regression — map local vertical structure of macro-state (60 levels) to tendencies/fluxes from unresolved physics; online evaluation compares hybrid-simulation climate statistics (RMSE of temperature/moisture against pure E3SM-MMF, with an "internal unpredictability" floor estimated from chaotic reruns, Fig. 3) (§3, §5.2)
+
+claims:
+  - id: C1
+    claim: ClimSim is "the largest and most physically comprehensive dataset and end-to-end workflow" for ML parameterization of full subgrid physics — descriptive
+    importance: central
+    evidence: §1.1, §7; dataset statistics (5.7B samples, 41.2TB, §3)
+  - id: C2
+    claim: the baselines expose the difficulty of the problem — different architectures win at different levels/variables (MLP best in lower atmosphere and global mean MAE; CNN/RPN/HSR/cVAE better aloft) — comparative
+    importance: supporting
+    evidence: §4.4, Fig. 2, Table 2
+  - id: C3
+    claim: physics constraints (mass/energy conservation, cloud-physics constraints) improve online stability and error — causal
+    importance: central
+    evidence: §5.4 — U-Net + physics constraints completes a full year with temperature RMSE ~2K and moisture RMSE <1 g/kg, vs unconstrained U-Net's growing errors and MLP's crashes within two months (Fig. 3)
+  - id: C4
+    claim: '"Optimizing offline metrics does not necessarily lead to optimized online performance" — small per-step errors accumulate and can destabilize the hybrid simulation — descriptive (cited from prior work but operationalized by the pipeline)'
+    importance: central
+    evidence: §3, §5; MLP crashes despite competitive offline skill
+  - id: C5
+    claim: the constrained U-Net hybrid "outperform[s] the state of the art results of (Han et al., 2023)" within analogous multi-scale hybrid simulations, while including full condensate coupling and radiative transfer — comparative (with explicit caveat about differing resolution/software)
+    importance: supporting
+    evidence: §5.4; 5-year stable integration shown in SI
+
+experiments:
+  - id: E1
+    research_question: RQ1-analogue (benchmark calibration) — how well can current ML architectures fit the offline mapping?
+    setup: low-res real-geography data, d_i=124 → d_o=128; six baseline architectures; MAE and R² globally and by vertical level (§4.1–4.4, Fig. 2)
+    baseline: models vs each other (MLP, RPN, CNN, HSR, cVAE, ED)
+    result: R² ≥ 0.8 for most variables; dT/dt and PRECC hardest (<0.7); architecture-dependent vertical error structure (§4.4)
+    interpretation: the dataset is learnable but far from saturated; no architecture dominates
+    supported_claim: C2
+  - id: E2
+    research_question: RQ4 — what design choices (inputs, targets, constraints) improve generalizability and online performance?
+    setup: physics-informed guidance catalog — conservation constraints, stochasticity handling, temporal locality (previous-timestep inputs), causal pruning, normalization, expanded inputs/outputs ablation with MLPs (§4.5, SI Figs. 7–8)
+    baseline: standard-input MLPs
+    result: all-input models reproduce targets better (SI Table SI4); constraints listed as levers for online stability
+    interpretation: dataset supports ablation science, not just leaderboard fitting
+    supported_claim: C2, C3
+  - id: E3
+    research_question: RQ3 — does the offline skill translate to online (hybrid) stability, and can constraints close the gap?
+    setup: one-year hybrid simulations coupling MLP / U-Net / U-Net+physics-constraints into the host simulator; RMSE of temperature and moisture vs reference E3SM-MMF with unpredictability floor (§5.3–5.4, Fig. 3)
+    baseline: MLP baseline; unconstrained U-Net; pure physics reference
+    result: MLP crashes within 2 months; U-Net completes the year; U-Net+constraints stabilizes at ~2K temperature / <1 g/kg moisture RMSE for a full year (5 years in SI)
+    interpretation: online error is the real metric, and physics constraints are the decisive stabilizer — validating the pipeline's purpose
+    supported_claim: C3, C4, C5
+
+narrative:
+  introduction_roles: [Context (climate projections, resolution limits), Failure mode (parameterization assumptions), Existing paradigm (ML hybrid promises), Gap (data + workflow inaccessibility, instability), Insight (multi-scale interface), Solution (ClimSim-Online), Audience statement (lower the entry barrier for ML experts)]
+  introduction_move: teaches the ML reader the Earth-science vocabulary first ("Concepts and Terminology", §1.2 — a pedagogical section rare in ML papers), then frames the contribution as access infrastructure; the abstract/intro repeatedly address "ML experts" as the target user, recasting a climate problem as a community-bridging problem
+  related_work_strategy: survey-of-attempts (proofs-of-concept list in §1.1, expanded related work in SI §7) organized around what each lacked — data volume, coupling compatibility, or online evaluation
+  method_strategy: specification-first — the dataset section defines the regression problem precisely (variable-by-variable interface, splits, locality vs globality) before any model appears; baselines are framed as "an example ML workflow" rather than contributions
+  experiments_strategy: offline calibration first, then the paper's real payoff — the online section — introduced by re-warning that offline metrics mislead (§5 opener); a case study (Hu et al. 2024) is embedded to show the pipeline working end-to-end
+  conclusion_strategy: capability statement ("most physically comprehensive... yet published"), community engagement evidence (Kaggle competition with "several thousand global participants"), then extension roadmap (future climate states, other Earth-system subfields) (§7)
+
+reviewer_defense:
+  strengths: scale and realism of the data; the online pipeline converts the benchmark from static fitting to the actual deployment metric; reproducibility via containerization and public data/code; large interdisciplinary consortium
+  vulnerabilities: idealizations conceded in §6 — scale separation, no ocean coupling, no aerosols, no topography, so El Niño-type phenomena are out of scope; online testing at very low resolution on a single node; cross-paper error comparisons invalid due to resolution differences (authors flag this themselves, §5.4)
+  anticipated_attacks: '"compute/energy cost of the dataset" — preempted with an energy-use paragraph arguing orders-of-magnitude savings vs operational climate prediction (§3); "offline numbers too weak" — reframed as the honest difficulty of the problem plus guidance for expansion to full inputs (§4.5); "stale vs prior SOTA" — caveated explicitly (§5.4)'
+
+writing:
+  paragraph_patterns: domain-term-led paragraphs — each key concept ("Convection Parameterization", "Offline Training vs. Online Evaluation") gets a named definitional paragraph (§1.2)
+  transition_patterns: the offline/online distinction is defined once (§1.2) and then enforced at every use, culminating in the experiments architecture (offline section → online section)
+  terminology_patterns: dual-audience terminology handling — Earth-science terms glossed inline with citations; consistent E3SM-MMF naming; hedged comparatives ("outperform... within the context of analogous multi-scale hybrid climate simulations")

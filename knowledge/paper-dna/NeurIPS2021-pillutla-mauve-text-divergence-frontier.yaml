@@ -1,0 +1,81 @@
+# thesis: This paper shows that the gap between machine-generated and human text can be measured
+# as the area under a divergence frontier between soft Type I (degeneracy) and Type II (non-coverage)
+# errors, because raw KL divergences are infinite when supports mismatch but mixture divergences in a
+# quantized embedding space remain finite and tractable, and therefore proposes MAUVE, a scalable
+# automatic metric that tracks known text-quality properties and correlates with human judgments.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: natural language processing / open-ended text generation evaluation
+  task: measuring closeness of a text generation model's distribution Q to the human text distribution P
+  problem: '"measuring how close machine-generated text is to human language remains a critical open problem" as open-ended generation advances; the gap has two error types — degenerate text (Type I) and non-coverage/diversity loss (Type II) — that are hard to quantify "in a principled yet computationally tractable manner, as the text distributions are high-dimensional and discrete" (Abstract, §1 para 2)'
+  importance: evaluation of open-ended generation currently lacks a principled distributional metric; a good automatic measure would do for text generation what automated metrics did for vision and other ML domains (§1, §5)
+  source: full
+paradigm:
+  existing_approach: reference-based metrics adapted from machine translation and distributional proxies — perplexity, Zipf coefficient, repetition (REP), Distinct-n, Self-BLEU, discriminator accuracy; human evaluation (Abstract, §3, Table 5)
+  core_assumption: quality of open-ended generation can be reduced to such proxies; test-set perplexity or single KL divergences suffice
+  limitation: KL(P‖Q) or KL(Q‖P) "are infinite if the supports of P and Q are not identical, which is often the case in open-ended generation" (e.g. truncation decoding creates sparsity in Q, which "leads to degeneracy of some measures including test-set perplexity") (§2)
+gap:
+  unresolved_problem: an automatic, tractable, sample-based measure that captures both Type I and Type II errors and tracks human judgments across model size, decoding, and generation length (§1 para 3, contributions)
+  evidence_for_gap: 'existing metrics each fail on known properties of generated text (per §4.1 comparisons) and correlation with human judgments is weak for prior proxies (Table 5: e.g. REP correlation −0.167 with human-like BT)'
+insight:
+  observation: the two failure modes of open-ended generation map exactly onto the two KL directions — KL(Q‖P) is Type I (model puts mass where human text does not), KL(P‖Q) is Type II (model fails to cover human text) (§2, Fig. 1)
+  central_insight: instead of computing KL against P or Q directly (infinite on mismatched supports), measure both errors softly against the mixture Rλ = λP + (1−λ)Q, which is always finite; sweeping λ gives a divergence frontier whose area summarizes the full Type I/II trade-off (§2, Eq. 1)
+  hypothesis: computing these divergences in a quantized embedding space (sample → embed with an external LM → k-means histograms) preserves the signal while making the metric tractable and robust (§2, Eq. 3)
+method:
+  conceptual_change: evaluate a generation model as a distribution to be compared distributionally (not via references or likelihood), and replace exact divergences on supports with a family of mixture divergences
+  mechanism: sample N human and N machine texts; embed with external LM (GPT-2 Large); jointly quantize (k-means) into k clusters; build histograms P̃, Q̃; compute the divergence curve C(P,Q) = {exp(−c·KL(Q‖Rλ)), exp(−c·KL(P‖Rλ))}; MAUVE = area under C (§2, Eqs. 1–3)
+  formulation: '"MAUVE(P, Q) lies in (0, 1], with a larger value meaning that Q is closer to P. Further, MAUVE(P, Q) = 1 if and only if Q = P"; the curve recovers KL(P‖Q) as λ→0, KL(Q‖P) as λ→1, and JS divergence at λ=1/2 (§2)'
+claims:
+  - id: C1
+    claim: MAUVE "identifies known properties of generated text" — generation length, decoding algorithm, and model size effects — "more correctly and with fewer restrictions than existing distributional evaluation metrics" (comparative)
+    importance: central
+    evidence: §4.1, Figs. 2, 4 (larger models and nucleus sampling closer to human text; greedy has low Type I but high Type II)
+  - id: C2
+    claim: MAUVE correlates better with human quality judgments than all compared metrics (Spearman 0.952 human-like, 0.956 news discrimination vs next-best Self-BLEU 0.595) (comparative)
+    importance: central
+    evidence: §4.3, Table 5
+  - id: C3
+    claim: MAUVE is "highly robust to the choice of quantization, embeddings, and scaling" (descriptive/robustness)
+    importance: supporting
+    evidence: §4.2 — Spearman 0.993 between GPT-2-large and RoBERTa-large embeddings across all model/decoder settings; alternative quantizers (DRMM, lattice) give similar trends
+  - id: C4
+    claim: MAUVE detects adversarially perplexity-matched low-quality text that perplexity-based evaluation cannot (mechanistic/discriminative)
+    importance: supporting
+    evidence: §4.1 — adversarial perplexity sampling construction (uniform first 15% tokens then greedy perplexity-matching)
+experiments:
+  - id: E1
+    research_question: RQ2-flavored (face validity) — does MAUVE quantify known properties of generated text (length, decoding, model size)?
+    setup: web text, news, stories completion tasks; GPT-2 models (small→xl), Grover; decoders ancestral/greedy/nucleus; divergence curves and MAUVE values per setting (§4, §4.1, Table 2, Figs. 2, 4)
+    baseline: perplexity, Zipf, REP, Distinct-n, Self-BLEU behaviors on the same settings
+    result: MAUVE increases with model size and favors nucleus sampling; distinguishes greedy (low Type I, high Type II) from ancestral (higher Type I)
+    interpretation: metric behaves as domain knowledge predicts — a prerequisite for trust
+    supported_claim: C1
+  - id: E2
+    research_question: RQ6 — is MAUVE robust to its approximation components?
+    setup: swap embedding model (GPT-2 Large vs RoBERTa-large) and quantizer (k-means, DRMM, lattice quantization); vary number of clusters and scaling c (§4.2, Fig. 5)
+    result: Spearman 0.993 across embedding choices; qualitatively similar trends across quantizers
+    interpretation: the measure is not an artifact of a particular approximation pipeline
+    supported_claim: C3
+  - id: E3
+    research_question: RQ1-flavored (metric validation) — does MAUVE agree with the human gold standard?
+    setup: 'pairwise human preference study on web text: 8 (model, decoder) settings + human text, 90 ratings per pair, 214 AMT workers; Bradley-Terry coefficients; Spearman correlation of each metric with BT scores (§4.3, Table 5)'
+    baseline: Gen. PPL, Zipf, REP, Distinct-4, Self-BLEU (+discriminator accuracy on news/stories)
+    result: MAUVE achieves 0.952/0.810/0.857 (human-like/interesting/sensible BT) and 0.956 (news), 0.893 (stories) — highest across metrics
+    interpretation: MAUVE tracks human judgment better than all automatic baselines
+    supported_claim: C2
+narrative:
+  introduction_roles: [Context (open-ended generation progress), Gap (evaluation critical open problem), Error taxonomy (Type I/II, Fig. 1), Insight (divergence frontiers + quantized embeddings), Interface promise (scalar, pip-installable), Contribution list]
+  introduction_move: define the two error types before proposing anything — the taxonomy does the conceptual work, then the metric is presented as the natural quantification of the taxonomy; the "simple interface" sentence signals usability as a first-class design goal
+  related_work_strategy: position against proxy-metric families (§3) — each prior metric later appears as a failing baseline in Table 5, making related work do double duty as experimental baseline list
+  method_strategy: taxonomy-first then formalization — errors are illustrated with concrete text examples in Fig. 1 before any equation; the estimator is introduced only after the ideal intractable quantity is defined ("cannot be tractably computed in closed form" → Monte Carlo + quantization)
+  experiments_strategy: three-part validation in ascending evidentiary value — face validity (known properties, RQ2-style), robustness (RQ6), then gold-standard correlation (RQ1); the adversarial perplexity sampler functions as a targeted failure-case probe of competing metrics
+  conclusion_strategy: recap, then the vision analogy ("Automated metrics have driven advances in computer vision ... a similar path forward for open-ended text generation"), plus a candid Broader Impacts note that rewarding human-mimicry is itself risky
+reviewer_defense:
+  strengths: principled information-theoretic foundation (frontier recovers KL/JS as special cases); validation on three tasks with human-study gold standard; robustness analysis over every approximation choice; released package
+  vulnerabilities: 'results depend on the embedding model''s inductive biases (authors concede: "We leave further study of inductive biases ... to future work", §4.2); hyperparameters (k, c) must be chosen; human evaluation itself noisy (footnote 7 concedes inconsistency); only open-ended completion tasks tested'
+  anticipated_attacks: '"KL is infinite, so any divergence fails" — the entire motivation (§2); "quantization destroys signal" — §4.2 robustness; "human judgments are inconsistent" — footnote 7 acknowledges but argues human evaluation remains the gold standard; "does the embedding model decide the answer?" — conceded as future work with 0.993 cross-embedding correlation as partial defense'
+writing:
+  paragraph_patterns: definition → why intractable → workaround architecture in §2; each contribution previewed in one sentence with "First / Second / Third / Finally"
+  transition_patterns: '"To recap, ..." mid-section summaries; forward references ("Next, we discuss ... then present empirical results")'
+  terminology_patterns: '"Type I / Type II error" borrowed from statistics and used as the paper''s conceptual spine; capitalized measure name MAUVE throughout; scalars named (divergence curve, divergence frontier) and reused verbatim'

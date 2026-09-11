@@ -1,0 +1,83 @@
+# thesis: This paper shows that the optimal reverse variance and KL divergence of a diffusion
+# model have closed-form expressions in the score function, because moment matching plus the
+# law of total variance lets the second moment of the reverse posterior be written via the
+# expected score norm, and therefore proposes Analytic-DPM, a training-free inference
+# framework that plugs the analytic variance into pretrained DPMs for 20x-80x faster inference.
+paper:
+  venue: ICLR
+  year: 2022
+  field: generative models / diffusion probabilistic models
+  task: inference acceleration and likelihood improvement for pretrained DPMs
+  problem: '"A key problem in the inference is to estimate the variance in each timestep of the reverse process" — prior works handcraft it or train a variance network, and inference needs thousands of timesteps (Abstract, §1)'
+  importance: DPM inference is "two or three orders of magnitude slower" than GANs; fixing the variance estimate is a training-free lever applicable plug-and-play to any pretrained DPM (§1)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: handcrafted reverse variance (σ_n^2 = β_n or β̃_n in DDPM, λ_n^2 in DDIM), or a learned variance network (Nichol & Dhariwal 2021) (§1, §2)
+  core_assumption: the score-based loss (Eq. 5) provides no learning signal for the variance, so the variance must be either handcrafted or learned with an extra network/output (§2 end)
+  limitation: handcrafted values "are not the true optimal solution of Eq. (4) in general, leading to a suboptimal performance"; the learned-variance route still needs a long trajectory for reasonable likelihood (§2, §1)
+gap:
+  unresolved_problem: can the optimal reverse variance (and the induced optimal KL) be obtained for a pretrained DPM without any additional training?
+  evidence_for_gap: analytical — Theorem 1 derives the exact optimal σ_n*2 as a function of the score; Figure 1(b) shows handcrafted baselines lose per-timestep KL at small timesteps
+insight:
+  observation: the score-matching objective fixes only the mean of the reverse process; the variance is left free, and per-timestep KL terms differ sharply between handcrafted variances at small timesteps (§2, Fig. 1b)
+  central_insight: Gaussian KL is minimized by moment matching, and the second moment of q(x0|xn) — hence of q(xn−1|xn) — can be rewritten in terms of the score function, giving the optimal variance analytically (§3, proof sketch of Theorem 1)
+  hypothesis: Monte Carlo estimating the expected score norm once, then plugging into the closed form (with derived bounds to clip bias), should improve likelihood and permit much shorter trajectories without retraining
+method:
+  conceptual_change: stop treating the reverse variance as a design choice or a learned quantity — it is a deterministic functional of the already-trained score model
+  mechanism: estimate Γ_n = (1/d)E||s_n(x)||^2 by Monte Carlo once; compute σ̂_n^2 from the closed form (Eq. 9); clip to analytic lower/upper bounds (Theorem 2); use per-timestep optimal KL terms as edge costs in a least-cost-path dynamic program for trajectory selection (§3.1, §4)
+  formulation: 'Theorem 1 (Eq. 7): σ_n*2 = λ_n^2 + (sqrt(β_n/α_n) − sqrt(β̃_n−1 − λ_n^2))^2 · (1 − β_n E||∇log q_n||^2/d); bias decomposes into a coefficient times the score approximation error (Eq. 10), motivating clipping via Theorem 2 bounds'
+claims:
+  - id: C1
+    claim: '"both the optimal reverse variance and the corresponding optimal KL divergence of a DPM have analytic forms w.r.t. its score function" (theoretical)'
+    importance: central
+    evidence: Theorem 1 (Eq. 6–7), proof in Appendix A.2; trajectory version in §4
+  - id: C2
+    claim: Analytic-DPM is training-free, plug-and-play, and consistently improves log-likelihood of pretrained DPMs (comparative)
+    importance: central
+    evidence: Table 1 — lower bits/dim than DDPM variants under both ET and OT on CIFAR10/CelebA/ImageNet64
+  - id: C3
+    claim: Analytic-DPM achieves 20x–80x speedup at comparable or better sample quality (comparative/practical)
+    importance: central
+    evidence: 'Table 2 FID (Analytic-DDIM ≤50 steps matches baselines), Table 3 (least timesteps to FID≈6: 25 vs 90 on CIFAR10)'
+  - id: C4
+    claim: handcrafted variances underestimate the optimal reverse variance (Theorem 2 lower bound λ_n^2) (theoretical + descriptive)
+    importance: supporting
+    evidence: Theorem 2 + Figure 1(a) empirical agreement
+experiments:
+  - id: E1
+    research_question: RQ1 — does the analytic variance improve the primary objective (NLL)?
+    setup: pretrained DDPM/DDIM models on CIFAR10 (LS/CS), CelebA 64x64, ImageNet 64x64; NLL under trajectories of K=10..1000/4000 (§6.1)
+    baseline: DDPM with σ_n^2 = β_n and β̃_n; Improved DDPM learned variance (Nichol & Dhariwal)
+    result: consistent NLL improvement; Analytic-DPM with OT beats full-trajectory baselines with 20x–40x fewer steps (Table 1)
+    interpretation: the closed form recovers real optimization headroom left on the table by handcrafted variances
+    supported_claim: C2
+  - id: E2
+    research_question: RQ1/RQ5 — does it improve sample quality (FID) at short trajectories?
+    setup: FID under ET for K=10..4000 (§6.2, Table 2); efficiency summary Table 3
+    baseline: DDPM, DDIM, Improved DDPM
+    result: 'Analytic-DDIM consistently better; ≤50 steps for near-baseline FID (20x–80x speedup); Table 3: 25 steps vs 90 for DDPM at FID≈6'
+    interpretation: variance correction is most valuable exactly where inference is shortest — the fast-sampling regime
+    supported_claim: C3
+  - id: E3
+    research_question: does the analytic estimate match theory, and is it robust to MC noise?
+    setup: plot σ̂_n^2 vs handcrafted values and per-timestep L_vb terms (Fig. 1); MC-sample-size ablation M=10,100 (App. G.2); bound tightness (App. G.3); clipping ablations (Figs. 10–12)
+    baseline: β_n, β̃_n
+    result: estimate outperforms baselines per timestep, especially at small n; few MC samples suffice
+    interpretation: theory-to-practice gap is small; the estimator is cheap and stable
+    supported_claim: C1, C4
+narrative:
+  introduction_roles: [Context (DPM success), Existing success, Failure mode (slow inference, handcrafted variance), Gap, Insight (surprising analytic result), Solution (Analytic-DPM), Contribution (bounds + score–covariance link)]
+  introduction_move: concedes DPM quality parity with GANs up front, then attacks a single inference knob (the variance), and lands the surprise — an analytic form nobody noticed — as the payload; contributions are enumerated as capability claims (improve, speed up, reveal)
+  related_work_strategy: three thematic clusters (DPMs, Faster DPMs, Variance Learning), each cluster ending in the limitation Analytic-DPM removes (extra training / grid search / no likelihood spec)
+  method_strategy: theory-first — three theorems build the pipeline (optimal form, bounds, trajectory), each followed immediately by its practical estimator
+  experiments_strategy: likelihood first (the metric the theory optimizes), FID second, with an honest paragraph on metric divergence (FID vs NLL inconsistency explicitly discussed §6.2)
+  conclusion_strategy: mirror the abstract — theorem, framework, bounds, covariance link, empirical wins — no new claims
+reviewer_defense:
+  strengths: theorems are exact and proven; gains shown across 3 pretrained third-party models plus 2 own models; ablations on MC size, bounds, clipping
+  vulnerabilities: FID gains for Analytic-DDPM are not uniform (conceded §6.2); score–covariance relationship (§5) is admitted to have "unclear" practical implication; extra NLL gap to Improved DDPM learned variance on ImageNet (3.61 vs 3.57)
+  anticipated_attacks: '"is it just hyperparameter tuning?" — answered by proving optimality (Thm 1) and deriving bias decomposition + bounds (Thm 2); "does OT help FID?" — preempted that OT need not improve FID (§6.2, App. G.5)'
+writing:
+  paragraph_patterns: proof-sketch bullet list after Theorem 1 naming the three key lemmas (§3) — makes a hard derivation feel incremental and trustworthy
+  transition_patterns: each section opens by recalling what the previous one delivered ("According to Theorem 1...", §4)
+  terminology_patterns: compact naming discipline — Analytic-DDPM/Analytic-DDIM derived mechanically from the forward process; Γ reused as a shared quantity across sections

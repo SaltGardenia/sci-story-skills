@@ -1,0 +1,103 @@
+# thesis: This paper shows that GPT-style autoregressive image generation is unlocked by changing
+# the autoregressive unit from a raster-scan token to an entire scale — because raster-scan
+# flattening violates the unidirectional premise of VQVAE tokens, destroys spatial locality, and
+# costs O(n^6) — and therefore proposes Visual AutoRegressive (VAR) modeling via coarse-to-fine
+# next-scale prediction, which for the first time makes AR models surpass diffusion transformers.
+paper:
+  venue: NeurIPS
+  year: 2024
+  field: visual generation / autoregressive image synthesis
+  task: class-conditional ImageNet image generation (plus zero-shot editing/in-painting)
+  problem: autoregressive models for images "utilize a visual tokenizer to discretize continuous images into grids of 2D tokens, which are then flattened to a 1D sequence" — but "their performance significantly lags behind diffusion models" and "the scaling laws of these models remain underexplored" (§1)
+  importance: LLM-style autoregression carries two hallmarks the vision community wants to emulate — scaling laws (predictable performance, resource allocation) and zero-shot generalization — yet "the power of autoregressive models in computer vision appears to be somewhat locked" (§1)
+  source: full
+  inferred: [source file cleaned of null bytes]
+
+paradigm:
+  existing_approach: VQGAN-style raster-scan next-token prediction over flattened 2D token grids (also masked-prediction models like MaskGIT; §2.2)
+  core_assumption: that image autoregression must mirror language's token-level left-to-right order, i.e., an image has a natural 1D generation order
+  limitation: 'four diagnosed defects of vanilla AR (§3.1 "Discussion on the weakness"): (1) mathematical premise violation — VQVAE tokens retain bidirectional correlations (App. A, Fig. 9); (2) no bidirectional zero-shot tasks (can''t inpaint top from bottom); (3) structural degradation of spatial locality from flattening; (4) inefficiency — O(n^2) steps and O(n^6) compute'
+
+gap:
+  unresolved_problem: define an autoregressive ordering for images that satisfies unidirectionality, preserves 2D structure, and scales like LLMs
+  evidence_for_gap: formal analysis — attention heatmaps showing bidirectional token dependency in VQVAE (App. A) and complexity proof (App. B, Lemma B.1), plus the empirical performance lag in Fig. 3
+
+insight:
+  observation: '"Humans typically perceive or create images in a hierarchical manner, first capturing the global structure and then local details" — a multi-scale coarse-to-fine order is natural for images (§1)'
+  central_insight: make the autoregressive unit the entire token map at one scale — p(r_1,...,r_K) = Π p(r_k | r_<k) — with tokens generated in parallel within each scale, so coarse-to-fine ordering replaces raster-scan ordering (§3.2, Eq. 6)
+  hypothesis: next-scale prediction satisfies the AR premise (each r_k depends only on its prefix by residual VQVAE construction), preserves locality, cuts complexity to O(n^4), and inherits LLM-like scaling laws and zero-shot generalization (§3.2 "Discussion")
+
+method:
+  conceptual_change: the autoregressive unit is a scale (token map), not a token — "next-scale prediction" instead of "next-token prediction"
+  mechanism: 'two-stage pipeline — (1) multi-scale VQVAE: VQGAN architecture with residual multi-scale quantization layer, shared codebook (V=4096) across K scales, K extra convolutions for upscaling loss; Algorithm 1/2 guarantee r_k depends only on r_<k (§3.2, §4); (2) GPT-2-like decoder-only transformer with block-wise causal attention mask, AdaLN, q/k unit-vector normalization, simple width/depth scaling rule w=64d, N=73728d^3 (§4, Eq. 7–8)'
+  formulation: likelihood factorization over scales (Eq. 6); complexity O(n^4) vs AR's O(n^6) (App. B); scaling laws L_last=(2.0·N)^−0.23, L_avg=(2.5·N)^−0.20, and compute-frontier fits (Eq. 11–16)
+
+claims:
+  - id: C1
+    claim: '"VAR, for the first time, makes GPT-style AR models surpass diffusion transformers in image generation" — FID 1.73 / IS 350.2 on ImageNet 256×256, surpassing DiT (and L-DiT-7B) — comparative'
+    importance: central
+    evidence: §5.1 Tables 1–2; Fig. 3 (VAR 2B FID 1.73 beats L-DiT 3B/7B)
+  - id: C2
+    claim: VAR improves its AR baseline dramatically — FID 18.65→1.73, IS 80.4→350.2, 20× faster inference — comparative
+    importance: central
+    evidence: abstract; ablation Table 3 (row 1→6)
+  - id: C3
+    claim: VAR exhibits clear power-law scaling laws "similar to those observed in LLMs, with linear correlation coefficients near −0.998" — descriptive/empirical
+    importance: central
+    evidence: §5.2, Figs. 5–6, Eq. 11–16; 12 models from 18M to 2B parameters
+  - id: C4
+    claim: VAR shows zero-shot generalization on in-painting, out-painting, and class-conditional editing "without modifications to the network architecture or tuning parameters" — generalization
+    importance: supporting
+    evidence: §6, Fig. 8
+  - id: C5
+    claim: next-scale prediction fixes the diagnosed defects of raster-scan AR — premise satisfaction, locality preservation, O(n^4) complexity — theoretical/mechanistic
+    importance: central
+    evidence: §3.1 (four issues), §3.2 ("Discussion"), App. A–B
+
+experiments:
+  - id: E1
+    research_question: RQ1 — does VAR achieve state-of-the-art image generation?
+    setup: VAR-d16/20/24/30 on ImageNet 256×256 and 512×512; FID/IS/precision-recall vs AR, MaskGIT, L-DiT, DiT families (§5.1, Tables 1–2)
+    baseline: DiT-XL/2, L-DiT-3B/7B, VQGAN, RQ-Transformer, MaskGIT, Parti-class models
+    result: FID 1.73 (256×256, 2B), IS 350.2; 20× faster inference than AR baseline; outperforms DiT on quality, speed, data efficiency, scalability
+    interpretation: the paradigm, not architecture or tokenizer, was the bottleneck (same VQVAE architecture/data as VQGAN baseline)
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ4 — do LLM-style scaling laws hold for VAR?
+    setup: 12 models, 18M–2B parameters (depth 6–30), 200–350 epochs on ImageNet; test loss and token error rate vs N and Pareto-frontier C_min; power-law fits with Pearson coefficients (§5.2, Figs. 5–6)
+    baseline: n/a — fitting exercise following Kaplan/Hoffmann protocols
+    result: L_last=(2.0·N)^−0.23, compute-frontier relations hold "across 6 orders of magnitude in C_min"; Pearson ≈ −0.99; larger models more compute-efficient
+    interpretation: VAR initially emulates the LLM scalability property
+    supported_claim: C3
+  - id: E3
+    research_question: RQ5 — does VAR generalize zero-shot to tasks requiring bidirectional reasoning?
+    setup: teacher-force tokens outside mask for in/out-painting; class-conditional editing per MaskGIT protocol; no architecture change or tuning (§6, Fig. 8)
+    baseline: unguided VAR-d30
+    result: '"decent results" fusing plausibly with context'
+    interpretation: bidirectional tasks impossible under raster-scan unidirectionality become accessible — directly validating the paradigm fix
+    supported_claim: C4, C5
+  - id: E4
+    research_question: RQ3-ablation — how much of the gain comes from the paradigm vs enhancements?
+    setup: incremental rows from AR baseline → VAR → +AdaLN → +Top-k → +CFG → +Attn. Norm. → scale-up to VAR-d30 2B (§7, Table 3)
+    baseline: vanilla AR transformer (row 1)
+    result: the AR→VAR swap alone gives FID 18.65→5.22 at 0.013× inference cost; enhancements bring 3.30; scaling to 2B reaches 1.73
+    interpretation: the dominant single factor is the next-scale objective itself
+    supported_claim: C2, C5
+
+narrative:
+  introduction_roles: [Context (LLM success: scaling laws + zero-shot), Aspiration (vision wants the same), Failure mode (AR image models lag diffusion; scaling unexplored), Insight (hierarchical ordering — human perception), Solution (VAR, next-scale prediction), Results preview, Numbered contributions (4)]
+  introduction_move: borrows prestige from GPT-style LLMs, diagnoses the vision-AR gap as an ordering problem ("Our work reconsiders how to 'order' an image"), justifies the coarse-to-fine order via human perception and artistic drawing, and states the paradigm claim ("for the first time") twice — abstract and contributions — as the paper's headline
+  related_work_strategy: two-track — (2.1) properties of LLMs (scaling laws, zero-shot) framed as the properties to replicate; (2.2) visual generation families (raster-scan AR, masked-prediction, diffusion) each positioned against the ordering problem; footnote distinguishing from MagViT-2's masked "beats diffusion" claim
+  method_strategy: defect-list-first — §3.1 ends with four numbered weaknesses, §3.2's "Discussion" answers them point by point in the same order; theory (complexity proof) relegated to appendices while the main text stays design-oriented
+  experiments_strategy: SOTA benchmark → scaling laws → visual scaling evidence → zero-shot tasks → ablation; the ablation is deliberately placed last so the paradigm claim stands on the benchmarks first, with Table 3 quantifying the isolated paradigm effect
+  conclusion_strategy: numbered recap of the two theoretical/practical achievements, emphasis on −0.998 Pearson as "solid evidence", closing with a community invitation via open source (§9)
+
+reviewer_defense:
+  strengths: controlled comparison — VAR uses the same VQVAE architecture and training data as the VQGAN baseline, isolating the paradigm; ablation row 2 alone shows a massive jump; scaling-law methodology copied from established LLM protocols
+  vulnerabilities: ImageNet class-conditional benchmark only; tokenizer unchanged and acknowledged as improvable (§8); scaling laws measured on loss/error, not FID; "for the first time" claims are snapshot-sensitive (MagViT-2 footnote shows contested territory); O(n^4) still quadratic in scale count
+  anticipated_attacks: '"bidirectional correlations also exist within a scale" — handled by the block-wise causal mask and the argument that coarse-to-fine dependence is natural (§3.2 Discussion point 1); "is this just RQ-Transformer?" — differentiated in related work: RQ uses stacked codes in raster-scan manner, VAR uses parallel within-scale generation (§2.2, §3.2); "VQVAE bottleneck caps quality" — conceded in §8 as orthogonal'
+
+writing:
+  paragraph_patterns: numbered defect/contribution lists bookend the argument (4 weaknesses in §3.1, 4 contributions in §1, 3 fixes in §3.2) — list-driven architecture
+  transition_patterns: the phrase "next-scale prediction" vs "next-token prediction" is repeated as a refrain at every section pivot; figures carry naming burden (Fig. 2 shows the paradigm contrast visually)
+  terminology_patterns: coinage discipline — "VAR", "next-scale prediction", "next-resolution prediction" offered as synonyms once then VAR only; quotation marks around "next-scale prediction" in first uses; consistent r_k notation from formulation through algorithms

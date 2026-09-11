@@ -1,0 +1,74 @@
+# thesis: This paper shows that learning uniformly well over n data distributions costs only an
+# additive O(n log(n)/ε²) samples over single-distribution learning — the optimal rate — if the
+# algorithm samples on demand, because multi-distribution learning reduces to a stochastic
+# convex-concave zero-sum game (learner vs auditor) whose equilibria can be computed with
+# cost-asymmetric no-regret dynamics, and therefore proposes a general framework yielding optimal
+# bounds for collaborative learning, agnostic federated learning, and group DRO (plus an empirical
+# R-MDL variant matching Group DRO).
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: learning theory / multi-distribution learning
+  task: optimal sample complexity for uniformly minimizing expected loss over n predefined distributions
+  problem: '"In each of these settings, a learner seeks to uniformly minimize its expected loss over n predefined data distributions, while using as few samples as possible" — across robustness, fairness, social welfare, and multi-agent paradigms (Abstract); prior results require multiplicative factors of n or log(n)/ε³ over single-distribution learning (§1, Table 1)'
+  importance: multi-distribution learning "brings together a number of widely studied problem formulations such as group distributionally robust optimization and collaborative PAC learning under a single umbrella"; establishes "adaptive data collection is fundamental for scalable learning outside the single-distribution paradigm" (§9)
+  source: full
+paradigm:
+  existing_approach: batched uniform-sampling algorithms (fair federated learning [39], Ω(n) blowup) and early on-demand analyses limited to the realizable case [9] or with ε^-3 dependence (agnostic collaborative learning [42]); GDRO studied empirically without test-time guarantees (§1)
+  core_assumption: samples must be drawn in large pre-allocated batches per distribution (fixed per-distribution budgets)
+  limitation: '"the use of a fixed per-distribution sample budget [is] highly inefficient" — tasks differ in difficulty and overlap; existing agnostic bounds are ε^-3 or Ω(n)-suboptimal; GDRO has no provable test-time analysis (§1)'
+gap:
+  unresolved_problem: optimal (additive-only) on-demand sample complexity for the agnostic multi-distribution settings, and the first test-time guarantees for group DRO (§1, Table 1)
+  evidence_for_gap: realizable-case results show e^(O(log n)) is possible while agnostic results fall short — the gap between realizable promise and agnostic reality is quantified in Table 1
+insight:
+  observation: 'multi-distribution learning is exactly an ε-min-max equilibrium problem: learner plays h ∈ H, auditor plays (D, ℓ) ∈ D × L with payoff R_{D,ℓ}(h); any ε-equilibrium yields a 2ε-optimal model (Fact 3.1)'
+  central_insight: the game's feedback is asymmetric — the learner's gradient needs one sample from the auditor's mixture while the auditor's gradient needs n samples (Fact 3.2) — so equilibrium computation must trade off players' differing sampling costs, and no-regret dynamics can be generalized to do so (§3.2)
+  hypothesis: stochastic no-regret dynamics with asymmetric-cost oracles return approximate equilibria using only O(ε^-2 (log|H| + n log(n/δ))) total samples, matching the lower bound (Lemma 3.1, Theorems 5.1/5.3)
+method:
+  conceptual_change: recast multiple fairness/robustness/federated objectives as one zero-sum game, and view sample complexity as the cost of computing its equilibrium with stochastic feedback — "on demand" sampling emerges from the game dynamics, not from pre-allocated budgets
+  mechanism: 'two-step framework — (1) reduction to convex-concave game (Fact 3.1); (2) Algorithm 1: plug online-learning algorithms Q_{A−}, Q_{A+} into no-regret dynamics fed by unbiased bounded noisy first-order oracles g−, g+ implemented by querying example oracles; generalized to asymmetric costs (Lemma 3.1 in terms of players'' regret bounds γ_T)'
+  formulation: 'payoff ϕ(h, (D, ℓ)) = R_{D,ℓ}(h); OPT = min_h max_D R_D(h); equilibrium rate ε^-2(log|H| + n log(n/δ)); for GDRO: deterministic model in a convex compact space with Bregman radius D_H, rate ε^-2(D_H + n log(n/δ)) (Theorem 6.1)'
+claims:
+  - id: C1
+    claim: multi-distribution learning (collaborative, GDRO, agnostic federated) has sample complexity ε^-2(log|H| + n log(n/δ)) — "exceed[ing] that of learning a single distribution by only an additive factor of n log(n)/ε²" — achieved by an on-demand algorithm (theoretical)
+    importance: central
+    evidence: Abstract, Table 1, Theorem 5.1
+  - id: C2
+    claim: matching lower bound — collaborative learning requires Ω(ε^-2(log|H| + n log(n/δ))), proving the upper bound optimal (theoretical)
+    importance: central
+    evidence: Theorem 5.3, Table 1
+  - id: C3
+    claim: the bounds improve the best prior results by multiplicative factors of n (fair federated learning [39]) and log(n)/ε³ (collaborative learning [42]), and give the first sample complexity bounds for group DRO [50] (comparative)
+    importance: central
+    evidence: Abstract, Table 1, Theorems 5.1, 6.1
+  - id: C4
+    claim: training-error convergence at rate ε^-2(D_H + n log(n/δ)) for the GDRO game dynamics, improving Sagawa et al.'s expected-convergence-only bound (theoretical)
+    importance: supporting
+    evidence: Theorem 6.2, Table 1
+  - id: C5
+    claim: an offline adaptation of the on-demand algorithm (R-MDL) matches or beats Group DRO's worst-group accuracy on Waterbirds/CelebA/MultiNLI while shrinking the average-vs-worst-group gap (e.g. 89.4 vs 84.6 on Waterbirds under strong regularization) (empirical/comparative)
+    importance: supporting
+    evidence: §8, results table
+experiments:
+  - id: E1
+    research_question: RQ1-flavored (theory validation at scale) — does the game-theoretic algorithm compete with the de facto GDRO standard on real deep-learning benchmarks?
+    setup: adapt the on-demand algorithm to offline datasets (R-MDL); compare worst-group accuracy and avg-vs-worst gap against ERM and Group DRO on Waterbirds, CelebA, MultiNLI under standard/strong regularization and early stopping (§8)
+    baseline: ERM, Group DRO (Sagawa et al. 2020)
+    result: R-MDL achieves the best worst-group accuracy in nearly all configurations with the smallest gaps (0.4–5.6 vs GDRO's 3.5–20.5)
+    interpretation: the optimal-rate theory translates into competitive practice
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (multi-distribution paradigms proliferate), Core question (sample complexity vs single-distribution), Inefficiency diagnosis (fixed budgets), Prior results and their suboptimality (realizable vs agnostic gap), Results table (Table 1), Technique preview (zero-sum games + no-regret)]
+  introduction_move: the intro is organized around a comparison table — every paradigm and prior bound is placed in one grid so the additive-vs-multiplicative distinction is visible at a glance; on-demand sampling is motivated with concrete scenarios (scarce population data, dataset perturbation, agent contributions) before any theorem
+  related_work_strategy: paradigm-by-paradigm (§1.1) — collaborative learning, GDRO/AFL, game-theoretic equilibrium computation — with the paper positioned as the unifier
+  method_strategy: reduction-first — Fact 3.1 (game equivalence) and Fact 3.2 (asymmetric sampling costs) are stated and proved early, so the algorithm appears as the natural consequence of the game structure; regret-parameterized Lemma 3.1 keeps the framework modular
+  experiments_strategy: theory sections carry the paper; the empirical section is framed as an adaptation exercise ("GDRO is designed for use with offline-collected datasets, to provide a meaningful comparison, we modify our algorithm") — validating transferability rather than chasing SOTA
+  conclusion_strategy: philosophical close — multi-distribution learning as the unifying abstraction for multi-stakeholder data-driven decision-making; on-demand sampling promoted to a general principle
+reviewer_defense:
+  strengths: matching upper and lower bounds (optimal rates); one framework covering three previously separate paradigms; asymmetric-cost no-regret dynamics as a reusable technical tool; empirical validation bridging to deep learning practice
+  vulnerabilities: lower bound given only for collaborative learning (GDRO optimality claimed via same-rate upper bound); assumptions — convex losses/Bregman geometry for GDRO, log|H| finite model class (VC extension "under some assumptions"); empirical section offline-adapted, so the on-demand advantage itself is not directly tested; worst-group gains partly within seed variance on some configurations
+  anticipated_attacks: '"equilibrium of stochastic games is old" — the contribution is the asymmetric-cost extension enabling sample-optimal dynamics (§3.2); "is on-demand access realistic?" — motivated in §1 with fairness/robustness/multi-agent scenarios; "2ε vs ε slack" — Fact 3.1''s 2ε is absorbed in the final bounds'' constants'
+writing:
+  paragraph_patterns: scenario-then-formal paragraphs; facts with short proofs inline; comparison table (Table 1) as the paper's anchor referenced throughout
+  transition_patterns: '"Our approach consists of two steps: (1) ... and (2) ..." — the roadmap sentence governs the whole paper; each theorem followed by a placement sentence relative to Table 1 rows'
+  terminology_patterns: '"on-demand sampling" as the branded concept; learner-vs-auditor personification of game players; consistent (D, L, H) and ε-min-max equilibrium notation'

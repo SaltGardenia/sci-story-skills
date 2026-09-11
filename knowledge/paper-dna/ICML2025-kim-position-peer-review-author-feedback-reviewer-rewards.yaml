@@ -1,0 +1,61 @@
+# thesis: This position paper argues that the AI peer-review crisis demands making review
+# bi-directional and rewarded, because the current one-way system creates a reviewer-author
+# power imbalance and gives reviewers no accountability or professional incentive, and
+# therefore proposes two-stage review release with author feedback on reviews plus a
+# system-backed reviewer reward framework (badges, activity tracking, impact scores).
+paper:
+  venue: ICML
+  year: 2025
+  field: peer review / meta-science (Position track)
+  task: reforming AI conference peer review via author feedback and reviewer rewards
+  problem: "\"The peer review process in major artificial intelligence (AI) conferences faces unprecedented challenges with the surge of paper submissions (exceeding 10,000 submissions per venue), accompanied by growing concerns over review quality and reviewer responsibility\" (Abstract)"
+  importance: conferences are the first-tier venues of fast-paced AI research with "impact comparable to many prestigious journals", so declined review quality threatens "the hard-earned conference's established reputation" and the community's dissemination channel (§1)
+  source: full
+paradigm:
+  existing_approach: one-way double-blind review — reviewers evaluate authors, all reviews released simultaneously, voluntary unrecognized service model, occasional Reviewer Hall of Fame awards invisible to the community (§3 Current Review System, §4)
+  core_assumption: "\"the perspective that peer review should be an academic voluntary service... where intellectual curiosity and scholarly responsibility are expected to be sufficient drivers\" (\u00a72.2)"
+  limitation: reviewers "face no accountability" while authors "suffer the consequences" of rejection — a power imbalance enabling negligence, LLM-generated reviews, and exploitation; existing recognition is "largely unnoticeable" (§2.2, §4)
+gap:
+  unresolved_problem: how to restructure accountability and incentives for reviewers given that author-side causes are only addressable by "policy enforcement and detection tools" and cannot be fixed by process redesign (§2.1 "review quality ceiling")
+  evidence_for_gap: responsibility-share argument — all three stakeholders (Authors, Reviewers, System, Definitions 1.1–1.3) contribute causes; the paper restricts to the addressable subset (§2.2 Reviewer-side/System-side)
+insight:
+  observation: review quality failures concentrate where accountability is absent — superficial reviews, LLM-generated text (adjective-frequencies and typo-free ratios, §2.2 with own evaluation App. B), and unrewarded effort (§2.2 Reviewer Exploitation)
+  central_insight: the fix is to make evaluation itself evaluated — a bi-directional feedback loop where "authors evaluate review quality and reviewers earn formal accreditation" creates the missing accountability while incentives create the missing motivation (Abstract)
+  hypothesis: a minimal modification of the existing timeline (LLM shadow reviews + two-stage release with author feedback) plus visible, system-issued credentials (badges, tracking, impact scores) can rebalance power without disrupting conferences
+method:
+  conceptual_change: reframe review from a one-way judgment of papers into a two-way accountability relationship between three accountable parties, with reviewer quality as a first-class, measurable, credentialed quantity
+  mechanism: (1) LLM-generated peer reviews shown to authors (never to be discussed) as deterrent + flag reference (§3 item 1); (2) two-stage release — Section 1 (summary/strengths/questions) → author feedback on comprehension + constructiveness + LLM flags → Section 2 (weaknesses/ratings) locked (§3 item 2); (3) reward layer — top 10%/30% digital badges issued by venues, reviewer activity tracking (Publons-style), reviewer impact score à la h-index treating reviewers "as authors of the papers they have reviewed" (§4.1–4.2)
+  formulation: aggregated author feedback scores across a reviewer's multiple submissions as the quantitative review-quality measure; CVPR 2025 desk-rejection precedent as feasibility evidence (§3 item 1, footnote 6)
+claims:
+  - id: C1
+    claim: responsibility for degraded review quality is shared among authors, reviewers, and the system, and only reviewer/system-side causes are addressable by process reform — there is a "review quality ceiling" (conceptual commitment of the position)
+    importance: central
+    evidence: "\u00a72 taxonomy (non-addressable: submission surge, LLM-assisted writing, momentum/AI trend churn; addressable: negligence, exploitation)"
+  - id: C2
+    claim: a two-stage bi-directional review with author feedback can mitigate the power imbalance while safeguarding reviewers from retaliation — a minimal, timeline-compatible modification (practical commitment)
+    importance: central
+    evidence: "\u00a73 (design + three anticipated concerns answered: gaming via length limits, unwritable strengths for weak papers via exemptions, LLM-flag misuse via justification requirements)"
+  - id: C3
+    claim: a system-backed, visible reward framework (badges, activity tracking, impact scores) is necessary to motivate quality reviewing, beyond voluntary service (practical commitment)
+    importance: central
+    evidence: §4 (education-sector badge evidence, ten-of-fourteen conferences' invisible awards, CVPR 2025 policy precedent)
+  - id: C4
+    claim: the community should adopt these changes gradually via pilot programs in smaller tracks, and conduct systematic surveys of review quality (process commitment)
+    importance: supporting
+    evidence: §5.1 gradual implementation; §6 counter-view concession ("lack of evidence for declining review quality equally suggests a lack of evidence that quality standards are being maintained")
+experiments: []  # Position paper — no empirical experiments; the argument is supported by published statistics (submission counts Fig. 1; LLM-adjective and typo analyses, App. A–B; CVPR 2025 policy, §3) and a reasoned cause taxonomy
+narrative:
+  introduction_roles: [Context (conference centrality, submission surge), Problem (declining review quality), Responsibility claim (three stakeholders with Definitions), Scope restriction (addressable vs non-addressable), Position (two mechanisms), Roadmap]
+  introduction_move: opens with formal definitions of the three stakeholders (Authors/Reviewers/System) before any diagnosis — a legislature-style move that fixes the moral geometry early; the position itself is stated as two numbered advocacy items with the reward logic pre-summarized ("just as authors are incentivized to produce high-quality papers, reviewers should be similarly motivated")
+  related_work_strategy: problem-partitioned — §7 splits into review-quality works, LLM-in-review works, and reviewer-reward works, each closing by differentiating the present proposal's mechanism
+  method_strategy: proposal-first, objection-sequenced — each mechanism is immediately followed by the three strongest concerns with designed mitigations; the alternative-views section (§6) is used to concede the missing-evidence point and convert it into a survey recommendation
+  experiments_strategy: evidence portfolio rather than experiments — own quick analyses (App. A keyword churn 17%, App. B typo-ratio), industry statistics, and an institutional precedent (CVPR 2025) each serving as existence proofs for one claim
+  conclusion_strategy: acknowledges predicted unpopularity among reviewers head-on ("we expect that our author feedback system would not be greeted by many reviewers"), reframes the proposal as protecting the majority, and credits social-media discourse as the paper's origin
+reviewer_defense:
+  strengths: mechanism-level specificity (what is released when, who sees what, how flags are handled); minimal-modification framing against the "burden" objection; separate treatment of author-side vs reviewer-side causes prevents overclaiming
+  vulnerabilities: no direct evidence that author feedback improves review quality (pilot proposed, not run); badge/impact-score metrics are gameable (scores "not easily visible" critique applies to badges too); retaliation safeguards (two-stage release) untested at scale; impact score inherits h-index pathologies
+  anticipated_attacks: "\"the system works fine\" \u2014 answered in \u00a76 by the sustainability counter-argument and the evidence-symmetry point; \"authors will retaliate\" \u2014 two-stage release with locked scores and aggregation across submissions (\u00a73); \"LLM flags enable abuse\" \u2014 meta-reviewer oversight + required justification (\u00a73 item 2)"
+writing:
+  paragraph_patterns: numbered proposals each with (i) design, (ii) dual advantages (manageability + safeguard), (iii) enumerated concerns/mitigations — a policy-whitepaper architecture inside a research paper
+  transition_patterns: explicit scoping moves ("We intentionally defer discussions on related but important problems...", §2 opening) that protect the position from scope-creep objections
+  terminology_patterns: defined-stakeholder capitalization (Authors, Reviewers, System) used consistently as actors; coined term "review quality ceiling" doing heavy definitional work; consistent "Section 1 / Section 2" release vocabulary

@@ -1,0 +1,94 @@
+# thesis: This paper shows that an LLM (decoder-only autoregressive transformer over
+# discrete tokens) can match or beat diffusion video models at zero-shot video generation —
+# especially high-fidelity motion — because a multi-task multimodal pretraining mixture
+# (text/image/audio-conditioned next-token objectives) turns video generation into standard
+# LLM pretraining, and therefore proposes VideoPoet: tokenizers + prefix-LM + cascaded
+# super-resolution, with SOTA zero-shot T2V and human-preference wins on motion.
+paper:
+  venue: ICML
+  year: 2024
+  field: generative models / video generation
+  task: zero-shot multi-task video generation (text-to-video, image-to-video, editing, stylization, audio)
+  problem: "video generation is dominated by diffusion models built from image priors then finetuned for temporal consistency, while \"language models have not reached a level of quality on par with video diffusion models\" despite their multimodal and multitask strengths (§1)"
+  importance: "LLMs bring reusable scaling recipes, training/inference infrastructure, and \"flexibility in encoding many diverse tasks in the same model\" (vs. diffusion's adapters and architectural changes), plus multi-task pretraining that exploits unpaired videos (§1)"
+  source: full
+paradigm:
+  existing_approach: video diffusion models derived from text-to-image diffusion (Stable Diffusion lineage), extended via inference tricks, architectural changes, and adapter layers; token-based video models limited to text-video pairs or masked token modeling (Phenaki) (§1–2)
+  core_assumption: that autoregressive token models cannot match diffusion quality on video, and that video generation must be trained for the specific target task (text-to-video) rather than pretrained across tasks
+  limitation: "diffusion pipelines are \"not trained end-to-end in a unified framework\"; per-task adapters dominate; video-language models train only on paired data, leaving video-only corpora unused (§1–2)"
+gap:
+  unresolved_problem: a proof-of-concept LLM for video generation trained with the canonical LLM protocol (pretraining + task adaptation) over a mixture of multimodal objectives, evaluated zero-shot against diffusion SOTA (§1 Contributions)
+  evidence_for_gap: literature reading — prior LLM video work (CogVideo, CogVideo-style, Make-A-Video-class transformers) lagged diffusion on T2V quality and motion, and none combined paired + unpaired video with audio and image tasks in one vocabulary (§1–2)
+insight:
+  observation: "LLM pretraining derives power from *task mixtures* and unpaired data (GPT-3/PaLM scaling; masking as a learning target), while video models were trained single-task on paired data (§1, §2 \"Pretraining task design in LLMs\")"
+  central_insight: video generation tasks are all prefix-conditioned next-token prediction once every modality is discretized into a shared vocabulary — so a task-mixture pretraining design (T2V, T2I, frame prediction, inpainting/outpainting, stylization, audio-video continuation) in one decoder-only LLM yields a foundation model whose capabilities (zero-shot editing, task chaining, long-video autoregression) emerge without per-task architectures (§3–4, Fig. 2)
+  hypothesis: (i) the full task mixture beats single-task and SSL-only training on zero-shot benchmarks; (ii) motion quality — the LLM's weakness hypothesis — is actually a strength vs diffusion when trained on motion-rich data; (iii) a cascade (base LLM at 224×128 + non-autoregressive SR in token space) resolves the sequence-length cost that makes autoregressive high-resolution video impractical (§3.3, §5)
+method:
+  conceptual_change: treat video generation as language modeling — all conditionings (text embeddings, image/video/audio tokens, masks, flow/depth) are prefixes in one sequence layout, and tasks are defined by input-output patterns, not architectures
+  mechanism: (1) MAGVIT-v2 tokenizer (17-frame, 2.125s, 128×128 → 1280 tokens, vocab 2¹⁸, causal temporal dependency) + SoundStream audio (RVQ, 4096 codes) + frozen T5-XL text embeddings; (2) decoder-only prefix LM over the unified vocabulary with <task> tokens; ~10 pretraining tasks (T2V, FP, I2V, Painting, stylization via flow+depth, audio↔video); (3) two-stage image→video sampling schedule (90/10 flip); AGD training for variable lengths; (4) custom windowed multi-axis SR transformer with token factorization (262,144-way → two 512-way), noise augmentation on LR tokens, cascade of two 2× stages to 896×512 (§3, §4, Figs. 2–3)
+  formulation: "sequence layout = [bidirectional prefix: text/visual/audio tokens] + [causal autoregressive output tokens] (Fig. 2); loss only on outputs; task identity via special tokens"
+claims:
+  - id: C1
+    claim: "\"VideoPoet's state-of-the-art capabilities in generating videos with large and high-fidelity motions\" — competitive with or beating diffusion SOTA in human evaluations, with significant wins on motion interestingness and realism (abstract, §5.3)"
+    importance: central
+    evidence: "comparative — Fig. 4 human study vs Phenaki/Show-1/VideoCrafter/Runway/Pika/WALT/Lumiere (5 dimensions); \"Lumiere ... is the only model that outperforms VideoPoet on Video Quality\""
+  - id: C2
+    claim: "the full multi-task pretraining mixture yields the best overall zero-shot performance across T2V, frame prediction, inpainting, and outpainting benchmarks; SSL-only training is markedly worse, \"underscor[ing] the necessity for text-paired data\" (§5.2, Table 1)"
+    importance: central
+    evidence: "ablation — Table 1 (300M models, matched steps/LR: ALL vs T2V-only vs SSL rows)"
+  - id: C3
+    claim: zero-shot text-to-video results are competitive or SOTA — pretrain-only FVD 213 on MSR-VTT vs Show-1's 538 (Table 2), with task adaptation improving CLIPSIM to 0.3123 (§5.3)
+    importance: central
+    evidence: comparative — Table 2 (9 baselines, zero-shot protocol)
+  - id: C4
+    claim: the unified LLM supports zero-shot capabilities diffusion pipelines lack — coherent 10s videos by autoregressive extension, task chaining (I2V→stylization; outpainting→editing) with outputs staying in-distribution for the next stage, 3D-consistent rotation and camera-motion control from short prompts (§5.5, Figs. 5–7, 10–11)
+    importance: central
+    evidence: "qualitative/descriptive — §5.5 demonstrations (\"Such capabilities are rarely observed in contemporary diffusion models\")"
+  - id: C5
+    claim: a token-space super-resolution cascade makes high-resolution output practical — two 2× SR stages produce 896×512 from the 224×128 base at ~5s amortized per second of video (§3.3, §5.4)
+    importance: supporting
+    evidence: system measurement — §5.4 runtime accounting (34s base + 1.3s detokenize + 6.8s SR)
+experiments:
+  - id: E1
+    research_question: RQ4 (mixture design) — which pretraining task combinations matter, at matched compute?
+    setup: 300M-parameter models, identical LR/steps (300k, batch 1024), combinations over T2I/T2V/Uncond/FP/Painting/AVCont; zero-shot eval on MSR-VTT/UCF-101 (T2V), K600 (FP), SSv2 (in/outpainting); FVD/CLIPSIM/IS metrics (§5.1–5.2, Table 1)
+    baseline: T2V-only, T2V+I, SSL-only, no-T2I
+    result: "ALL mixture best overall (T2V CLIPSIM 0.240, SSv2 FVD 127); SSL-only badly worst on T2V (FVD 1742) but strong on FP; ALL (8B) at larger compute: FVD 355/687/4.7/13.76 (Table 1)"
+    interpretation: multi-task pretraining generalizes where single-task overfits; unpaired SSL tasks help frame prediction but cannot replace text conditioning
+    supported_claim: C2
+  - id: E2
+    research_question: RQ1 — is the LLM competitive zero-shot against diffusion SOTA on text-to-video?
+    setup: zero-shot T2V on MSR-VTT and UCF-101; pretrain-only and task-adapted 8B model; fixed negative prompt + lightweight prompt rewriting as system (§5.3, Table 2)
+    baseline: CogVideo, MagicVideo, Video LDM, ModelScopeT2V, InternVid, VideoFactory, Make-A-Video, Show-1
+    result: VideoPoet (Pretrain) FVD 213 on MSR-VTT (best reported), CLIPSIM 0.3049; task-adapted CLIPSIM 0.3123 (Table 2)
+    interpretation: the LLM paradigm closes the quality gap its critics assumed
+    supported_claim: C3
+  - id: E3
+    research_question: RQ5 — does the approach win where it matters perceptually (motion)?
+    setup: ~250-prompt bank (motion-explicit prompts pre-selected to avoid bias toward still videos), side-by-side human ratings on 5 dimensions vs 7 models, including concurrent Lumiere (§5.3 Human Evaluations, Fig. 4)
+    baseline: diffusion SOTA (Show-1, VideoCrafter, Pika, Gen2, WALT, Lumiere; token-based Phenaki)
+    result: VideoPoet preferred on most dimensions; largest wins motion interestingness (82% vs Runway, 84% vs Pika) and motion realism; only Lumiere beats it on video quality (41/59); loses temporal consistency to Lumiere (36/64) (Fig. 4)
+    interpretation: autoregressive LLM training yields distinctly better dynamics — the paper's differentiating claim
+    supported_claim: C1
+  - id: E4
+    research_question: capability demonstrations — what emerges from unification?
+    setup: long-video generation by iterative 1s extension (Fig. 5); image-to-video from arbitrary images; task chaining (I2V then stylization; outpaint then edit) with teacher-forcing checks; camera-motion control; 3D rotation without 3D losses (§5.5, Figs. 5–7, 10–11)
+    baseline: none quantitative — qualitative capability evidence
+    result: coherent 10s+ videos, chained tasks remain in-distribution across stages, reasonable backside predictions and camera motion from short prompts
+    interpretation: multi-task prefix-LM pretraining produces composable capabilities as zero-shot emergence
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (video generation boom, diffusion dominance), Failure mode (LLMs behind on video quality), Reframe (LLM pretraining advantages: infrastructure + multi-task + unpaired data), Solution (VideoPoet protocol), Contributions (three bullets: method, SR module, evaluations)]
+  introduction_move: "concedes the weak position up front (LLMs below diffusion on video) and converts it into the thesis — the fix is not a better video objective but importing the *pretraining protocol* of LLMs (mixture of tasks, unpaired video); \"proof of concept\" honesty (\"Our contribution is a proof of concept demonstrating an understudied approach\") lowers the evidentiary bar honestly while the human eval later over-delivers"
+  related_work_strategy: three-front map (video diffusion; video/image LMs; LLM pretraining task design), each front ending in the constraint the paper removes (paired-only data, single task, no unified framework)
+  method_strategy: system-first with sequence-layout centrality — Figure 2 (the token layout) is the method; tasks enumerated as prefix/output patterns; SR presented as a necessary systems solution to a stated arithmetic problem (35,840 tokens, §3.3)
+  experiments_strategy: ablation (task mixtures at 300M, matched compute) → benchmarks (zero-shot FVD/CLIPSIM) → human preference (the decisive motion claim) → capability demos → runtime; motion-explicit prompt selection disclosed as a fairness safeguard against still-video bias
+  conclusion_strategy: capability-summary conclusion (unified vocabulary, multi-task foundation, editing breadth) with an honest Limitations section naming three concrete constraints (tokenizer ceiling on fidelity, aesthetic data choices excluding LAION, small objects with large motion) (§5.6, §6)
+reviewer_defense:
+  strengths: matched-compute ablation of the pretraining mixture (rare in system papers); human evaluation with pre-registered prompt bank and motion-explicit selection; zero-shot protocol avoids benchmark-training contamination; runtime accounting included
+  vulnerabilities: human eval relies on Google-internal raters and a proprietary model/data pipeline (1B image-text pairs, ~270M videos, internal sources for finetuning) — not reproducible; FVD/CLIPSIM known to be weakly correlated with perception; Lumiere/Gen2 comparisons partly concurrent or API-only (50 prompts for Pika/Gen2); tokenizer reconstruction bound conceded in §5.6
+  anticipated_attacks: "\"still videos are easier for you\" — prompt bank preferentially selects explicit-motion prompts and discloses this (§5.3); \"task-adapted model inflates results\" — pretrain-only rows reported separately in Tables 1–2; \"audio results?\" — reported in appendix (Fig. 8b FAD) rather than omitted"
+writing:
+  paragraph_patterns: "task-list paragraphs (numbered pretraining tasks); design-rationale pairs (\"Two possible choices exist ... Our results suggest that the former ...\", audio RVQ); limitations enumerated with attributed causes"
+  transition_patterns: "\"Having found ... we now turn to\" logic in experiment flow; capability subsections each open with the LLM property that enables them (\"A benefit of a decoder-based language model is that it pairs well with autoregressively extending generation in time\")"
+  terminology_patterns: task acronyms defined in figure captions (T2V, FP, Painting, AVCont, SSL); protocol vocabulary borrowed from LLMs (pretraining, task-adaptation, prefix LM, zero-shot) applied to video — the lexicon itself carries the argument

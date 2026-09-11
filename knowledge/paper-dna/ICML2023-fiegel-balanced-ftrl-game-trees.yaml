@@ -1,0 +1,73 @@
+# thesis: This paper shows that ε-optimal strategies in zero-sum imperfect-information
+# games with trajectory feedback can be learned at the optimal O(H(AX+BY)/ε²) rate
+# because FTRL with balanced (tree-size-weighted) regularization removes the excess
+# factors of prior OMD methods, and therefore proposes Balanced FTRL (matching the new
+# lower bound) and Adaptive FTRL (near-optimal without knowing the game tree structure).
+paper:
+  venue: ICML
+  year: 2023
+  field: game theory / online learning in games
+  task: learning ε-optimal strategies in two-player zero-sum imperfect information games (IIG) via self-play with trajectory feedback
+  problem: "\"We study how to learn ε-optimal strategies in a zero-sum IIG through self-play with trajectory feedback\" (abstract)"
+  importance: "practical algorithms for large IIGs (CFR family) have prohibitive cost scaling with full tree traversals and either need structure knowledge or have suboptimal sample complexity; the paper answers \"What is the optimal rate for learning ε-optimal strategies through self-play?\" (§1)"
+  source: full
+  inferred: []  # structure-free (Adaptive FTRL's structure independence) is stated by the authors
+paradigm:
+  existing_approach: trajectory-feedback variants of counterfactual regret minimization — outcome-sampling MCCFR with uniform action sampling, OMD-based IXOMD with implicit exploration, and Balanced OMD with sub-tree-proportional sampling (§1 Related work)
+  core_assumption: that with only bandit-style trajectory feedback, high-probability ε-optimal learning must pay either a factor-H (IXOMD) or H³ (Balanced OMD) overhead, or require knowing the information-set tree to balance sampling (Table 1)
+  limitation: "uniform sampling in MCCFR is \"sub-optimal when the information set trees of the players are unbalanced\"; balanced variants remove this but \"require the knowledge of the game structure beforehand\" (§1)"
+gap:
+  unresolved_problem: "matching the true optimal sample complexity in trajectory-feedback IIGs, and doing so structure-free (§1 questions: optimal rate? linear-in-actions without prior structure knowledge?)"
+  evidence_for_gap: analytical — a gap table (Table 1) between best upper bounds and the (newly proved) lower bound; prior bounds O(ĒH⁴), O(H²(XAX+YBY)), O(H³) vs lower bound O(H(AX+BY))
+insight:
+  observation: with unbalanced information-set trees, uniform or poorly weighted exploration over-observes small sub-trees; performance depends on how the regularizer and exploration rate weight each information set by its sub-tree size (§1, balanced policy of Farina et al. 2020 / Bai et al. 2022)
+  central_insight: replacing OMD with FTRL lets the balanced weighting move into the *regularizer* composed with a balanced transition kernel p*, so the whole tree geometry enters through Ψh(p*_{1:h}·µ_{1:h}) — giving the optimal rate where OMD loses a factor H (§4, Table 1)
+  hypothesis: the structure knowledge needed by the balanced kernel can itself be estimated online from visited trajectories (recursive IX estimators P̂e of transitions), so learning rates adapt and the extra structure requirement disappears (§5)
+method:
+  conceptual_change: treat the game tree as a weighted geometry to be absorbed into the regularizer (FTRL view), rather than as a sampling distribution to correct (importance-sampling view)
+  mechanism: (1) Balanced FTRL — FTRL update (U1) with dilated/Shannon/Tsallis regularizer over balanced transitions p* proportional to A_x^τ, IX per-state parameters γ*_h(x); (2) Adaptive FTRL — dilated-entropy update (U2) with learning rates and IX parameters estimated recursively from cumulative visited transitions P̂e^t, updated only on visited information sets (Alg. 1, Alg. 2, §4–5)
+  formulation: µ^t = argmin_µ ⟨µ_{1:}, L̃^{t−1}⟩ + Σ_h Ψ_h(p*_{1:h}·µ_{1:h})/η_h (U1); dilated Shannon divergence D_η(µ¹,µ⁰) (§5); balanced kernel p*_h(x_{h+1}|x_h,a_h) ∝ A_{x_{h+1}}^τ (§4)
+claims:
+  - id: C1
+    claim: "\"We prove a lower bound of O(H(AX + BY)/ε²) on the number of necessary plays required to compute an ε-optimal profile with only a trajectory feedback\" (§1 Contributions)"
+    importance: central
+    evidence: theoretical — Theorem 3.1, hard game instances in Figs. 2–3 (App.)
+  - id: C2
+    claim: "\"Balanced FTRL ... matches this lower bound, up to logarithm factors\" using knowledge of the information-set structure (§1)"
+    importance: central
+    evidence: theoretical — Theorem 4.1, Corollary 4.3, Theorem 4.4 (removes H for fixed action-set size)
+  - id: C3
+    claim: "\"Adaptive FTRL ... matches this lower bound up to an extra H and logarithmic factors, without using the knowledge of the structure\" (§1)"
+    importance: central
+    evidence: theoretical — Theorem 5.1; improves best prior structure-free rate (IXOMD) by at least min(X,Y) (§5)
+  - id: C4
+    claim: a computationally efficient O(HA)-per-update implementation exists for both algorithms (§1 Contributions; Alg. 3 App. F)
+    importance: supporting
+    evidence: theoretical/algorithmic — time-complexity arguments (§4, §5)
+  - id: C5
+    claim: "empirically, \"despite having very different theoretical guarantees, the algorithms all seem to have comparable performances in practice\" once tuned (§1, §6)"
+    importance: supporting
+    evidence: comparative — Fig. 1 (Kuhn poker, Leduc poker, liars dice)
+experiments:
+  - id: E1
+    research_question: RQ5 — do the theoretically superior algorithms also win empirically, and how do learning-rate choices matter?
+    setup: "tabular benchmarks via OpenSpiel — Kuhn poker (AX=12), Leduc poker (AX=1092), liars dice (AX=24570); exploitability gap vs episodes; per-game log-grid tuning of learning rates, \"Tweaked Adaptive FTRL\" variant (§6)"
+    baseline: IXOMD, Balanced OMD
+    result: all algorithms similar after tuning; Adaptive FTRL slightly worse (aggressive early learning rates ∝ T/(1+P̂e)), Tweaked Adaptive FTRL slightly better (Fig. 1)
+    interpretation: theory's worst-case-tuned rates wash out in practice; the adaptive-rate schedule, not the asymptotic rate, drives behavior (§6)
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (IIGs, extensive form), Existing paradigm (CFR/OMD line), Failure mode (cost + structure requirement), Gap (two explicit questions), Solution (Balanced + Adaptive FTRL), Contributions (bullets)]
+  introduction_move: builds a rate ladder across four prior algorithms (each with its exact O(·) bound) ending at the paper's two questions, then answers both in a contribution list — the intro is literally an argument by complexity table; Table 1 previews the entire paper
+  related_work_strategy: chronological ladder of sample-complexity refinements (MCCFR → IXOMD → Balanced OMD), each entry tagged with its deficiency
+  method_strategy: theory-first — lower bound (§3) precedes the algorithm (§4); the algorithm is presented as the answer the lower bound demands, with proofs deferred
+  experiments_strategy: "minimal, honest, self-deprecating — single figure, explicit admission that theory and practice diverge, plus a \"Tweaked\" variant with \"not ... tight theoretical guarantees\" (§6)"
+  conclusion_strategy: three named open problems (save the extra H; last-iterate convergence; avoid importance sampling toward function approximation)
+reviewer_defense:
+  strengths: matching upper and lower bounds (complete rate characterization); structure-free result is a genuine qualitative gain; efficient implementation included
+  vulnerabilities: "extra H and log factors for the structure-free algorithm remain; experiments are \"preliminary\" on small tabular games with hand tuning (§6); practical gains over baselines negligible"
+  anticipated_attacks: "\"your lower bound vs Bai et al.\" — explicitly differentiated (high-probability vs expectation; information-set-dependent action sets, §1 bullet 1); \"adaptive algorithm is slow in practice\" — explained via learning-rate schedule and patched with Tweaked variant (§6)"
+writing:
+  paragraph_patterns: contribution bullets each pair an algorithm with its exact rate; complexity statements inlined in prose
+  transition_patterns: "\"While this balanced policy allows for a better sample complexity, it also requires...\" — every paragraph concedes then pivots; sections numbered as a Q→A chain"
+  terminology_patterns: "disciplined notation (AX, BY, p*, (U1)/(U2)) with a notation table (Table 2); \"structure-free\" coined as a comparator property"

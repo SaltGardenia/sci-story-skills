@@ -1,0 +1,90 @@
+# thesis: This paper shows that LLM output can be marked as machine-generated with
+# statistically quantifiable confidence because pseudo-randomly "green"-listed tokens
+# can be softly promoted at generation time and detected by a z-test without model
+# access, and therefore proposes a hash-of-previous-token green/red list watermark
+# with negligible perplexity cost on high-entropy text.
+paper:
+  venue: ICML
+  year: 2023
+  field: LLM safety / model provenance
+  task: detection of machine-generated text (watermarking LLM output)
+  problem: "\"the ability to detect and audit the usage of machine-generated text becomes a key principle of harm reduction for large language models\" (§1 intro)"
+  importance: LLMs can be used maliciously — social engineering, election manipulation, fake news, academic cheating — and synthetic web data degrades future datasets, so third parties (e.g. social media platforms) need a detector they can run without model access (§1, Fig. 1 bullet list)
+  source: full
+  inferred: []  # the paper states its own properties list in §1
+paradigm:
+  existing_approach: ad hoc detection of synthetic text (classifier-style detection); prior watermarking proposals assumed the ability to retrain or modify the model (§1 context; related work §8)
+  core_assumption: detection must either rely on a trained classifier or require model/API access; and that watermarking would require changing the model itself
+  limitation: "existing detectors cannot attribute text to a specific model with a rigorous statistical guarantee, and low-entropy text (\"The quick brown fox...\", code) is fundamentally hard to distinguish regardless of detector (§1.2)"
+gap:
+  unresolved_problem: a watermark embeddable via sampling-only changes (no retraining), detectable from as few as ~25 tokens without model access, with statistically improbable false positives — and a framework to predict how text entropy controls detectability (§1 property list; §1.2)
+  evidence_for_gap: logical argument from the low-entropy example sequences (§1.2) plus the property list no prior scheme satisfies; Fig. 1 demo (28 green vs expected 9, p ≈ 6e-14)
+insight:
+  observation: "a text's next-token distribution has variable \"spike\" entropy — some positions are nearly deterministic, many are highly multi-modal; a bias on comparably-likely tokens is imperceptible while a bias on deterministic tokens is damaging (§1.2, §3)"
+  central_insight: seed a pseudo-random green/red vocab partition from the *previous* token, so detection can reproduce the partition from the text alone; then softly add δ to green logits so the watermark is self-gating — it acts only where entropy is high, leaving deterministic choices untouched (§2, §3)
+  hypothesis: the resulting green-token count follows a predictable statistical law (Theorem 4.2), so a z-test yields negligible false positives while type-II errors concentrate on low-entropy spans (§4.1)
+method:
+  conceptual_change: treat watermarking as a *sampling-time statistical test* rather than a model modification or post-hoc classifier; the watermark key lives in the hash+PRNG, not the weights
+  mechanism: at each step, hash s(t-1) to seed a PRNG that partitions the vocab into green (size γ|V|) and red; add δ to green logits; detect by recounting green tokens and z-testing (Alg. 1 hard / Alg. 2 soft, §2–3)
+  formulation: spike entropy S(p, z) = Σ p_k/(1+z p_k) (Def. 4.1); Theorem 4.2 lower-bounds E|s|_G ≥ γαT/(1+(α-1)γ) · S* with α = exp(δ); z = (|s|_G − γT)/sqrt(Tγ(1−γ)) (Eq. 3); Theorem 4.3 bounds perplexity increase uniformly over entropies
+claims:
+  - id: C1
+    claim: "\"The watermark can be embedded with negligible impact on text quality, and can be detected using an efficient open-source algorithm without access to the language model API or parameters\" (abstract)"
+    importance: central
+    evidence: comparative/theoretical — Theorem 4.3 perplexity bound; Fig. 2 tradeoff (nearly vertical with 8-beam search); Table 2
+  - id: C2
+    claim: detection succeeds from short spans with interpretable p-values; false positives are statistically improbable regardless of human writing patterns (§1; §9)
+    importance: central
+    evidence: theoretical + descriptive — z-test construction (Eq. 2–3), Table 2 (FPR = 0 across ~500-sequence runs at z=4/5), Fig. 4 ROC/AUC ≈ 1.0 for δ ≥ 2
+  - id: C3
+    claim: detectability is governed by text entropy — high-entropy sequences are detected from few tokens, low-entropy ones need more; sensitivity is predicted by the spike-entropy bound (§4)
+    importance: central
+    evidence: theoretical — Theorem 4.2/4.3; validated empirically (predicted 142.2 green tokens vs empirical 159.5, §4.1)
+  - id: C4
+    claim: "the watermark is robust — removal requires modifying roughly one quarter of tokens or more, and it \"degrades gracefully under attack\" (§2; §9)"
+    importance: supporting
+    evidence: analytical z-statistic recomputation after maximal adversarial flips (§2); attack simulations — Fig. 5 emoji/tokenization attacks, Fig. 6 ROC under attack, Table 8
+experiments:
+  - id: E1
+    research_question: RQ1 — does the watermark detect machine text reliably (low type-I/II error)?
+    setup: OPT models (1.3B–6.7B), ~500 generations of T=200±5 tokens on C4 RealNewsLike prompts, sweep of δ and γ, multinomial vs 8-beam decoding (§6)
+    baseline: unwatermarked generations (δ=0) and human text under H0
+    result: AUC ≈ 0.985–1.0; at δ=2, type-II ≤ 1.6% at z=4; zero observed false positives (Table 2, Fig. 4)
+    interpretation: "the soft watermark attains near-perfect detection at δ ≥ 2 with beam search \"ironing in\" the watermark at almost no perplexity cost (Fig. 2)"
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ5/RQ3 — does the theory (Theorem 4.2) predict empirical green-token counts and error rates across sequence lengths and parameters?
+    setup: compare empirical mean green count / z-scores to theoretical bounds; sweep T from 2 to 200 (§4.1, §6, Fig. 3, Fig. 7)
+    baseline: theoretical lower bound of Theorem 4.2
+    result: bound is tight for smaller δ (empirical 159.5 vs predicted 142.2); z grows with T as predicted; beam search reaches z > 5 from 35 tokens at δ=2 (Fig. 3)
+    interpretation: the information-theoretic framework is predictive, not just descriptive
+    supported_claim: C3
+  - id: E3
+    research_question: paper's own framing — how does the watermark fail and can attacks remove it at maintained quality?
+    setup: threat model of an attacker with a weaker public model paraphrasing/inserting/substituting tokens; emoji attack, tokenization (homoglyph/a-e swap) attacks (§7, Fig. 5–6, Table 8)
+    baseline: detection ROC before attack
+    result: attacks reduce AUC (Fig. 6) but quality-preserving attacks cost money/tokens; defenses include normalizing text before hashing and negative-logit defense (§7)
+    interpretation: "watermark \"degrades gracefully under attack\"; failure cases are low-entropy sequences and repeated n-grams (Table 1, §4.1 remedies)"
+    supported_claim: C4
+  - id: E4
+    research_question: RQ1 (downstream) — does watermarking hurt task utility?
+    setup: OPT-6.7B question answering, EM/F1 watermarked vs not (Table 9)
+    baseline: unwatermarked model on the same QA eval
+    result: "Table 9 shows measured EM/F1; paper reports it \"provide[s] some evidence\" watermarking does not necessarily destroy utility"
+    interpretation: quality cost is measurable and bounded
+    supported_claim: C1
+narrative:
+  introduction_roles: [Context (LLM harms), Stakes (harm reduction), Problem (need detection), Solution preview (watermark with property list), Caveat (low-entropy hardness §1.2), Roadmap (§2 proof of concept first)]
+  introduction_move: opens with harms, then enumerates a target property list as a spec before any method appears; concedes the fundamental low-entropy obstacle up front (§1.2) so the later entropy-gated design reads as the honest answer; uses a worked example (Fig. 1, p ≈ 6e-14) as emotional proof before any theory
+  related_work_strategy: deferred — minimal in intro, related work at §8 positions against Aaronson's concurrent scheme and classical NLP watermarking
+  method_strategy: "ladder of abstraction — hard red list (Alg. 1) as a \"simple proof of concept\" that is easy to analyze but hurts low-entropy text, then the soft δ-rule (Alg. 2) as the fix, then the analysis section turns the fix into a theorem"
+  experiments_strategy: "capability first (error rates/ROC), then theory-vs-practice agreement, then adversarial stress test as a dedicated section (\"7. Attacking the watermark\") — attacking your own method becomes a contribution"
+  conclusion_strategy: restate practical properties, add an unclaimed bonus (detector independent of δ, enabling per-context deployment), then enumerate open questions explicitly (§9)
+reviewer_defense:
+  strengths: closed-form theory matched by experiments; detection needs no model access (cheap, public); the hard-then-soft derivation makes each design choice motivated
+  vulnerabilities: low-entropy and repetitive text remains weak/FP-prone (§4.1, Table 1); attacks from stronger paraphrasing models are outside the threat model (§7); analysis assumes uniformly random red lists while practice uses pseudo-random ones (§4); utility eval (Table 9) is narrow
+  anticipated_attacks: "\"paraphrasing removes it\" — constrained to quality-maintaining attacks with weaker public models, and partial paraphrasing still triggers detection on longer text (§7); \"repeated n-grams cause false positives\" — remedies: longer hash context and skipping repeated n-grams in counting (§4.1); \"what about low-entropy text?\" — pre-empted in §1.2 and handled by passage-level entropy and beam search"
+writing:
+  paragraph_patterns: "property-bullet spec lists inside the introduction; \"How hard is it to remove the watermark?\"-style question-headed paragraphs (§2)"
+  transition_patterns: "\"We start out by describing a simple proof of concept... We will discuss more sophisticated strategies later\" — explicit ladder; drawbacks of each version open the next section"
+  terminology_patterns: "vivid fixed coinages (\"green list\", \"red list\", \"spike entropy\", \"ironing in the watermark\") reused verbatim everywhere; γ/δ named and always glossed with their semantic roles"

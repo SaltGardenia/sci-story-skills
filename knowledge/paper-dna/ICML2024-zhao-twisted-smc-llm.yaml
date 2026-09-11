@@ -1,0 +1,80 @@
+# thesis: This paper shows that LLM controlled generation and evaluation can be unified as
+# probabilistic inference on a terminal-potential target, because learned twist functions
+# can approximate the intractable target marginals and SMC resampling then concentrates
+# compute on promising partial sequences, and therefore proposes twisted SMC for LLMs with
+# a novel contrastive twist learning (CTL) method and novel bidirectional SMC bounds on
+# log Z that enable two-sided KL evaluation of any inference technique.
+paper:
+  venue: ICML
+  year: 2024
+  field: probabilistic ML / LLM inference and controlled generation
+  task: sampling from reward-modulated target distributions over full sequences, and evaluating LLM inference/finetuning methods
+  problem: "many LLM tasks (RLHF, red-teaming, prompt engineering, infilling, reasoning with verifiers) \"can be cast as sampling from an unnormalized target distribution\" σ(s1:T) ∝ p0(s1:T)ϕ(s1:T) — but the target is non-causal, requiring an intractable marginalization over futures at every timestep (abstract, §1)"
+  importance: a single probabilistic-inference lens covers capability and safety techniques, enables principled resampling, and — via partition-function bounds — makes it possible to quantitatively evaluate and diagnose existing methods like PPO (mode-dropping) (§1, §5.1)
+  source: full
+paradigm:
+  existing_approach: simple importance sampling / best-of-N from the base model; SMC with fixed few-step-ahead targets (Lew et al. 2023); variational proposal learning — PPO (mode-seeking KL(q‖σ)) and distributional policy gradient DPG (mass-covering KL(σ‖q)); FUDGE/SIXO/soft-Q twist learners (Table 1, §4.2)
+  core_assumption: that target information can only enter sampling through per-token or few-step lookahead (fixed πt), or through full-sequence variational finetuning — not through learned estimates of the true target marginals
+  limitation: with terminal potentials only, exact sampling needs marginalization σ(s1:t) = Σ p0(st+1:T|s1:t)ϕ(s1:T) which is intractable; SIS from p0 fails entirely on rare targets (no positive samples found, §7.1); PPO's mode-seeking objective can silently drop modes (§5.1)
+gap:
+  unresolved_problem: (i) learnable intermediate twist functions for terminal-only targets in LMs; (ii) a two-sided (upper + lower) estimate of log Zσ to certify inference quality and estimate KL to target in both directions (§1 Contributions)
+  evidence_for_gap: analytical — prior SMC-for-LM work (Lew et al. 2023) restricted to fixed short-horizon targets; existing bounds are lower-bound-only without an exact target sample (§1, §5.2)
+insight:
+  observation: the optimal intermediate target for exact sampling is the true marginal σ(s1:t); twisted SMC represents it as p0(s1:t)ψt(s1:t)/Zt with the optimal twist satisfying a soft-Bellman-style recursion ψ*t ∝ Σ p0(st+1|s1:t)ψ*t+1 (Prop. 3.2, Eq. 13) — i.e., the twist is a value function / future-reward expectation
+  central_insight: "twist learning is density-ratio estimation against the target marginals — minimize the mass-covering KL(σ(s1:t) ‖ πtθ) at each step, whose gradient has an EBM maximum-likelihood form with a \"positive\" term from target samples and a \"negative\" term from the current twisted model; both terms can be estimated with SMC machinery itself (CTL, Eq. 21–22, §4.1)"
+  hypothesis: (i) SMC resampling with learned twists and the twist-induced proposal qπ (Prop. 3.3) achieves near-exact target sampling at orders-of-magnitude lower sample budget than SIS; (ii) with a single exact target sample (BDMC trick), a novel SMC upper bound sandwiches log Zσ, and the bound gap upper-bounds the symmetrized KL to the target (Prop. 5.1, data processing argument §5.2)
+method:
+  conceptual_change: treat inference-time steering as posterior inference with learned intermediate targets (twists ≈ critics, proposal ≈ actor in the soft-RL analogy), rather than as reward optimization or prompting
+  mechanism: "(1) twisted SMC — incremental weights w_t ∝ p0(st|s1:t−1)ψt / (q·ψt−1), resampling partial sequences by weight (Alg. 1, Eq. 10, 16); (2) twist-induced proposal qπ(st|s1:t−1) ∝ p0(st|s1:t−1)ψt(s1:t), tractable over the discrete vocabulary (Prop. 3.3); (3) contrastive twist learning L_CTL = Σ_t KL(σ(s1:t)‖πtθ) with SMC-estimated positive sampling (weights based on the true full-sequence potential ϕ) and SIS-estimated negative sampling (§4.1); (4) bidirectional bounds: SMC lower bound (standard) + novel SMC upper bound on log Zσ when an exact σ-sample is cloned through resampling (Prop. 5.1, Alg. 2)"
+  formulation: target σ(s1:T) = p0(s1:T)ϕ(s1:T)/Zσ (Eq. 1); optimal twist ψ*(s1:t) ∝ Σ_{st+1:T} p0(st+1:T|s1:t)ϕ(s1:T) (Eq. 12); CTL gradient E_σ∇log ψθ − E_πθ∇log ψθ (Eq. 22); KL(q‖σ) = E_q log(q/(p0ϕ)) + log Zσ (Eq. 23)
+claims:
+  - id: C1
+    claim: twisted SMC with learned intermediate twist functions is a general framework for LLM sampling and evaluation, extending prior fixed-target SMC to terminal-potential-only targets (§1 Contribution 1)
+    importance: central
+    evidence: theoretical — Def. 3.1, Prop. 3.2 (optimal twists + soft-Bellman recursion), Prop. 3.3 (variance-minimizing proposal)
+  - id: C2
+    claim: contrastive twist learning (CTL), inspired by EBM training and density ratio estimation, learns effective twists; connections to soft RL (twist = Q-value, proposal = actor) are made precise (§1 Contribution 2, §3.4, Table 1)
+    importance: central
+    evidence: theoretical + empirical — Eq. 21–22, Table 1 loss taxonomy; CTL best or near-best KL in Tables 2–3
+  - id: C3
+    claim: a novel SMC upper bound on log Zσ (applicable when an exact target sample is available) together with the SMC lower bound yields two-sided estimates, and the gap upper-bounds the KL divergence between inference and target distributions in both directions (§1 Contribution 3, §5.2)
+    importance: central
+    evidence: theoretical — Prop. 5.1, extended-state-space argument + data processing inequality; empirically bounds tighten with K as expected (Fig. 3)
+  - id: C4
+    claim: empirically, SMC resampling with learned twists and the twist-induced proposal achieves tight log Z bounds and near-exact target sampling with orders-of-magnitude fewer samples than SIS with the base proposal (§7.1)
+    importance: central
+    evidence: empirical — Fig. 3 (SIS-LB fails to draw toxic samples; SMC with qπ tight at low K)
+  - id: C5
+    claim: "the framework doubles as an evaluator: KL measurements reveal that each method wins the divergence it trains on (PPO best on KL(q‖σ), DPG/CTL on KL(σ‖q)), diagnosing mode-dropping and matching objectives to deployment needs — CTL preferable with approximate positive sampling, DPG with exact samples (§7.2, Tables 2–4)"
+    importance: central
+    evidence: empirical — Tables 2 (toxicity), 3 (sentiment), 4 (infilling; DPG best both directions, 13.27/4.90)
+experiments:
+  - id: E1
+    research_question: RQ5 — do twists+SMC beat SIS for sampling rare targets, per the log Z bounds?
+    setup: "TinyStories-33M, prompt \"Once upon a time, there was a\"; target = toxic stories (classifier non-toxic logit ≤ −5, >99% toxic; and smoothed p(a=1) variant), K-sample SIS/SMC with p0 and twist-induced proposals (§7.1, Fig. 3)"
+    baseline: SIS with base model; SMC with base model
+    result: SIS-LB finds no positive samples; SMC+p0 eventually tight; SMC/SIS with twist-induced proposal tight at orders-of-magnitude lower K (§7.1)
+    interpretation: intermediate twists focus computation on promising partial sequences exactly as theory predicts
+    supported_claim: C4
+  - id: E2
+    research_question: which twist/proposal learning method matches the target best, measured by two-sided KL?
+    setup: "four twist learners (CTL, RL/soft-Q, SIXO, FUDGE) + PPO and DPG proposal learners; bidirectional KL estimated via log Z bounds; tasks — toxicity (GPT-2-Medium review classifier variant; TinyStories), sentiment (GPT2-Medium, 1-star Amazon reviews, prompt \"I bought this\"), infilling (amortized conditional twists ψθ(s1:t, oT), 2000 observation tokens, T=15, c=10) (§7.2, Tables 2–4)"
+    baseline: PPO and DPG (variational proposal learning without twists)
+    result: CTL best on KL(σ‖q) in toxicity/sentiment and best both directions in sentiment; DPG best both directions in infilling where exact positive samples exist; PPO best on KL(q‖σ) in toxicity, worst on KL(σ‖q) in infilling (Tables 2–4)
+    interpretation: each method's KL ranking mirrors its training divergence — the evaluation framework discriminates methods meaningfully and guides method selection by sample availability
+    supported_claim: C2, C5
+narrative:
+  introduction_roles: [Context (many LLM tasks = steering), Reframe (all are probabilistic inference on Eq. 1), Challenge (non-causal targets), Solution (learned twists + twisted SMC), Secondary contribution (bidirectional evaluation bounds), Contributions (three bullets)]
+  introduction_move: performs a unification move first — the abstract's list of heterogeneous techniques (RLHF, red-teaming, infilling) is re-expressed in one equation (Eq. 1) before any method appears; contributions are then method (twists+CTL), theory (bidirectional bounds), and evaluation (KL tools), pre-announcing that evaluation is a first-class deliverable
+  related_work_strategy: "taxonomy-as-table — Table 1 places CTL, RL, SIXO, FUDGE, DPG, PPO in one loss table organized by \"learning principle\" (MLE / soft-Q / NCE / binary classification / variational), so positioning is done structurally rather than narratively"
+  method_strategy: "definition-proposition ladder — twist targets defined, optimal twists derived, tractable proposal derived, then learning methods; RL connections offered as intuition (\"twists are critics, proposals are actors\") without restricting the framework to RL objectives (§3.4 \"Benefits of the Probabilistic Perspective\")"
+  experiments_strategy: small-model, exactly-evaluable testbeds (TinyStories, GPT-2) chosen so the bidirectional bounds can be validated against near-exact ground truth; each experimental section is framed as a use of the evaluation tools, not a leaderboard
+  conclusion_strategy: "three-sentence mirror of the contributions (framework, CTL, bounds) with effectiveness \"quantitatively and qualitatively\" asserted (§8); impact statement emphasizes safety uses (red-teaming, rare-behavior probability estimation)"
+reviewer_defense:
+  strengths: clean theory (optimal twists, optimal one-step proposal, two-sided bounds); the evaluation contribution is independently reusable; experiments validate both sampling and evaluation claims with exact-sample ground truth where possible
+  vulnerabilities: scale — all experiments on 33M–355M parameter models with short sequences (T=15); CTL requires approximate negative sampling whose bias is not tightly characterized; bidirectional upper bounds need an exact target sample (BDMC/rejection), unavailable for most realistic reward models; qualitative gains on real LLMs not demonstrated
+  anticipated_attacks: "\"Lew et al. 2023 already did SMC for LMs\" — explicitly differentiated: fixed few-step-ahead targets vs learned twists for terminal-only potentials (§1 Contribution 1); \"PPO already optimizes the target\" — the KL evaluation shows PPO's mode-seeking objective systematically loses mass coverage (§5.1, Tables 2/4); \"Mudgal et al. have prefix scorers\" — placed in the loss taxonomy as the RL/squared-error variant (Table 1, §3.4)"
+writing:
+  paragraph_patterns: "contribution bullets with bolded lead phrases; \"Benefits of the Probabilistic Perspective\" as an explicit why-this-lens paragraph; tables doing comparative positioning (Table 1) and results (Tables 2–4)"
+  transition_patterns: "\"We proceed to describe...\", \"Remarkably, with access to a single exact sample ... we can obtain upper bounds\" — each section hands its output to the next as a tool"
+  terminology_patterns: dual-vocabulary bridging kept explicit (twist function ↔ value function/critic; proposal ↔ actor/policy; potential ↔ reward); consistent σ/ϕ/ψ/q/Z notation with a definitions table (Table 5 for target posteriors)

@@ -1,0 +1,109 @@
+# thesis: This paper shows that the image-quality benefit of classifier-free guidance is separable
+# from its prompt-alignment/variation-reduction effects because CFG's quality gain actually comes
+# from a quality gap between two denoisers with different fit accuracy, and therefore proposes
+# autoguidance — guiding a model with a smaller, less-trained version of itself — which keeps
+# conditioning unchanged, preserves diversity, and sets new ImageNet FID records.
+paper:
+  venue: NeurIPS
+  year: 2024
+  field: diffusion models / image generation
+  task: guided sampling for conditional and unconditional diffusion models
+  problem: CFG's desirable effects (quality, prompt alignment) and undesirable effects (reduced variation, mode dropping, distortion) "seem inherently entangled, and thus hard to control" (abstract, §1)
+  importance: CFG "has become the standard method for 'lowering the sampling temperature'" but "has drawbacks that limit its usage as a general low-temperature sampling method" (§1) — quality/diversity/alignment are the "primary axes of interest" for image generation (abstract)
+  source: full
+
+paradigm:
+  existing_approach: classifier-free guidance — extrapolate between conditional and unconditional denoising results of the same network (w > 1), implicitly raising conditional density to a power (§1–2, Eq. 3–5)
+  core_assumption: that the guidance direction must be defined by the difference between differently-conditioned tasks (conditional vs unconditional)
+  limitation: (1) inapplicable to unconditional generation; (2) task discrepancy between the two denoisers makes trajectories overshoot — "skewed and often overly simplified image compositions"; (3) alignment and quality effects cannot be controlled separately (§1)
+
+gap:
+  unresolved_problem: isolate the image-quality improvement mechanism from conditioning, enabling low-temperature sampling that reduces outliers without dropping modes — for conditional and unconditional models alike
+  evidence_for_gap: analytical decomposition — guidance adds a force along ∇log[p1/p0] (Eq. 5), so whatever quality benefit exists must live in the p1/p0 quality differential, not in conditioning itself (§2–3)
+
+insight:
+  observation: in a 2D toy model, unguided sampling produces outliers in low-probability regions (a consequence of the conservative ML-like fit of score matching), and CFG's quality gain coincides with pulling samples toward the manifold core — attributable to the unconditional denoiser being worse-fit than the conditional one (§3, Figs. 1–2)
+  central_insight: CFG is "a form of adaptive truncation" that works because two denoisers of different fit quality err in the same places with different severity — so the guiding model need not be unconditional at all; any degraded version of the same model (smaller capacity, shorter training, same conditioning) supplies the same truncation signal without task discrepancy (§3 Discussion, §4)
+  hypothesis: guiding D1 with a deliberately degraded same-task D0 will concentrate samples on high-probability regions without dropping distribution branches, improving FID/FDDINOv2 and extending to unconditional generation (§4, Fig. 1e)
+
+method:
+  conceptual_change: decouple the guiding model's role from conditioning — the guide is defined by relative fit quality ("bad version of itself"), not by a different conditional task
+  mechanism: autoguidance — D_w = w·D1 + (1−w)·D0 with D1 = full model, D0 = same model degraded by reduced capacity (XS/M sizes) and/or reduced training (T/16, T/8, T/3.5 iterations), conditioning unchanged; independent post-hoc EMA lengths for main and guiding models (§4, §5, Table 1)
+  formulation: same extrapolation form as CFG (Eq. 3) but with D0 trained on the identical task and conditioning; the perturbation equals the difference of the two denoisers' predictions — "when the two models agree, the perturbation is insignificant, but when they disagree, the difference indicates the general direction towards better samples" (§4)
+
+claims:
+  - id: C1
+    claim: autoguidance yields "disentangled control over image quality without compromising the amount of variation" — comparative
+    importance: central
+    evidence: toy model Fig. 1e vs CFG's Fig. 1c (branch dropping); qualitative ImageNet-512 comparison showing wider gamut of compositions vs CFG's canonicalization (§5.2, Fig. 4)
+  - id: C2
+    claim: autoguidance sets record FIDs — 1.01 (ImageNet-64) and 1.25 (ImageNet-512, EDM2-XXL) — and improves FDDINOv2 records — comparative
+    importance: central
+    evidence: Table 1 (EDM2-S 2.56→1.34; XXL 1.91→1.25; beats CFG + Guidance Interval's 1.68)
+  - id: C3
+    claim: autoguidance works for unconditional generation — EDM2-S unconditional FID 11.67 → 3.86 — practical
+    importance: central
+    evidence: Table 1 (ImageNet-512 unconditional row), §5
+  - id: C4
+    claim: the guiding and main models must suffer from compatible degradations — mismatched degradations (dropout on one, input noise on the other) give no benefit at all — mechanistic (causal)
+    importance: central
+    evidence: 'synthetic-degradation experiment (§4): compatible corruptions restore base FID (2.55/2.56 vs base 2.56); mismatched corruptions leave w=1 optimal'
+  - id: C5
+    claim: the quality gain of CFG is attributable to the fit-quality differential between conditional and unconditional denoisers (not to class-likelihood boosting alone) — mechanistic
+    importance: central
+    evidence: §3 analysis with Figs. 2a–c — the ratio p1/p0 "generally decreases with distance from the manifold", its gradients point inward; footnote 1 (EDM2-S conditional FID 2.56 vs unconditional 11.67)
+
+experiments:
+  - id: E1
+    research_question: RQ4-mechanistic — why does CFG improve image quality?
+    setup: 2D fractal-like synthetic dataset with anisotropic, hierarchical structure; small denoisers; visualize densities, ratio fields, trajectories (§3, Figs. 1–2)
+    baseline: ground truth samples; naive truncation (uniform score lengthening, Fig. 1d)
+    result: CFG eliminates outliers but drops branches and narrows distribution; naive truncation is isotropic and empty outer branches; both concentrate but differ structurally
+    interpretation: quality gain = adaptive truncation toward the manifold core; the mechanism is transferable if the guide degrades compatibly
+    supported_claim: C5
+  - id: E2
+    research_question: RQ4 — does the "compatible degradation" hypothesis hold under controlled corruption?
+    setup: EDM2-S/ImageNet-512 base (FID 2.56); construct D1/D0 via post-hoc dropout (5%/10%) or input-noise (+10%/+20%) and combinations (§4)
+    baseline: uncorrupted base model as grounding
+    result: compatible pairs recover base FID (2.55, 2.56); mismatched pairs show zero benefit
+    interpretation: confirms error-similarity is the operative ingredient, not unconditional vs conditional
+    supported_claim: C4
+  - id: E3
+    research_question: RQ1/RQ2 — does autoguidance improve state-of-the-art image generation?
+    setup: EDM2-S and EDM2-XXL on ImageNet-512 (latent) and ImageNet-64 (pixel), 32-step Heun sampler; guiding model XS/M with reduced training; grid search over w and EMA lengths (§5, Table 1)
+    baseline: EDM2, EDM2+CFG, CFG+Guidance Interval (Kynkäänniemi et al.)
+    result: FID 2.56→1.34 (S), 1.91→1.25 (XXL, record), 1.58→1.01 (64×64, record); unconditional 11.67→3.86; FDDINOv2 records likewise
+    interpretation: quality improves beyond prior guidance methods while variation is preserved
+    supported_claim: C2, C3
+  - id: E4
+    research_question: RQ3-ablation — how sensitive is autoguidance to its design choices?
+    setup: sweeps over guidance weight × guiding-model training (T/32–T/8), × capacity (XXS–S), × dual EMA lengths (§5.1, Fig. 3; Table 1 ablation rows)
+    baseline: full autoguidance config
+    result: broad optimum around T/16 and XS; forcing same EMA for both models worsens FID 1.34→1.53; training-only reduction 1.51, capacity-only 2.13 — both degradations together work best
+    interpretation: the method is practically tunable and the two degradation axes are complementary
+    supported_claim: C1, C4
+  - id: E5
+    research_question: RQ5 — does autoguidance transfer to large-scale text-to-image models?
+    setup: DeepFloyd IF base model (smaller public variant as guide); CFG, autoguidance, and combined guidance via multi-model interpolation (§5.2, Fig. 5)
+    baseline: CFG in all three cascade stages
+    result: autoguidance preserves style and visual complexity that CFG canonicalizes; combination offered as artistic control
+    interpretation: qualitative generalization to text-conditional generation
+    supported_claim: C1
+
+narrative:
+  introduction_roles: [Context (diffusion + conditioning), Existing paradigm (CFG as standard temperature lowering), Failure mode (entangled effects, task discrepancy), Insight promise ("new insights into why CFG improves image quality"), Solution (autoguidance, one paragraph), Breadth preview (conditional + unconditional), Records claim]
+  introduction_move: states the entanglement problem in the abstract before the mechanism is known, then structures the paper as a detective story — §3 is literally titled "Why does CFG improve image quality?" and answers it with a toy model before §4 introduces the method; the records appear in the abstract and intro as validation, not as the argument's spine
+  related_work_strategy: embedded in background — CFG lineage and its known pathologies cited through the analysis rather than a standalone survey; contrastive decoding connection deferred to Discussion (§6)
+  method_strategy: diagnosis-before-treatment — an entire section (§3) establishes the mechanism on a 2D toy example with visual evidence, the method is then presented as the minimal intervention that isolates the diagnosed effect; the synthetic-degradation experiment acts as a causal bridge between diagnosis and deployment (§4)
+  experiments_strategy: mechanism (toy) → causal validation (synthetic degradations) → SOTA benchmarks (records) → ablations → qualitative transfer; the main table doubles as an ablation table (Table 1 rows "- Same EMA", "- Reduce training only", "- Reduce capacity only")
+  conclusion_strategy: Discussion frames the contribution as opening "an entire new design space", lists honest gaps (no formal conditions, guide selection heuristics, snapshot unavailability for closed models), and connects to contrastive decoding in LLMs (§6)
+
+reviewer_defense:
+  strengths: the mechanism section gives the method a why, not just a what; the synthetic-corruption experiment isolates the causal claim about degradation compatibility; records achieved with publicly available models and code
+  vulnerabilities: guiding model requires a separately trained degraded variant (early snapshots unavailable for closed models — conceded §6); no formal theory of when autoguidance helps (conceded); hyperparameter sensitivity (w, EMA) needs grid search; FID-based diversity claims partly inferential
+  anticipated_attacks: '"isn''t this just worse CFG?" — preempted by the mechanism analysis and by CFG''s failure on unconditional generation; "does it drop modes like CFG?" — preempted by toy Fig. 1e and qualitative Fig. 4 (wider gamut, atypical Palace example); "would interval guidance combine well?" — answered empirically: "we did not find beneficial in combination" (§6)'
+
+writing:
+  paragraph_patterns: argument paragraphs in §3 follow claim → evidence-in-figure → interpretation ("We argue that..."), each ending in a mechanistic attribution
+  transition_patterns: section titles carry the argument ("Why does CFG improve image quality?" → "Our method"); the word "surprising" in the abstract licenses the counterintuitive pivot
+  terminology_patterns: names the method once (autoguidance) and uses D0/D1/w notation consistently from background through results; "degradation"/"degradations" as the load-bearing technical term introduced in §4 and reused everywhere

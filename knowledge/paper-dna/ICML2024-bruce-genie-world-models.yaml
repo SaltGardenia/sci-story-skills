@@ -1,0 +1,94 @@
+# thesis: This paper shows that playable, action-controllable worlds can be generated
+# fully unsupervised from Internet video because the change between consecutive frames can
+# be compressed into a small discrete latent-action codebook that a dynamics model can be
+# conditioned on, and therefore proposes Genie — an 11B foundation world model (latent
+# action model + ST-tokenizer + MaskGIT dynamics) that users can "play" frame-by-frame
+# with no action or text labels.
+paper:
+  venue: ICML
+  year: 2024
+  field: generative AI / world models
+  task: action-controllable video generation (generative interactive environments) from video-only training data
+  problem: "\"there remains a gulf between the level of interactions and engagement of video generative models and language tools such as ChatGPT\" — video models generate passive clips, while world models need action labels that videos do not have (§1)"
+  importance: "opens a new paradigm — \"given a large corpus of videos from the Internet, we could ... train models capable of generating ... entire interactive experiences\" — and a path to unlimited training data for generalist agents via latent-action imitation (§1, §3.3)"
+  source: full
+paradigm:
+  existing_approach: (a) world models trained on action-conditioned data (Dreamer-style, GAIA-1/UniSim needing text+action labels); (b) video generation models conditioned on text/frames (video-level controllability at most); (c) Playable Video Generation with latent actions but domain-specific static examples (Table 1, §4)
+  core_assumption: "that frame-level controllability requires ground-truth action labels or domain-specific priors (\"action annotation can be costly to obtain\", §2.1)"
+  limitation: "prior controllable video approaches do not scale to Internet video — PVG is domain-specific, world models require privileged labels, video models cannot be \"played\" frame-by-frame (Table 1, §4)"
+gap:
+  unresolved_problem: a foundation-scale world model trained from video alone, controllable at frame level and transferable across environments (§1; Table 1)
+  evidence_for_gap: design-space table (Table 1) showing no existing model class combines video-only training with frame-level controllability; plus the practical impossibility of annotating Internet-scale video with actions
+insight:
+  observation: "in video, the \"action\" between two frames is exactly the information a decoder needs beyond the past frames to reconstruct the next frame; a VQ codebook bottleneck of |A|=8 forces that information into a small discrete set whose meanings stay consistent across inputs (§2.1 LAM; footnote 2 — \"interpreting the mapping of latent actions is akin to learning the buttons on a new controller\")"
+  central_insight: "an inverse-dynamics-style latent action model trained with a VQ-VAE objective on (past frames, next frame) yields a *discrete, semantically consistent* latent action space — supervision emerges as an information bottleneck, so the environment becomes playable at inference by substituting user-chosen actions (LAM \"is discarded at inference time and replaced with actions from the user\", §2.1)"
+  hypothesis: if latent actions are consistent, they should (i) scale with model/batch size like any foundation model, (ii) transfer — enabling behavior cloning of agents from action-free videos via a frozen LAM (§3.3), and (iii) beat token-input variants because pixels preserve dynamics information lost in tokenization (§3.4)
+method:
+  conceptual_change: stop trying to recover real actions from video; instead learn a *latent* action interface whose only requirement is that it predictively compresses inter-frame change
+  mechanism: three components trained in two phases — (1) latent action model (ST-transformer encoder over past frames + next frame, VQ codebook |A|=8, decoder-only-for-training); (2) ST-ViViT video tokenizer (spatiotemporal VQ-VAE, causal temporal attention, linear-in-frames cost vs C-ViViT's quadratic); (3) MaskGIT dynamics model (decoder-only ST-transformer) predicting next-frame tokens conditioned on past tokens and additive latent-action embeddings, with Bernoulli masking rate U(0.5,1) (§2.1, Figs. 3–7)
+  formulation: "ST-block = spatial attention over H×W tokens + causal temporal attention over T frames + FFW, with the spatial layer dominating so cost scales linearly in frames (§2.1); Δt-PSNR controllability metric: PSNR(x_t, x̂_t with ground-truth-inferred actions) − PSNR(x_t, x̂_t with random actions) (§3)"
+claims:
+  - id: C1
+    claim: "Genie is \"the first generative interactive environment trained in an unsupervised manner from unlabelled Internet videos\", controllable frame-by-frame with no action/text labels (abstract; Table 1)"
+    importance: central
+    evidence: "descriptive + comparative — Table 1 class table; qualitative playability from OOD prompts (Fig. 10: Imagen2 images, hand-drawn sketches, real photos)"
+  - id: C2
+    claim: "the architecture \"scales gracefully with additional computational resources\" — consistent loss decreases with model size (40M→2.7B) and batch size (128→448), justifying an 11B-parameter foundation model trained on 942B tokens (§1, §3.1)"
+    importance: central
+    evidence: empirical — Fig. 9 scaling curves (model size, batch size)
+  - id: C3
+    claim: learned latent actions are consistent and semantically meaningful across prompts — same code produces the same movement (down/up/left) across different starting frames and domains, including 3D parallax and deformable-object dynamics (Figs. 12, 13)
+    importance: central
+    evidence: qualitative + quantitative — Fig. 13 (robotics, consistent actions), Fig. 12 (parallax), Fig. 11 (deformation); Δt-PSNR metric (§3, Table 2)
+  - id: C4
+    claim: "latent actions transfer to imitation — a frozen LAM labeling expert videos trains a policy that \"achieves the same score as the oracle [BC with real actions] given as few as 200 expert samples\" in unseen CoinRun (§3.3, Fig. 15)"
+    importance: central
+    evidence: empirical — Fig. 15 BC results (100 levels, 5 seeds, 95% CIs)
+  - id: C5
+    claim: "design choices matter: pixel-input LAM beats token-input on controllability (Δt-PSNR 1.91 vs 1.33 Platformers; 2.07 vs 1.65 Robotics), and ST-ViViT tokenizer dominates spatial-only ViT and quadratic C-ViViT (FVD 81.4 vs 114.5/272.7) (§3.4, Tables 2–3)"
+    importance: supporting
+    evidence: ablation — Table 2 (LAM input), Table 3 (tokenizer)
+experiments:
+  - id: E1
+    research_question: RQ5 — does the architecture scale?
+    setup: dynamics models 40M–2.7B parameters; batch sizes 128/256/448 on a 2.3B model; final Genie = 10.1B dynamics (batch 512, 125k steps, 256 TPUv5p) + tokenizer/LAM ≈ 10.7B total, 942B tokens of 30k-hour filtered 2D-platformer Internet video (6.8M 16s clips at 10FPS, 160×90) (§3.1, §3 Datasets)
+    baseline: smaller model/batch sizes of the same architecture
+    result: monotone loss improvement with both axes (Fig. 9)
+    interpretation: latent-action world modeling is a scaling-friendly objective, supporting the foundation-model claim
+    supported_claim: C2
+  - id: E2
+    research_question: RQ1 — does the model produce playable, controllable environments, including from OOD prompts?
+    setup: 11B model prompted with text-to-image outputs, sketches, real photos; trajectories from repeated latent actions; qualitative evaluation plus FVD/Δt-PSNR (§3.2, Figs. 10–14; robotics 2.5B model, FVD 82.7)
+    baseline: "none quantitative beyond ablations — evaluation is primarily qualitative (\"playing\")"
+    result: coherent game-like behavior from all prompt types; emergent parallax and deformable-object physics; consistent action semantics in robotics (Figs. 10–13)
+    interpretation: "latent actions generalize beyond the training distribution of prompts, which \"would not have been feasible with real actions as input\" (§3.2)"
+    supported_claim: C1, C3
+  - id: E3
+    research_question: RQ2 (agent use) — can latent actions train agents in unseen environments?
+    setup: frozen LAM labels expert CoinRun videos; BC policy predicts latent action from observation; small ground-truth-action dataset maps latent→real actions (Appendix E); hard/easy CoinRun settings (§3.3)
+    baseline: oracle BC with real expert actions (upper bound), random agent (lower bound)
+    result: matches oracle with as few as 200 adaptation samples despite (almost certainly) never seeing CoinRun (Fig. 15)
+    interpretation: "latent actions are \"consistent and meaningful for transfer, as the mapping from latent to real contains no information about the current observation\" (§3.3)"
+    supported_claim: C4
+  - id: E4
+    research_question: RQ4 (ablation) — which input modality and tokenizer design drive controllability and fidelity?
+    setup: token-input vs pixel-input LAM (Table 2); ViT vs C-ViViT vs ST-ViViT tokenizers at matched params, patch 10, batch 128, seq 16 (Table 3)
+    baseline: token-input LAM; spatial-only ViT; C-ViViT
+    result: pixel-input wins Δt-PSNR in both domains; ST-ViViT best FVD (81.4) and Δt-PSNR (1.66) at 0.9GB memory (Table 3)
+    interpretation: tokenization discards dynamics information the LAM needs; interleaved spatiotemporal attention is the right cost/quality point
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (generative AI success), 'Question ("what if...?")', New paradigm (generative interactive environments), Solution sketch (Genie components), Positioning (Table 1 class table), Roadmap (scaling + generality + agents)]
+  introduction_move: leads with a speculative question as the thesis, answers it with a Table 1 that *invents a new model class* (video-only training + frame-level controllability) and positions Genie as its sole occupant; industrial-report format (DeepMind layout, qualitative figures as primary evidence) with the scaling analysis promising foundation-model legitimacy
+  related_work_strategy: "three-front map (world models / video models / PCG & PVG) with a consistent differentiator — \"we focus on training from video-only data from publicly available Internet videos\" (§4)"
+  method_strategy: "component-first engineering exposition (LAM → tokenizer → dynamics), each introduced by its necessity (\"action labels are rarely available in videos\"); causal ST-attention motivated by memory economics, not elegance"
+  experiments_strategy: scaling analysis → qualitative showcase → agent-transfer proof → ablations; quantitative metrics (FVD, Δt-PSNR) used mostly for ablation while headline claims rest on playable demonstrations — evaluation matches a new-capability paper
+  conclusion_strategy: "vision statement (\"even children, to dream up, create, and step into generated worlds\"), honest limitations (hallucinated futures, 16-frame memory), plus unusual responsibility/disclosure sections (no checkpoints/data release; reproducibility via Appendix F single-TPU example) (§5)"
+reviewer_defense:
+  strengths: first-in-class claim defended by a clean design-space table; emergent consistency of latent actions shown across domains (platformer → robotics → RL transfer); ablations justify each architectural choice; scaling behavior documented
+  vulnerabilities: "no strong quantitative generative baseline (FVD comparisons only within ablations; no GPT-4-of-video competitor comparison); 2D platformers dominate the main dataset — third-person game genres and 3D not tested; 16-frame memory limits long-horizon consistency (conceded §5); autoregressive hallucination (\"can hallucinate unrealistic futures\", conceded §5); model/data withheld"
+  anticipated_attacks: "\"latent actions are just VQ-noise\" — consistency shown semantically (Figs. 12–13) and functionally via oracle-matching BC (Fig. 15); \"VPT already labels Internet video\" — VPT needs human-provided action-labeled data to train the inverse dynamics model, Genie avoids this (§4); \"why not use tokens for LAM?\" — Table 2 answers directly"
+writing:
+  paragraph_patterns: short need-driven paragraphs, each ending in the component it motivates; figure-led argumentation with captions carrying the claims
+  transition_patterns: "\"We now describe...\", \"Notably, ...\" section openers; footnote analogies doing explanatory work (\"learning the buttons on a new controller\")"
+  terminology_patterns: "capitalized coined components (Latent Action Model, ST-transformer, ST-ViViT); the Δt-PSNR coinage defined before use; product language (\"Genie\", \"Platformers\" dataset) treated as names"

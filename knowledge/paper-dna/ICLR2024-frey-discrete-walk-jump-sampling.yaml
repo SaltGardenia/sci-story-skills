@@ -1,0 +1,214 @@
+# thesis: This paper shows that discrete-data generative modeling becomes robust because smoothing
+# discrete inputs with Gaussian noise makes Langevin MCMC and least-squares denoising applicable,
+# and therefore proposes discrete Walk-Jump Sampling (dWJS) — decoupled EBM sampling on the
+# smoothed manifold plus one-step denoising — validated by record in vitro antibody success rates.
+paper:
+  venue: ICLR
+  year: 2024
+  field: generative models for proteins / discrete sequence generation
+  task: ab initio antibody discovery and design
+  problem: >-
+    Gradient-based generative models are brittle on discrete data; the goal is "an efficient,
+    non-autoregressive generative modeling paradigm for discrete data that produces high quality,
+    novel samples" (§1) for antibodies, where datasets are small and 20^L sequence space is
+    sparsely functional (§1)
+  importance: >-
+    Antibodies are therapeutically central; generative models there "must be sample-efficient
+    because of the relatively small size of datasets with therapeutic antibodies", and pretrained
+    protein language models are not a ready solution due to high-entropy variable regions (§1);
+    success measured directly in the wet lab
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Autoregressive protein language models (error accumulation, high inference latency) and
+    discrete/latent diffusion models (inefficient, "poorly optimized for real discovery and design
+    tasks"), plus EBMs that are "difficult to train and sample from" (§1); discrete diffusion uses
+    many noise levels (§5)
+  core_assumption: >-
+    That discrete data must be handled by discrete noising processes (categorical diffusion) or
+    autoregressive factorization — continuous smoothing of one-hot encodings is dismissed as
+    unnatural
+  limitation: >-
+    EBM brittleness (training tricks: replay buffers, ℓ2 penalties, rejection sampling);
+    diffusion multi-noise-scale complexity and slow sampling; sequence-recovery metrics reward
+    proximity to known data, not novelty (§1, §4 opening)
+gap:
+  unresolved_problem: >-
+    A robust, fast, non-autoregressive discrete sampler with controllable quality evaluation —
+    plus a way to benchmark generative protein models at all ("protein generation lacks such
+    metrics [as FID/BLEU]", §3.3)
+  evidence_for_gap: >-
+    Cited failure modes of existing paradigms (§1 para 3) and the absence of an FID-like protein
+    metric forcing earlier work onto poor objectives ("Sequence recovery is a poor objective for
+    our goal", §4)
+insight:
+  observation: >-
+    Adding isotropic Gaussian noise to one-hot discrete sequences puts them on a continuous
+    smoothed manifold where neural empirical Bayes applies: the score of the smoothed density
+    yields a least-squares denoiser, and one noise level suffices once σ exceeds the critical
+    value σc ≈ max χii' ≈ 0.5 for aligned antibodies (§3.2, Table 1)
+  central_insight: >-
+    Walk and jump can be decoupled: sample the noisy manifold with an EBM via Langevin MCMC
+    ("walk"), then project to the data manifold with a separately trained denoiser ("jump") —
+    "every sample along the chain collectively forms a valid set of samples... because of the
+    decoupled walk (sampling) and jump (denoising) steps" (§3.1)
+  hypothesis: >-
+    The resulting sampler should match or beat diffusion/autoregressive baselines on naturalness,
+    novelty, diversity, and — decisively — wet-lab expressibility, while training with a single
+    hyperparameter (§1 contributions, §6)
+method:
+  conceptual_change: >-
+    Stop noise-conditioning: fix one noise level and move all stochasticity into MCMC sampling on
+    the smoothed manifold; treat the noisy distribution as the object the EBM fits ("fitting the
+    energy function to noisy data completely prevents overfitting", §6)
+  mechanism: >-
+    Algo. 1: one-hot aligned sequences y = x + ε with ε ~ N(0, σ^2 I); train dEBM fθ(y) by
+    contrastive divergence on noisy data (Eq. 5–6); train separate ByteNet denoiser gφ by NEB
+    objective (Eq. 4); Langevin walk on noisy manifold; jump x̂(y) = y + σ^2 gφ(y); argmax to
+    recover one-hot. Design via constrained sampling with binary projection matrix P (Eq. in §3.1)
+  formulation: >-
+    Boltzmann model pθ(x) ∝ e^{−fθ(x)} (§2.1); NEB estimator x̂(y) = y + σ^2 ∇log p(y) (Eq. 2–3);
+    critical noise σc = max_ii' χii' with χii' = ||Xi−Xi'||/√(2d) (Eq. 7); DCS = conformal
+    p-value of joint-density conformity measure (Algo. 2)
+claims:
+  - id: C1
+    claim: >-
+      dWJS matches or outperforms autoregressive PLMs, LLMs, discrete sequence and
+      structure-sequence diffusion, and score-based baselines on ab-likeness, uniqueness,
+      diversity, and DCS (comparative)
+    importance: central
+    evidence: comparative — Table 2 (dWJS DCS 0.38/0.49 vs GPT-3.5 0.23, ESM2 0.061); Table 7 (speed/memory)
+  - id: C2
+    claim: >-
+      "97-100% of generated samples are successfully expressed and purified" in the wet lab
+      (270/277 designs); scratch-trained EBM baseline only 42% (causal/practical)
+    importance: central
+    evidence: empirical — Table 3 (in vitro synthesis rates)
+  - id: C3
+    claim: >-
+      70% of functional designs show equal-or-improved binding affinity vs known antibodies on
+      the first round — "the highest reported binding rate of any antibody design method applied to
+      trastuzumab CDR H3 redesign" vs LaMBO-2 25%, AbDiffuser 22% (57% filtered) (comparative/practical)
+    importance: central
+    evidence: comparative + in vitro — Table 4 (pbind/totalbind), §4.3
+  - id: C4
+    claim: >-
+      A single noise level suffices; no noise schedule needed — σ ≥ 0.5 justified by the critical
+      noise derivation σc ≈ 0.5 (theoretical/mechanistic)
+    importance: central
+    evidence: theoretical + empirical — §3.2, Table 1 (χ statistics), agreement with hyperparameter search
+  - id: C5
+    claim: >-
+      Fast-mixing MCMC: "the first demonstration of long-run fast-mixing MCMC chains where diverse
+      antibody protein classes are visited in a single MCMC chain" (descriptive)
+    importance: supporting
+    evidence: qualitative — Fig. 1 (single-chain samples across germlines)
+  - id: C6
+    claim: >-
+      dWJS obviates common EBM tricks (replay buffers, ℓ2 norm penalty, rejection sampling) and
+      reduces tuning to σ alone (mechanistic)
+    importance: supporting
+    evidence: ablation-by-omission — §1 contributions, §6 conclusions
+experiments:
+  - id: E1
+    research_question: >-
+      RQ1 — does dWJS generate natural, novel, diverse antibodies in silico? (distribution
+      learning on OAS, §4.1)
+    setup: >-
+      OAS paired antibody space, AHo-aligned; ab-likeness metrics (Wproperty, Unique, Edist,
+      IntDiv) + DCS; baselines SeqVDM, DEEN, IgLM, ESM2, GPT-3.5 (Table 2)
+    baseline: SeqVDM, DEEN, IgLM, ESM2, GPT 3.5
+    result: best property agreement + uniqueness (dEBM variant) or best DCS/novelty/diversity
+      (score-based variant); 43x faster sampling than autoregressive IgLM
+    interpretation: smooth-manifold sampling captures the antibody distribution without
+      sequence-recovery-style proximity bias
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      Do in silico metrics predict wet-lab success? (in vitro expression, §4.2)
+    setup: >-
+      277+ designed sequences synthesized; expression/purification success measured (Table 3)
+    baseline: EBM trained on clean data with traditional Langevin MCMC (42% expression)
+    result: 270/277 expressed (97.47% score-based dWJS); DCS > 0.3 empirically predicts ~100%
+      expression (§3.3)
+    interpretation: distributional fidelity, not sequence recovery, is the operative quality metric
+    supported_claim: C2
+  - id: E3
+    research_question: >-
+      Can dWJS produce functional therapeutics, not just expressible ones? (hu4D5/HER2 benchmark,
+      §4.3)
+    setup: >-
+      Train on 9k binding hu4D5 CDR-H3 mutants (10^13 search space); dWJS + 1D-CNN binder
+      classifier; compare in silico to AbDiffuser, LaMBO-2, SeqVDM, GPT-4; wet-lab validation of
+      dEBM designs on trastuzumab redesign (Table 4)
+    baseline: LaMBO-2 (0.25), AbDiffuser (0.22/0.57 filtered), SeqVDM, GPT 4
+    result: pbind 0.96 (energy-based); totalbind 0.70 vs 0.25/0.22 — no post-hoc filtering needed
+    interpretation: highest reported first-round binding rate for this task; discrete distribution
+      learning is the paper's goal, conceding diffusion retains structure/guiding capabilities
+    supported_claim: C3
+  - id: E4
+    research_question: What noise level is right, and why? (§3.2)
+    setup: derive σc from the χ distance matrix of aligned antibodies; compare to empirical
+      hyperparameter optimization (Table 1)
+    baseline: —
+    result: σc ≈ 0.51 agrees with empirically optimal σ ≥ 0.5
+    interpretation: the geometric concentration-of-measure picture guides the single
+      hyperparameter; flattened one-hot d = 6237 scaling discussed as imperfect (§3.2)
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (discrete generation challenges), Domain stakes (antibodies), Existing paradigm failure, Insight naming (SDS/dWJS), Metric contribution (DCS), Contributions]
+  introduction_move: >-
+    Method-first intro with an industrial-payoff twist: two paragraphs of paradigm critique
+    (EBMs vs score-based), one paragraph grounding the stakes in antibody discovery constraints,
+    then name the formalism and the metric as twin contributions; bullet contributions separate
+    paradigm, simplification, and wet-lab validation (§1)
+  related_work_strategy: >-
+    Compact lineage mapping: EBMs → score matching → NEB, ending in the priority claim "Our work
+    is the first study of the NEB formalism for discrete data" (§5); protein-methods paragraph
+    organized by data scarcity as the failure driver
+  method_strategy: >-
+    Formalism-first: background (§2) supplies EBM + NEB notation before the method section; §3.1
+    gives algorithm + architecture, §3.2 derives the noise level theoretically, §3.3 introduces
+    the evaluation metric as part of the method — unusual ordering that makes DCS a contribution
+  experiments_strategy: >-
+    Escalating evidence hierarchy: in silico benchmarks (RQ1) → in vitro expression (RQ2-style
+    validity) → in vitro function vs concurrent diffusion baselines (RQ1 head-to-head); wet-lab
+    results are the differentiator and are placed last; metrics paper-proposed (DCS) are used
+    throughout
+  conclusion_strategy: >-
+    Restate simplification ("reduces the engineering complexity... to a single hyperparameter",
+    §6), claim robustness, then explicitly bound scope: future work on other molecules,
+    modalities, and theory
+reviewer_defense:
+  strengths: >-
+    Wet-lab validation on hundreds of designs is rare and decisive; head-to-head numbers against
+    concurrent diffusion methods (LaMBO-2, AbDiffuser) on a public dataset with open code and
+    results (§4.3); theory-grounded choice of the one hyperparameter (§3.2)
+  vulnerabilities: >-
+    (1) DCS is self-proposed and used as the primary benchmark — circularity risk, partially
+    mitigated by wet-lab calibration; (2) "Concurrent with the first appearance of our work"
+    caveat frames the diffusion comparison (§4.3, conceded differences: structure generation,
+    guided sampling); (3) evaluation restricted to antibodies; σc derivation relies on the
+    concentration heuristic and is admitted suboptimal for sparse one-hot encodings (§3.2);
+    (4) protein design results use constrained sampling whose success depends on the classifier
+    (86% IID accuracy, §4.3)
+  anticipated_attacks: >-
+    "Why not use pretrained PLMs?" — answered in §1 (small data, high-entropy regions) and
+    empirically: ESM2 infilling yields meaningless DCS 0.061 (Table 2); "sequence recovery shows
+    your samples are worse?" — preempted in §4: sequence recovery is explicitly rejected as a
+    poor objective for discovery; "IgLM has better DCS" — reconciled via its low IntDiv
+    (samples too close to reference set, §4.1)
+writing:
+  paragraph_patterns: >-
+    Mechanism-narration paragraphs following the algorithm's phases (train → walk → jump →
+    argmax), each phase named; contribution bullets split formalism / simplification /
+    application
+  transition_patterns: >-
+    Contrast pair repetition: "EBMs... but", "diffusion... but" — every related method is
+    introduced with its flip-side defect; in silico → in vitro section titles mirror each other
+    (§4.1/§4.2 share one title clause)
+  terminology_patterns: >-
+    Physical metaphors kept literal and consistent ("walk", "jump", "smoothed data manifold");
+    dual notation conventions for x/y flagged explicitly in a footnote when they shift meaning
+    (§3.3 fn. 3); one acronym per concept (SDS, dWJS, dEBM, DCS)

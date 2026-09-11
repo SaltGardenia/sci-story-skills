@@ -1,0 +1,86 @@
+# thesis: This paper shows that next-token prediction is myopic for creative leap-of-thought
+# tasks, because generating diverse outputs requires planning latent random choices in advance
+# which NTP cannot learn while multi-token objectives can, and therefore proposes a minimal
+# algorithmic creativity test-bed plus seed-conditioning — injecting randomness at the input
+# layer — which matches or beats temperature sampling.
+paper:
+  venue: ICML
+  year: 2025
+  field: language models / creativity evaluation
+  task: quantifying and improving the creative (diverse, original) limits of next-token-trained LLMs
+  problem: creative tasks require "a random flash of creative insight" (leap of thought / eureka moment) involving implicit open-ended stochastic planning, but "learning to solve such creative leap-of-thought tasks is misaligned with the current language modeling paradigm (a) in terms of next-token learning, and (b) in how randomness is elicited" (§1)
+  importance: "\"these currently-sidelined desiderata [diversity across responses, originality vs training data] will rise to prominence as we explore LLMs for open-ended scientific discovery, for generating novel training data, and as we scale up test-time compute approaches that benefit from diversity\" (\u00a71)"
+  source: full
+paradigm:
+  existing_approach: next-token prediction (teacher forcing) for training; temperature/nucleus sampling at the output layer for diversity (§1, §3)
+  core_assumption: a model can generate coherent diverse outputs by making sequential local decisions and injecting randomness at the output softmax
+  limitation: "NTP is myopic \u2014 \"inferring the latent leap of thought requires observing global higher-order patterns rather than local next-token patterns\" (\u00a71); temperature sampling \"can lead to cognitive overload: the model must process multiple thoughts to compute a diverse softmax distribution\" (\u00a73.1); real-task creativity evaluations are subjective and invite debate (\u00a71)"
+gap:
+  unresolved_problem: a controlled setting where creativity (coherence × uniqueness × originality) can be objectively quantified, isolating whether the training objective and the randomness mechanism are the bottleneck
+  evidence_for_gap: real-world evidence is contested (LLM research ideas rephrased — Gupta & Pruthi 2025; less creative than humans — Chakrabarty et al. 2024) but subjective (§1); prior algorithmic diversity studies exist but don't isolate the paradigm knobs (§7)
+insight:
+  observation: in creative generation the "most natural way to generate the string is by planning various random latent choices (say z) in advance and producing a plan-conditioned distribution p(s|z)" (§2.6); e.g. sibling triplets factorize given z:=Γ into O(m·n) learnable conditionals
+  central_insight: NTP learns the plan backwards — the parent becomes input rather than latent variable, forcing data-hungry global-pattern learning — so multi-token objectives (teacherless, diffusion) which see the whole sequence at once can learn the latent plan; and randomness belongs at the input (a seed) rather than the output softmax (§2.6, §3.1)
+  hypothesis: (1) multi-token training should raise algorithmic creativity on all tasks; (2) seed-conditioning should elicit diversity without hurting coherence, rivaling temperature
+method:
+  conceptual_change: treat creativity as a computational property measurable on minimal tasks (like "basic arithmetic for reasoning"), and treat randomness as an architectural input choice rather than a sampling heuristic
+  mechanism: "four tasks \u2014 Sibling/Triangle Discovery (combinational creativity: infer multi-hop structure in an in-weights graph, generate novel sequences obeying it) and Circle/Line Construction (exploratory creativity: adjacency lists resolving to an implicit structure under novel permutations) (Figs. 1\u20132, \u00a72.3\u20132.4); algorithmic creativity metric = fraction of coherent, unique, original generations; seed-conditioning = train/test with arbitrary random seed prefix (\u00a73.1)"
+  formulation: leap-of-thought obscuring (§2.5 — structure invisible at token level, "Clever Hans cheats" excluded); NTP objective (teacher forcing) vs teacherless multi-token vs SEDD discrete diffusion (90M) hybrids (§3)
+claims:
+  - id: C1
+    claim: multi-token prediction (teacherless or diffusion) significantly improves algorithmic creativity over next-token training — nearly 5x on discovery tasks for Gemma-2B — and reduces memorization (comparative)
+    importance: central
+    evidence: Fig. 3 (teacherless finetuning), Fig. 4 (diffusion), learning rate chosen favorably to NTP baseline
+  - id: C2
+    claim: seed-conditioning induces non-trivial algorithmic creativity, working as well as (and in some conditions better than) temperature sampling (comparative)
+    importance: central
+    evidence: "Fig. 5 (Gemma-2B: seed beats null baseline which is mode-collapsed; generally outperforms temperature), Fig. 6 (GPT-2-86M comparable)"
+  - id: C3
+    claim: next-token learning specifically (not capacity) causes the creativity deficit — the failure appears even in simpler 2-token-lookahead settings and the argument extends B&N'24's Clever Hans analysis (conceptual/theoretical)
+    importance: central
+    evidence: §2.6 sibling-task factorization argument; §B.4 empirical support; contribution 3 (arXiv abstract wording)
+  - id: C4
+    claim: seed-conditioning's creativity gains come from improved diversity rather than reduced memorization, orthogonal to multi-token training's mechanism (mechanistic)
+    importance: supporting
+    evidence: §H.2 analysis; §4.1 contrast between multi-token (reduced memorization) and seed (improved diversity)
+  - id: C5
+    claim: multi-token training improves the diversity-quality frontier on a real task (XSUM summarization, GPT-2 large) (empirical generalization)
+    importance: supporting
+    evidence: Fig. 7 — diversity (1−Self-BLEU) gaps at fixed ROUGE quality over finetuning
+experiments:
+  - id: E1
+    research_question: RQ1 — does multi-token training improve the primary objective (algorithmic creativity)?
+    setup: Gemma v1 2B finetuned with NTP vs teacherless vs diffusion-absorb/uniform on 4 tasks; creativity and memorization measured (§4.1, Figs. 3–4)
+    baseline: standard next-token training (learning rate tuned in its favor)
+    result: significant creativity increase (~5x discovery tasks), memorization drop
+    interpretation: seeing the whole future sequence lets the model learn the latent plan
+    supported_claim: C1
+  - id: E2
+    research_question: does input-layer randomness rival output-layer randomness?
+    setup: seed-conditioned vs null prefix vs temperature {0,0.5,1,2} sampling, Gemma-2B and GPT-2-86M, all tasks (Figs. 5–6, §4.1)
+    baseline: temperature sampling on NTP models
+    result: seed ≥ temperature in most conditions; null-prefix mode collapse; fixed-temperature + seed > null
+    interpretation: diversity can be elicited architecturally; seed and temperature act as distinct diversity knobs
+    supported_claim: C2, C4
+  - id: E3
+    research_question: does the multi-token advantage extend beyond the toy tasks?
+    setup: XSUM summarization diversity-quality sweep on GPT-2 (Fig. 7, §5 context)
+    baseline: NTP finetuning
+    result: diversity gaps at fixed quality over finetuning course
+    interpretation: the myopia diagnosis is not an artifact of the abstract tasks
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (open-ended intelligence beyond correctness), Importance forecast (scientific discovery, test-time compute), Failure of direct study (subjectivity debate), Method stance (minimal algorithmic abstractions), Two contribution classes (tasks + paradigm critique), Preview (multi-token and seed-conditioning)]
+  introduction_move: pre-empts the obvious objection (why not study real creative tasks?) by citing the contested literature and positioning minimal tasks as "akin to basic arithmetic for reasoning" — a methodological apology that converts artificiality into a feature; the two limits (learning objective, randomness elicitation) are named as the paper's axes
+  related_work_strategy: anchored on one theory source (Boden 2003's combinational vs exploratory creativity) that maps onto the two task families; §J collects real-world creativity studies as motivation rather than comparison
+  method_strategy: task-design-first — the tasks are the method; training paradigms are treatments applied to them; every design choice is paired with its confound-control (Clever Hans exclusion §2.5, edge-formatting sensitivity disclosed §F.5)
+  experiments_strategy: nested scales — toy tasks (2B Gemma, 86M GPT-2, 90M SEDD) with a bridging real-data experiment (XSUM) to defend external relevance; ablation appendix for hyperparameter robustness
+  conclusion_strategy: concedes "extreme caricaturization" while defending the ability to quantify elusive metrics; sets an agenda (length generalization, scaling, in-context vs finetuning, seed-conditioning open questions)
+reviewer_defense:
+  strengths: objective, non-controversial creativity metric on controlled tasks; baseline-favoring tuning; both training and inference knobs manipulated factorially; limitations section with 7 numbered caveats
+  vulnerabilities: tasks are tiny graphs — "certain range of hyperparameters beyond which the models can struggle" (limitation 5); seed-conditioning gains partly contingent on top-K in GPT-2 sibling/triangle (limitation 6a) and require special training (6c); absolute creativity score doesn't imply space coverage (limitation 4); subjective dimensions (interestingness) explicitly out of scope (limitation 5 of §6.2)
+  anticipated_attacks: "\"just tune temperature more\" \u2014 Fig. 5/6 show seed wins at every fixed temperature; \"multi-token is known (B&N'24)\" \u2014 contribution 3 explicitly claims the extension to simpler tasks and a new mechanism articulation; \"memorization metric gaming\" \u2014 originality is defined w.r.t. the exact training set, quantifiable by construction"
+writing:
+  paragraph_patterns: intuition paragraphs built on concrete generative stories (plan z := Γ then conditionals) rather than abstractions (§2.6); numbered contributions and numbered limitations
+  transition_patterns: "\"As our first main contribution... Next, we turn to...\" sequencing that alternates between task design and paradigm critique"
+  terminology_patterns: coined terms used rigidly (leap of thought, algorithmic creativity, seed-conditioning, in-weights graph, teacherless training); Boden's creativity taxonomy kept as the paper's spine

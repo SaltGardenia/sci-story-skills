@@ -1,0 +1,83 @@
+# thesis: This paper shows that stride configurations can be found by gradient descent instead
+# of cross-validation, because downsampling can be recast as Fourier-domain cropping whose
+# box size is a differentiable function of the strides (via soft masks with a stop-gradient on the
+# crop), and therefore proposes DiffStride, the first downsampling layer with learnable strides,
+# plus a complexity regularizer over those strides.
+paper:
+  venue: ICLR
+  year: 2022
+  field: deep learning architectures / CNN downsampling
+  task: learnable downsampling (stride learning) for audio and image classification
+  problem: strides are integer, non-differentiable hyperparameters; "finding the best configuration either requires cross-validation or discrete optimization (e.g. architecture search), which rapidly become prohibitive as the search space grows exponentially with the number of downsampling layers" (Abstract)
+  importance: an inappropriate stride choice for ResNet-18 "can account for a drop of > 18% in accuracy on CIFAR-100" (§2.2); learning strides would "unlock a virtually infinite search space" at gradient-descent cost (§1)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: strided convolutions / pooling with fixed integer strides; fractional strides (Graham 2014) and spectral pooling (Rippel et al. 2015) add flexibility but the stride remains a hyperparameter tuned by cross-validation (§1, §2.2–2.3)
+  core_assumption: the stride (downsampling factor) is a discrete design choice that cannot be an optimization variable
+  limitation: stride sensitivity is high, search space exponential; even spectral pooling's non-integer strides enlarge the cross-validation space (§2.3 end)
+gap:
+  unresolved_problem: a downsampling operator differentiable with respect to its stride
+  evidence_for_gap: empirical sensitivity study (Table 3 worst vs best config 48.2% vs 66.8% on CIFAR100) + computational argument (6,561 experiments to cross-validate strides in [1,3] on ImageNet, §3.2)
+insight:
+  observation: spectral pooling performs downsampling by cropping the DFT; the cropping box size is a function of the stride, and a soft attention-style mask (à la adaptive attention span, Sukhbaatar et al. 2019) can interpolate box sizes (§2.4)
+  central_insight: apply the differentiable mask as a low-pass filter (gradients flow to strides) but perform the actual hard crop under a stop-gradient — so the output shape is discrete while the stride remains trainable (§2.4, Algorithm 1)
+  hypothesis: learnable strides should (a) match or beat cross-validated fixed strides as a drop-in replacement, (b) recover from poor random initializations, and (c) open the strides up as levers for a differentiable complexity regularizer
+method:
+  conceptual_change: treat downsampling factor as a continuous parameter of a frequency-domain mask rather than an integer hyperparameter of a spatial operator
+  mechanism: DFT → soft mask (outer product of two 1D masks, Eqs. 3–5, smoothness R=4 shared everywhere) → masked low-pass filter (differentiable in S) → hard crop with stop-gradient → inverse DFT (Algorithm 1); in ResNets, DiffStride sits in shortcut blocks with strides shared between main and residual branches (§2.4.1)
+  formulation: mask_h/mask_w (Eqs. 3–4) adapted from adaptive attention span; complexity regularizer λJ = λ Σ_l Π_{i≤l} 1/(S^i_h S^i_w) (Eq. 6), differentiable in all strides by induction over layers
+claims:
+  - id: C1
+    claim: DiffStride as a drop-in replacement for strided convolutions outperforms both strided convolutions and (fixed-stride) spectral pooling on audio and image classification (comparative)
+    importance: central
+    evidence: Table 1 (audio mean 88.3 vs 85.0/86.0 single-task), Tables 3–4 (CIFAR/ImageNet means), 3 runs each
+  - id: C2
+    claim: DiffStride is robust to poor random stride initializations — converging to the cross-validated baseline's performance with an order-of-magnitude lower variance across initializations (comparative)
+    importance: central
+    evidence: 'Tables 3–4: DiffStride mean 92.4±0.2 (CIFAR10), 73.5±0.3 (CIFAR100), 69.28±0.50 top-1 (ImageNet) vs strided conv 87.7±3.4 / 59.1±6.7 / 65.53±4.49'
+  - id: C3
+    claim: learned strides are interpretable and task-adaptive (per-task cut-off frequencies consistent with psychoacoustics; asymmetric time/frequency strides beneficial even for images) (descriptive)
+    importance: supporting
+    evidence: Table 2 (learned strides → cut-off frequencies, e.g. ~25 Hz for speech, matching Elliott & Theunissen 2009), Table A.7 per-dimension ablation
+  - id: C4
+    claim: the stride regularizer (Eq. 6) trades accuracy for efficiency smoothly and dominates fixed-stride architectures on the accuracy-vs-complexity plane (comparative/practical)
+    importance: supporting
+    evidence: 'Fig. 4 — DiffStride frontier dominates random-stride strided convs; extreme example: aggressive strides give 58.57% top-1 vs 24.54% for closest integer strides'
+experiments:
+  - id: E1
+    research_question: RQ1 — does DiffStride improve the primary objective (accuracy) across tasks?
+    setup: 5 audio tasks (acoustic scenes, birdsong, NSynth instrument/pitch, speech commands), 2D-CNN, single- and multi-task, 3 runs (§3.1)
+    baseline: strided convolutions; spectral pooling (controls for the Fourier-domain factor)
+    result: best mean accuracy in both settings; strided conv wins only acoustic-scenes single-task (Table 1)
+    interpretation: gains come from learning the strides, not from spectral pooling per se (spectral ≤ DiffStride nearly everywhere)
+    supported_claim: C1
+  - id: E2
+    research_question: 'does learning recover from bad initializations? (paper''s framing: simulate cross-validation, §3.2)'
+    setup: ResNet-18 on CIFAR10/100 and ImageNet, 6 random stride configs in [1,3]^k (§3.2)
+    baseline: strided convs and spectral pooling at the same 6 inits; original (2,2,2) config
+    result: CIFAR100 range 48.2–66.8% for strided convs vs 73.4–73.7% for DiffStride; equivalence classes of stride configs at equal accuracy (Fig. 3)
+    interpretation: backprop finds good configurations during training, avoiding 6,561-experiment cross-validation
+    supported_claim: C2
+  - id: E3
+    research_question: can strides serve as differentiable levers for efficiency?
+    setup: ImageNet training with λ ∈ [0.1, 10] on Eq. 6 (§3.2 "Regularizing the complexity")
+    baseline: strided convs with random inits
+    result: smooth accuracy-efficiency frontier; DiffStride dominates (Fig. 4)
+    interpretation: equivalence classes imply headroom — the regularizer picks the cheapest of equally-accurate configurations
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (CNNs + downsampling benefits), Existing work (pooling improvements, fractional strides), Failure mode (strides are hyperparameters, exponential search), Insight (learn the crop box in Fourier domain), Solution (DiffStride), Contribution (drop-in wins + robustness + regularizer)]
+  introduction_move: builds the motivation by decomposing pooling into "compute local statistics" + "sub-sample" and pointing out that 40 years of work improved only the first step — the second (the stride) is still hand-set; the fix is presented as the obvious next step once spectral pooling makes strides continuous
+  related_work_strategy: integrated into intro (§1) rather than a separate section — each prior line ends in "the scaling factor still required cross-validation"
+  method_strategy: increment-from-prior-work — DiffStride is explicitly "inspired by Rippel et al." with the delta (learnable box) stated in one sentence; method section does background → notation → spectral pooling → DiffStride, so the new layer arrives as the minimal change
+  experiments_strategy: controls the confound explicitly (spectral pooling as the fixed-stride twin of DiffStride, §3); audio for interpretability, images for robustness, regularization as the payoff of the equivalence-class observation
+  conclusion_strategy: restates "first downsampling layer with learnable strides", then points to adaptive/multi-scale/per-example strides as the opened design space
+reviewer_defense:
+  strengths: spectral-pooling baseline isolates the contribution; robustness measured across 6 initializations × 3 seeds; honest limitations paragraph
+  vulnerabilities: no gain on DenseNets (conceded, hypothesized due to few downsampling layers, §3 Limitations); higher compute cost (non-strided conv + DFT/iDFT, Table A.2); dynamic output shapes break static-graph hardware (TPUs); SOTA gaps acknowledged inline (CIFAR10 92.5 vs 99.5 reference)
+  anticipated_attacks: '"is it just spectral pooling?" — addressed by the fixed-stride spectral baseline and the head-to-head tables; "equivalence classes — so strides don''t matter?" — converted into the regularizer contribution (§3.2 last paragraphs)'
+writing:
+  paragraph_patterns: each experimental subsection = setup → results → interpretation paragraph that names the mechanism ("This shows that backpropagation allows...", §3.2)
+  transition_patterns: the limitations paragraph inside the experiments section (unusual placement, before conclusion) creates a candid register
+  terminology_patterns: single naming (DiffStride) never abbreviated; "strides" kept plural and axis-explicit (S_h, S_w); smoothness hyperparameter deliberately minimized (single R=4) to stay consistent with the paper's own anti-hyperparameter thesis

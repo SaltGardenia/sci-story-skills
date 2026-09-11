@@ -1,0 +1,101 @@
+# thesis: This paper shows that a free-running SPAD camera can passively image dynamics
+# across 12 orders of magnitude in timescale without any synchronization because a
+# stochastic-calculus flux probing theory links absolute photon timestamps to the Fourier
+# spectrum of the flux function with a provable noise model, and therefore proposes a
+# frequency-scanning CFAR-detected flux reconstruction algorithm achieving DC-to-31 GHz
+# (demonstrated to 16.9 GHz) bandwidth.
+paper:
+  venue: ICCV
+  year: 2023
+  field: computational imaging / single-photon sensing
+  task: passive, sync-free reconstruction of a pixel's time-varying flux from photon detection timestamps, from seconds to picoseconds
+  problem: "\"imaging a dynamic scene over an extreme range of timescales simultaneously—seconds to picoseconds—and doing so passively, without much light, and without any timing signals from the light source(s) emitting it\" (Abstract)"
+  importance: "enables \"post-capture refocusing in time—from transient to everyday timescales\" (§1, analogy to light-field refocusing in space); existing passive low-light models \"break down at timescales much shorter than the timespan between photon arrivals\" (§1)"
+  source: full
+paradigm:
+  existing_approach: active ultrafast imaging — camera and source in lockstep at MHz repetition rates, sync-relative timestamps accumulated in histograms (§1; Table 1 middle column); passive inter-photon imaging treating inter-detection timespans as flux samples (§2.1, Table 1 left column)
+  core_assumption: (prior work) either a known sync frequency exists (so all frequencies must be integer multiples of fsync) or flux is constant between consecutive detections (fmax < 1/Tavg)
+  limitation: "sync methods cannot capture slow events (\"time wraps at the sync period, blurring out anything occurring over longer timespans\", §1); passive methods \"restricted to slow speeds, with fmax on the order of tens of kHz\" (§2.1); heterodyne active methods \"have neither the light efficiency nor the ultra-wide bandwidth\" (§1 end)"
+gap:
+  unresolved_problem: "reconstructing \"flux functions with an ultra-wide spectrum (DC to over 10 GHz) from a stream of photon timestamps that increase monotonically\" with unknown sources and no sync (§1 para 4)"
+  evidence_for_gap: "Table 1's three-regime taxonomy showing no regime covers both DC and >10 GHz; capability statements (\"never-seen-before abilities\": multi-source unsynchronized imaging, passive NLOS video, billion-times-slower playback, Abstract)"
+insight:
+  observation: "without a periodic sync signal, \"time never wraps at a sync period\" and timestamps \"follow the arrow of time\" — billions to trillions of distinct time bins become available instead of thousands (§1 para 3; Table 1)"
+  central_insight: probing — the sum p(T) = Σ p(τ) of any square-integrable function over absolute timestamps equals the inner product ⟨p, φ⟩ plus a martingale noise term (Prop. 1, Eq. 2), so the unknown flux's Fourier coefficients can be probed one frequency at a time with an estimable noise distribution (Prop. 3, Cor. 1–2)
+  hypothesis: scanning the Fourier basis with a constant-false-alarm-rate detector recovers only statistically significant frequencies, making reconstruction of billion-frequency spectra tractable from a few thousand timestamps (§4, Fig. 3)
+method:
+  conceptual_change: stop treating timestamps as binned counts (histograms) or inter-arrival samples; treat them as point samples of a stochastic process whose martingale part can be characterized and whose drift encodes the flux
+  mechanism: FLUXREC (Fig. 3) — frequency scanning from 0 to fmax at Δf = 0.6/t; per-frequency Fourier probing p_f(T) = (1/t)Σ e^{−j2πfτ}; CFAR detection rejecting frequencies whose probing energy falls below the χ² inverse-CDF threshold at false-alarm rate α (Eq. 7); reconstruction as a sum of detected sinusoids; dead-time-generalized variant for SPAD arrays (supp. C.1)
+  formulation: probing equation p(T) = ⟨p,φ⟩ + M_p(t) (Eq. 2–3); bandwidth limit fmax = 1/2Q from timestamp quantization Q (Prop. 2); complex-normal probing noise with variance ⟨p²,φ⟩ (Prop. 3, Eqs. 4–5); non-central χ² probing energy (Cor. 2, Eq. 7)
+claims:
+  - id: C1
+    claim: "\"Passive free-running SPAD cameras have an attainable frequency bandwidth that spans the entire DC-to-31 GHz range in low-flux conditions\" (theoretical)"
+    importance: central
+    evidence: "Abstract; Proposition 2 (fmax = 1/2Q, 16 ps resolution → 31 GHz); \"orders of magnitude broader than intensity cameras ... were thought capable of acquiring directly\" (§3 Implications)"
+  - id: C2
+    claim: "The derived Fourier-domain algorithm reconstructs flux from \"a stream of monotonically-increasing photon detection timestamps\" with a noise model valid \"even for very low photon counts or non-negligible dead times\" (theoretical/practical)"
+    importance: central
+    evidence: "Abstract; Prop. 3 (valid \"for as few as ten photons\", supp. G.4); SPAD-array experiment with generalized algorithm (§5, supp. C.1)"
+  - id: C3
+    claim: "Experimentally demonstrated never-seen abilities — imaging scenes lit by unsynchronized sources operating at vastly different speeds (58 Hz flicker to 10 GHz lasers), passive NLOS video, and ultra-wideband video playable at 30 Hz or \"a billion times slower\" (practical)"
+    importance: central
+    evidence: Abstract; Fig. 1 (9 orders of magnitude, 77,000 photons); Fig. 5 (fan at 1 kfps and 250 Gfps; NLOS video from ~3000 photons/frame)
+  - id: C4
+    claim: Probing outperforms synchronized photon-count histogramming as photon counts increase, recovering pulses up to the theoretical limit from just 50 timestamps (comparative)
+    importance: supporting
+    evidence: §5 Simulations; Fig. 4 (including oracle-based probing as upper bound)
+  - id: C5
+    claim: "On a 32×32 SPAD array with non-negligible dead time, probing recovers \"a periodic flux function truer to the rotating fan's motion\" than prior flux-constancy methods (comparative)"
+    importance: supporting
+    evidence: §5 Probing with SPAD arrays; Fig. 5 bottom rows
+experiments:
+  - id: E1
+    research_question: RQ4 — can one pixel simultaneously record multi-source dynamics across ~9 orders of magnitude in frequency?
+    setup: single-pixel SPAD, real scene with lightbulb PWM (900 Hz), raster-scanning laser projector (60 Hz–10 MHz), two unsynchronized ps lasers (40 MHz–10 GHz); 77,000 timestamps (§5, Fig. 1)
+    baseline: none — capability demonstration
+    result: "flux reconstructed \"across billions of frequencies\"; projector video at 1280×720 from ~450–4500 photons per 1/58 s frame"
+    interpretation: "validates the noise models and partially confirms the theoretical DC–31 GHz bound (\"we have not verified the theorized DC-to-31 GHz bandwidth experimentally due to unavailability of lasers that are fast enough\", §3)"
+    supported_claim: C1, C3
+  - id: E2
+    research_question: "RQ4 — ultra-wideband video: can slow and ultrafast content be captured in one acquisition and replayed at arbitrary rates?"
+    setup: raster-scanned scene with 20 MHz pulsed laser illuminating a 54 Hz fan; 1 kfps and 250 Gfps rendering (§5, Fig. 5 top)
+    baseline: "conventional approaches \"reconstruct the scene at only one of the aforementioned frame rates\""
+    result: both fan rotation and laser-pulse propagation visible from the same data
+    interpretation: post-capture temporal refocusing — the timescale choice moves to playback
+    supported_claim: C3
+  - id: E3
+    research_question: RQ1 — passive NLOS video from indirect light?
+    setup: SPAD viewing one point of a diffuse box lit only by a raster-scanning laser projector (double-bounce light); 1 s flux reconstruction; ~3000 photons per frame (§5)
+    baseline: none (new capability; analogous to dual photography)
+    result: fine frame details recovered without any direct view of the scene
+    interpretation: sync-free timestamps retain NLOS temporal structure that histogramming would wrap away
+    supported_claim: C3
+  - id: E4
+    research_question: RQ3 — quantitative accuracy of flux probing vs alternatives (simulation)?
+    setup: simulated 20 MHz pulse trains (12.5 GHz / 125 GHz spectral support), 2000 and 50 timestamps, 100 realizations at fifty photons (§5, Fig. 4)
+    baseline: synced histogramming; oracle-based probing (GT frequency set)
+    result: probing recovers pulses up to the theoretical limit from 50 timestamps and beats histogramming with increasing counts
+    interpretation: detection step adds negligible cost over the oracle; theory is tight
+    supported_claim: C4
+  - id: E5
+    research_question: RQ3 — does the framework extend to SPAD arrays with non-negligible dead time?
+    setup: 32×32 SPAD array data of a rotating fan, generalized algorithm of supp. C.1, vs Seets et al. flux-constancy method (§5, Fig. 5 bottom)
+    baseline: Seets et al. [13]
+    result: probing preserves periodicity and high-frequency variation; [13] loses them
+    interpretation: dead time handled by the theory, not treated as a disqualifying non-ideality
+    supported_claim: C2, C5
+narrative:
+  introduction_roles: [Context (speed needs light), Failure mode (sync wraps time; passive models break down), Question (both regimes at once, "passively?)", Observation (sync-free = time never wraps, 12 orders of magnitude), Solution naming (passive ultra-wideband imaging), Challenge (monotonic timestamp stream), Approach (flux probing theory from stochastic calculus), Roadmap (reader-level courtesy note)]
+  introduction_move: "opens with an imaging folklore rule (\"speed needs light\") and immediately inverts it — the contribution is a regime where speed needs timestamps, not light; the light-field analogy (\"post-capture refocusing in time\") is planted early so the exotic capability has an intuitive frame; unusual roadmap paragraph explicitly routes different reader types through the paper"
+  related_work_strategy: regime-comparison table (Table 1) as the central related-work device — columns are prior regimes with their corrupting flux and bin statistics, and the new regime's column is defined by what it does NOT lose; prose keeps a light touch
+  method_strategy: "theorem-first but reader-accommodating — propositions stated in imaging language (\"probing\", \"fundamental limit on bandwidth\"), proofs deferred to supplement, even crediting an anonymous reviewer for simpler proofs (§2 roadmap); algorithm presented as pseudocode + visual walkthrough (Fig. 3)"
+  experiments_strategy: "capability demonstrations before quantitative comparisons; every demo paragraph carries its photon budget (77,000 total, 3,000 per frame) to keep the low-light claim concrete; honesty markers about unverified bounds (\"we have not verified the theorized DC-to-31 GHz bandwidth experimentally\", §3) placed in the theory section, not buried"
+  conclusion_strategy: opens with the honest scaling problem (probing billions of frequencies; sketching/NUFFT as future work) then lists forward-looking applications in an ascending speculative ladder
+reviewer_defense:
+  strengths: theory with explicit provable bandwidth limit and noise distribution; experiments chosen to stress the theory's boundary conditions (dead time, arrays, NLOS); per-experiment photon budgets quantify the low-light regime; disclosed oracle-based comparison to bound algorithmic losses
+  vulnerabilities: "DC–31 GHz bound not fully verified experimentally (no fast enough lasers); 2D video requires raster scanning a single-pixel SPAD plus sync signals used only for inter-pixel alignment (defended twice in §5); computational cost of billion-frequency scans acknowledged as unresolved (\"The sheer amount of data ... cannot be ignored\", §6)"
+  anticipated_attacks: "\"sync is still used for video alignment\" — preempted by the explicit distinction between synchronization-for-flux-reconstruction (not used) and synchronization-for-raster-alignment (used, and explained as a single-pixel artifact, §5); \"dead time breaks Poisson assumptions\" — preempted by supp. Section C generalization and the array experiment; \"histogramming could do this with enough photons\" — preempted by Fig. 4 simulations and the Table 1 wrap-around argument"
+writing:
+  paragraph_patterns: "proposition-corollary units each closed with an imaging consequence (\"Implications for passive single-photon imaging\", §3); capability sentences always quantified (orders of magnitude, photon counts, GHz)"
+  transition_patterns: "\"Paper roadmap\" paragraph explicitly segmenting the audience — a rare trust-building device; numbered demonstration lists ((1)–(4) in §5 opening) mirrored by figure rows"
+  terminology_patterns: "coined regime name (\"passive ultra-wideband imaging\") used from abstract to conclusion unchanged; \"probing\" elevated from a math operation to the paper's identity (\"flux probing theory\", \"imaging by flux probing\"); consistent units discipline (pps/Mpps/GHz/ps)"

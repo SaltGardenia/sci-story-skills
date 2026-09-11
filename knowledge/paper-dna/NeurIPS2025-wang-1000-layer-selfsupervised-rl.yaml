@@ -1,0 +1,117 @@
+# thesis: This paper shows that RL networks can be scaled along the depth axis up to 1024 layers
+# with large performance gains and qualitatively new emergent behaviors, because a
+# self-supervised objective (contrastive RL) plus residual/LayerNorm/Swish stabilization and
+# GPU-accelerated data collection unlock depth scaling that TD methods lack, and therefore
+# proposes depth scaling as a building-block recipe for self-supervised RL.
+paper:
+  venue: NeurIPS
+  year: 2025
+  field: reinforcement learning / scaling
+  task: unsupervised goal-conditioned RL (locomotion, navigation, manipulation)
+  problem: '"Scaling up self-supervised learning has driven breakthroughs in language and vision, yet comparable progress has remained elusive in reinforcement learning" — typical RL networks are 2–5 layers and prior scaling attempts "report only small marginal benefits" (abstract, §1)'
+  importance: '"A key open question in RL today is whether it is possible to achieve similar jumps in performance by scaling RL networks"; emergent capabilities from scale are the engine of vision/language progress, and RL systems that train their own data could transform the field (§1, §5)'
+  source: full
+
+paradigm:
+  existing_approach: TD-based RL (SAC, TD3+HER) with shallow 4-layer MLPs; recent scaling work (Lee et al. 2024; Nauman et al. 2024b) uses residual connections to widen networks but "not[es] limited gains from additional depth" (§2)
+  core_assumption: that RL networks cannot usefully be made deep — few bits of feedback per parameter, instability, and observed width-only gains
+  limitation: width scaling saturates; depth returns are "limited or even negative" in prior work (§1, §2); offline scaling attempts fail in this paper's own preliminary experiments (§4.6)
+
+gap:
+  unresolved_problem: find the building blocks (algorithm, data throughput, architecture) that make depth — and scale generally — profitable for RL
+  evidence_for_gap: citation-pattern + empirical (prior scaling papers explicitly restrict to 4-layer MLPs; the conventional wisdom that RL's feedback scarcity precludes large models, §1)
+
+insight:
+  observation: with contrastive RL (whose InfoNCE objective is a generalization of cross-entropy — a classification-like loss) plus residual connections, LayerNorm, Swish, and GPU-accelerated collection, depth jumps produce step-function performance gains at critical depths (8, 16, 64, 256) rather than smooth improvement (§4.2–4.3, Figs. 1, 5)
+  central_insight: depth scaling in RL is algorithm-dependent — self-supervised contrastive RL tolerates and exploits depth, while TD methods saturate at depth 4 — and its benefits arise from exploration and expressivity working synergistically (deep collectors gather better data; deep learners exploit it) (§4.5, Fig. 8)
+  hypothesis: scaling depth in CRL should (i) beat width scaling under equal or lower parameter budgets, (ii) unlock batch-size scaling, (iii) produce qualitatively distinct emergent policies, and (iv) improve compositional generalization (experience stitching) and representation topology (§4.2–4.5)
+
+method:
+  conceptual_change: marry RL and self-supervised learning into one system where the same deep network both explores (collects data) and learns, instead of pretraining self-supervised then fine-tuning with RL
+  mechanism: CRL with residual blocks (Dense → LayerNorm → Swish, ×4 per block) scaled jointly in actor and both critic encoders; JaxGCRL/Brax/MJX GPU-accelerated environments; sparse-reward goal-conditioned evaluation (time at goal out of 1000) (§3, §4.1)
+  formulation: goal-conditioned MDP with reward r_g(s_t,a_t) ≜ (1−γ)p(s_{t+1}=g|s_t,a_t), objective Eq. 1; CRL's InfoNCE objective classifying (s,a) against trajectory-mates of g (§3, §2)
+
+claims:
+  - id: C1
+    claim: scaling CRL depth to 64+ gives 2–5× gains on manipulation, >20× on long-horizon mazes, >50× on humanoid tasks, "outperforming other standard goal-conditioned baselines" (8 of 10 tasks vs SAC/SAC+HER/TD3+HER/GCBC/GCSL) — comparative
+    importance: central
+    evidence: §4.2, Fig. 1, Table 1, Fig. 12 (Fig. 13 baselines)
+  - id: C2
+    claim: performance jumps at critical depths and corresponds to "qualitatively distinct policies that emerge as the scale increases" — depth-4 humanoid collapses/throws itself, depth-16 walks upright, depth-256 vaults walls acrobatically — descriptive/mechanistic
+    importance: central
+    evidence: §4.3, Figs. 1, 3, 5 ("To the best of our knowledge, this is the first goal-conditioned approach to document such behaviors on the humanoid environment")
+  - id: C3
+    claim: depth scaling is more effective than width scaling — doubling depth to 8 beats width-2048 at depth 4 despite ~17× fewer parameters, with the advantage growing with observation dimensionality — comparative
+    importance: central
+    evidence: §4.4, Fig. 4 (35M vs 2M parameter comparison)
+  - id: C4
+    claim: depth scaling benefits arise from "improved exploration and increased expressivity working jointly" — deep collectors enable deep learners; with shallow collectors even deep learners fail — causal (controlled collector/learner experiment)
+    importance: central
+    evidence: §4.5, Fig. 8
+  - id: C5
+    claim: deep critics learn topologically correct representations (Q-values trace the maze's inner edge instead of Euclidean proximity) and allocate more representational capacity to goal-relevant states; deeper networks enable partial experience stitching (≤3-unit pairs solving 6-unit U-Maze goals) — mechanistic
+    importance: supporting
+    evidence: §4.5, Figs. 9–11
+  - id: C6
+    claim: depth scaling unlocks batch-size scaling in RL — batch size 128→2048 is useless at depth 4 but increasingly beneficial at depth 8–64 — causal
+    importance: supporting
+    evidence: §4.4, Fig. 7
+  - id: C7
+    claim: the CRL algorithm is key — TD methods (SAC, SAC+HER, TD3+HER) saturate or degrade with depth, while even simple self-supervised GCBC benefits — comparative
+    importance: supporting
+    evidence: §4.5 "The (CRL) Algorithm is Key", App. A
+
+experiments:
+  - id: E1
+    research_question: RQ1 — does scaling depth improve goal-conditioned RL performance?
+    setup: CRL at depths 4/8/16/32/64 (later 256/1024 for critic encoders) on 10 JaxGCRL environments (locomotion/navigation/manipulation), sparse reward, time-at-goal metric (§4.1–4.2, Figs. 1, 12, Table 1)
+    baseline: depth-4 CRL (community standard); SAC, SAC+HER, TD3+HER, GCBC, GCSL
+    result: 2–50×+ gains; beats all baselines in 8/10 tasks; continued gains to 1024 layers on Humanoid U-Maze (actor held at 512 due to loss explosion — disclosed)
+    interpretation: depth is a viable scaling axis for self-supervised RL
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ3-ablation — depth vs width, actor vs critic, batch size?
+    setup: parameter-matched depth/width grid; actor×critic depth matrix; batch-size sweep per depth (§4.4, Figs. 4, 6, 7)
+    baseline: width scaling (per prior work)
+    result: depth-8 > width-2048; critic scaling more impactful in 2/3 environments but actor scaling helps (unlike prior findings); batch-size benefits appear only with depth
+    interpretation: depth is the cheaper, more effective axis and a precondition for other scaling axes
+    supported_claim: C3, C6
+  - id: E3
+    research_question: 'RQ4-mechanistic — why does depth scaling work: exploration, expressivity, or both?'
+    setup: three-network experiment — deep/shallow collector writes to shared replay buffer; deep/shallow learners train from it only (§4.5, Fig. 8); Q-value visualization in U4-Maze; embedding PCA along successful trajectories; stitching experiment with ≤3-unit training pairs (Figs. 9–11)
+    baseline: standard joint training
+    result: deep learner beats shallow only with deep collector; depth-4 Q-values track Euclidean distance (fails at walls), depth-64 traces maze topology; deep embeddings spread near goal; stitching improves 4→16→64
+    interpretation: exploration-expressivity synergy; richer representations capture environment structure
+    supported_claim: C4, C5
+  - id: E4
+    research_question: RQ4 — is the scaling specific to CRL?
+    setup: scale SAC/SAC+HER/TD3+HER, GCBC, GCSL, and quasimetric variants with depth (App. A) (§4.5)
+    baseline: same at depth 4
+    result: TD methods saturate/negative returns; GCBC shows some depth benefit on arms; CRL alone scales broadly
+    interpretation: classification-style self-supervised objectives are the permissive ingredient
+    supported_claim: C7
+  - id: E5
+    research_question: RQ5 — does depth scaling transfer to offline RL?
+    setup: OGBench offline goal-conditioned CRL with depth scaling, critic-only scaling, cold initialization (§4.6, Fig. 14)
+    baseline: depth-4 offline CRL
+    result: '"little evidence that increasing the network depth of CRL improves performance in this offline setting" — depth-4 baselines often best'
+    interpretation: online data collection (exploration) is load-bearing; honest negative result delimiting the claim
+    supported_claim: C4 (by contrast)
+
+narrative:
+  introduction_roles: [Context (scaling works elsewhere, not RL), Conventional wisdom (few feedback bits → pretrain self-supervised, finetune RL), Reframe (marry RL and SSL into self-supervised RL), Three-step program (algorithm, data availability, depth), Contribution bullets (3)]
+  introduction_move: takes the field's own excuse ("RL provides very few bits of feedback") seriously and then dismantles its conclusion — instead of "don't scale RL", the paper argues "scale the self-supervised kind of RL"; the intro pre-announces the three building blocks as a recipe, positioning the contribution as integration rather than invention
+  related_work_strategy: obstacle inventory (parameter underutilization, plasticity loss, data sparsity, instability) then adjacent-efforts comparison — closest works distinguished by their width-only restriction; Farebrother et al.'s classification conjecture recruited as converging evidence (§2)
+  method_strategy: minimal-method — the "method" is a combination of standard components (residual, LayerNorm, Swish, CRL, GPU sim); the paper's identity is empirical scaling science, so Preliminaries formalize goal-conditioned RL before any architecture talk
+  experiments_strategy: headline scaling curves first (Figs. 1, 12), then emergent-behavior qualitative evidence, then a systematic "What Matters" ablation section, then "Why Scaling Happens" mechanism section, ending with an honest offline failure — a deliberate strong-to-weak evidence ordering that builds trust
+  conclusion_strategy: zooms out to the data question ("where does the data come from?"), positions emergent-capable RL as the path to fields "that train their own large models", and closes with a two-sentence Limitations (compute cost; pruning/distillation as future work) (§5)
+
+reviewer_defense:
+  strengths: the collector/learner experiment cleanly deconfounds exploration from expressivity; the offline negative result and TD-method negative results show the authors are not overgeneralizing; emergent behaviors are documented with visualizations, not just metrics
+  vulnerabilities: compute cost of depth scaling (conceded §5); 1024-layer runs required keeping the actor at 512 layers (disclosed Fig. 12 note); environments are simulation-only (Brax/MJX state-based); mechanism claims (representation allocation, stitching) are visual/suggestive rather than quantitative; emergent-capability framing could invite the critique that "emergence" here is not rigorously defined (cf. metric-choice debates)
+  anticipated_attacks: '"prior work says depth doesn''t help RL" — preempted by attributing the difference to CRL vs TD objectives and to missing architectural/data ingredients (§1, §2, §4.5); "width at matched FLOPs might win" — addressed with parameter counts (35M vs 2M) and FLOP-budget framing (§4.4); "gains are just better exploration" — the shared-buffer experiment directly tests and rejects the pure-data explanation (§4.5)'
+
+writing:
+  paragraph_patterns: question-led subsections ("What Matters for CRL Scaling", "Why Scaling Happens", "Does Depth Scaling Improve Offline Contrastive RL?"); mechanism paragraphs pair a figure with an interpretation sentence starting "This suggests/indicates..."
+  transition_patterns: the intro's three building blocks structure the whole paper; hedged interpretation verbs (may, suggests) in mechanism sections vs direct claims in scaling sections
+  terminology_patterns: accessible naming — "collector" vs "learner", "critical depth", "stitching"; consistently defined depth metric ("total number of Dense layers across all residual blocks", §4.1) to avoid ambiguity

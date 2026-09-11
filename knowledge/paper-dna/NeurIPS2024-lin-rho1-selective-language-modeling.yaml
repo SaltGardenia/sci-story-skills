@@ -1,0 +1,113 @@
+# thesis: This paper shows that token-level loss dynamics are highly heterogeneous — most tokens
+# are already learned, noisy, or irreducibly uncertain — so applying uniform next-token loss wastes
+# capacity, and therefore proposes Rho-1 with Selective Language Modeling (SLM): score tokens by
+# excess loss against a reference model trained on high-quality data and apply loss only to the top k%.
+paper:
+  venue: NeurIPS
+  year: 2024
+  field: LLM pretraining / data selection
+  task: token-level data selection for (continual) pretraining
+  problem: '"Not all tokens in a corpus are equally important for language model training" — "despite thorough document-level filtering, high-quality datasets still contain many noisy tokens" and uniform CLM "can lead to inefficient computation on non-essential tokens" (abstract, §1)'
+  importance: pretraining compute is dominated by next-token prediction on all tokens; "common corpus at the token level may include undesirable content like hallucinations or highly ambiguous tokens" (§1); document-level filtering cannot remove token noise without altering meaning or biasing data (§1)
+  source: full
+  inferred: [source clean copy re-extracted (original had null bytes); content otherwise complete]
+
+paradigm:
+  existing_approach: causal language modeling over all tokens, with document-level data filtering via heuristics/classifiers (§1, Eq. 2)
+  core_assumption: every token in a (already document-filtered) corpus deserves gradient signal
+  limitation: token-level noise (timestamps, usernames, hallucinations) survives document filtering; "removing such tokens might alter the text's meaning, while overly strict filtering could exclude useful data" (§1, Fig. 2)
+
+gap:
+  unresolved_problem: select which tokens to train on, at the token level, aligned with a desired distribution, without extra pretraining cost
+  evidence_for_gap: 'empirical — token-level training dynamics (§2.1, Fig. 3): only 26% of tokens show notable loss reduction (H→L), 51% stay low-loss (L→L), 11% persistently high (H→H), 12% increase (L→H); many losses fluctuate without converging (Fig. 3b–c)'
+
+insight:
+  observation: token losses do not decrease smoothly like aggregate loss; categories H→H / L→H / H→L / L→L behave differently and fluctuating tokens are disproportionately noisy (§2.1)
+  central_insight: the useful training signal lives in the excess loss L_∆ = L_θ − L_RM — tokens the reference (trained on desired distribution) finds predictable but the training model does not are "more learnable and better aligned with the desired distribution" (§2.2)
+  hypothesis: training only on the top-k% excess-loss tokens will improve downstream accuracy and token efficiency dramatically, especially for continual pretraining on noisy domain corpora (§2.2, Fig. 4)
+
+method:
+  conceptual_change: move data curation from the document level to the token level, and from static corpus heuristics to a learned, distribution-aware score computed by a reference model
+  mechanism: 'three-step SLM pipeline (Fig. 4): (1) train reference model on curated high-quality corpus (0.5B math / 1.9B general tokens); (2) score each token of the pretraining corpus by reference loss; (3) train with loss masked to the top k% by excess loss, implemented by in-batch ranking with no additional pretraining cost (§2.2)'
+  formulation: L_RM(x_i) = −log P(x_i|x_<i) (Eq. 1); L_CLM (Eq. 2); L_∆(x_i) = L_θ(x_i) − L_RM(x_i) (Eq. 3); L_SLM = −(1/Nk%) Σ I_k%(x_i)·log P(x_i|x_<i;θ) with I_k% the top-k%-by-excess-loss indicator (Eq. 4–5); self-reference variants score by L_RM or next-token entropy H_RM (§3.4, App. H)
+
+claims:
+  - id: C1
+    claim: SLM improves math continual pretraining — Rho-1-1B and 7B "outperform CLM-trained baselines by over 16% on the GSM8k and MATH datasets", reaching baseline accuracy "5-10x faster" — comparative
+    importance: central
+    evidence: Table 1 (Tinyllama-CT 21.6 → Rho-1 38.1 avg; Mistral-CT 55.8 → 66.2); Fig. 1
+  - id: C2
+    claim: '"Rho-1-7B matches the state-of-the-art performance of DeepSeekMath-7B using only 15B tokens, compared to the 500B tokens required by DeepSeekMath" — comparative (data efficiency)'
+    importance: central
+    evidence: Table 1 (Rho-1-Math 7B avg 66.2 vs DeepSeekMath 68.4 with 10.5B unique tokens); abstract's "3% of the pretraining tokens"
+  - id: C3
+    claim: after fine-tuning, Rho-1-1B and 7B achieve 40.6% and 51.8% on MATH — Rho-1-1B "the first 1B LM to exceed 40%" — comparative
+    importance: supporting
+    evidence: abstract; §1; Table 2 (tool-integrated reasoning results)
+  - id: C4
+    claim: in general continual pretraining, SLM on 80B tokens gives "+6.8% average across 15 benchmarks" with >10% gains in code and math — comparative
+    importance: central
+    evidence: §3.3, Fig. 5
+  - id: C5
+    claim: SLM works without curated reference data via self-reference (scoring with a reference trained on the same noisy corpus, or by entropy), giving up to +3.3% with 40% fewer tokens — generalization
+    importance: supporting
+    evidence: '§3.4, Table 3 (LRM ∩ H_RM: 9B tokens, 24.8 avg vs 21.5 baseline)'
+  - id: C6
+    claim: only 26% of tokens exhibit meaningful loss reduction and selected-token loss correlates with downstream performance following a power law, while unselected tokens' loss reduction has negative impact — descriptive/mechanistic
+    importance: central
+    evidence: §2.1 Fig. 3a; §3.5 Figs. 6–7
+
+experiments:
+  - id: E1
+    research_question: RQ4-mechanistic — how do individual token losses evolve during pretraining?
+    setup: continual pretraining of Tinyllama-1B on 15B OpenWebMath tokens, checkpoints every 1B tokens, token-level loss on ~320K validation tokens; categorize H→H/L→H/H→L/L→L (§2.1, Fig. 3; Mistral-7B replication App. Fig. 10)
+    baseline: none (observational analysis)
+    result: 51% L→L, 26% H→L, 11% H→H, 12% L→H; persistent fluctuations concentrated in noisy tokens (§2.1)
+    interpretation: uniform-loss training wastes most gradient updates — motivates selection
+    supported_claim: C6
+  - id: E2
+    research_question: RQ1 — does SLM improve math capability under continual pretraining?
+    setup: 1B (Tinyllama) and 7B (Mistral) continual pretraining on 15B OWM tokens; reference models trained on 0.5B curated math tokens; 9 math tasks, few-shot CoT (§3.1–3.2, Table 1)
+    baseline: standard CLM continual pretraining (Tinyllama-CT, Mistral-CT); external SOTA (DeepSeekMath, LLemma, Intern-Math)
+    result: +16.5 avg (1B) / +10.4 avg (7B) over CT baselines with 30–40% fewer unique tokens; GSM8K 6.4→29.8 (1B), 42.9→66.9 (7B) (Table 1)
+    interpretation: token selection aligned to the desired distribution transfers directly to reasoning benchmarks
+    supported_claim: C1, C2, C3
+  - id: E3
+    research_question: RQ5 — does SLM generalize beyond math to general continual pretraining?
+    setup: Tinyllama-1.1B on 80B general tokens; 15 benchmarks (§3.3, Fig. 5)
+    baseline: direct continual pretraining
+    result: +6.8% average; >10% on code and math tasks
+    interpretation: benefit is not math-specific despite a math-flavored origin
+    supported_claim: C4
+  - id: E4
+    research_question: RQ5 — can SLM function without high-quality reference data?
+    setup: reference model trained on OWM subset; score OWM and PPile corpora with L_RM, H_RM, and their intersection (§3.4, Table 3)
+    baseline: CLM continual pretraining on same corpora
+    result: +2.4% (L_RM), similar for H_RM, +3.3% with 40% fewer tokens for the intersection; +1.8% on PPile with 30% fewer tokens
+    interpretation: "the key factor is not scoring the desired distribution but filtering out noisy tokens"
+    supported_claim: C5
+  - id: E5
+    research_question: RQ3 — why does SLM work? (loss–performance alignment and token content analysis)
+    setup: track selected/unselected token loss and downstream (MetaMath) loss over 4B tokens; correlate selected/unselected-token loss with accuracy at 5 checkpoints; visualize retained tokens (§3.5, Figs. 6–7, App. G.1)
+    baseline: CLM
+    result: SLM reduces loss most on selected tokens and lowers downstream loss more than CLM; selected-token loss follows a power law with accuracy; unselected-token loss reduction correlates negatively
+    interpretation: aggregate loss is an imperfect proxy — "reducing loss across all tokens is not imperative for improved model performance"
+    supported_claim: C6
+
+narrative:
+  introduction_roles: [Context (scaling + document-level filtering success), Failure mode (token-level noise persists; distribution misalignment), Observation preview (token-level training dynamics), Solution (Rho-1/SLM pipeline), Results catalogue (math, general, self-reference numbers in intro)]
+  introduction_move: challenges the field's most basic default (uniform loss on all tokens) with a maxim-like thesis stated in quotation marks in the abstract; the intro then walks from document-level filtering's limits to the token-level dynamics study, so the method appears as the direct answer to an empirical finding rather than a heuristic
+  related_work_strategy: embedded citations within the argument (filtering, data mixing, reference models for document filtering); no standalone related-work section in the main text
+  method_strategy: observation-first — §2.1 is entirely the motivating measurement (four loss categories, named with arrow notation), then §2.2 derives the pipeline; equations are minimal (one difference, one masked average) emphasizing implementability ("without incurring additional costs during pretraining")
+  experiments_strategy: domain headline result first (math), generality second (general corpus), robustness third (self-reference), mechanism last (loss–accuracy power law) — evidence ordered from external validity to internal validity
+  conclusion_strategy: brief, three sentences, restating the token-level thesis and deferring depth to future work; heavier reflection relegated to Appendix C Limitations
+
+reviewer_defense:
+  strengths: simple, nearly free intervention with large, multi-domain gains; the mechanism analysis (Fig. 6–7) provides a quantitative link between selection and downstream loss; self-reference results show robustness to the method's main dependency
+  vulnerabilities: scale limited to ≤7B and <100B tokens (conceded App. C "Scalability"); possible distribution narrowing — loss on unselected tokens rises sharply (Fig. 6c), authors admit "a general pretraining loss... may prevent overfitting"; reference-model quality is an uncontrolled variable; evaluation concentrated on math benchmarks
+  anticipated_attacks: '"isn''t this just perplexity filtering?" — distinguished by the excess-loss formulation against a reference model and by §3.4 showing even entropy scoring works (the mechanism is denoising, not preference); "trainable reference model is an extra cost" — addressed in App. C: base models or open-source models suffice since only input logprobs are needed; "harms general capability" — general-corpus experiment (E3) and the concession in App. C'
+
+writing:
+  paragraph_patterns: finding-led paragraphs in §2.1 ("Our first observation is...", "Our second observation is...") each anchored to a figure panel; experiment sections open with one-sentence purpose statements
+  transition_patterns: the thesis phrase "Not all tokens..." recurs as section title (§2.1), abstract claim, and conclusion — a repeated motif; arrow notation H→H/L→H/H→L/L→L compresses the dynamics story into portable symbols
+  terminology_patterns: tight naming discipline — SLM, CLM, RM, L_∆ "excess loss", k% selection ratio; "Rho" explained once via information density ρ (footnote 3)

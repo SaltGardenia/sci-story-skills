@@ -1,0 +1,83 @@
+# thesis: This paper shows that score matching can learn full-dimension scores from data
+# missing in arbitrary coordinate subsets, because the Fisher-divergence objective has an
+# exact "marginal" analogue on observed coordinates (via the marginal score function) whose
+# intractable conditional expectations can be handled by importance weighting or variational
+# approximation, and therefore proposes Marg-IW and Marg-Var — two complementary missing-data
+# score matching methods with finite-sample guarantees.
+paper:
+  venue: ICML
+  year: 2025
+  field: statistical learning / score-based modeling
+  task: score matching (and truncated/sliced/denoising extensions) with missing data
+  problem: '"little work explores [score matching''s] use when data is incomplete"; existing approaches work "exclusively through the lens of diffusion models" (MissDiff, Ambient Diffusion) requiring NN scores, or EM-like iterations with little convergence understanding (Uehara et al. 2020) and biased nested Monte Carlo (Abstract, §2)'
+  importance: score matching underpins energy-based modelling, clustering, and diffusion processes; a missing-data-compatible version enables these applications with real-world incomplete data while preserving parametric score models (§1)
+  source: full
+paradigm:
+  existing_approach: diffusion-specific fixes (MissDiff, Ambient Diffusion — NN-only, artificial corruption), MisGAN/MCFlow (no flexible parametric density), EM score matching (Uehara et al. 2020 — biased fractional importance weights), latent-variable score matching (Bao et al. 2020/2021 — expensive gradient unrolling, denoising only) (§2)
+  core_assumption: score matching's objective requires fully observed coordinates, since ∇·s_θ(X) is undefined for missing entries
+  limitation: prior adaptations either constrain the score model class, introduce bias, or lack convergence theory (§2)
+gap:
+  unresolved_problem: a parameter-preserving, assumption-light adaptation of the score matching family (classical, truncated, sliced, denoising) to data with any subset of coordinates missing (MCAR, with MNAR extension)
+  evidence_for_gap: cited limitations of each prior line (§2, esp. Uehara et al.'s own admission of "little intuitive understanding of when this approach will converge")
+insight:
+  observation: MLE under MCAR missingness reduces to maximizing marginal likelihoods log p_θ;Λ(X_Λ) (§4 opening) — marginals are the right target, not imputation
+  central_insight: scores have marginal analogues — s_λ(x_λ) := ∇_{x_λ} log ∫q(x)dx_{−λ} (Definition 4.1) — and the Fisher divergence admits an exact marginal decomposition L_M(θ) = E[2∇_{X_Λ}·s_{Λ;θ}(X_Λ) + ||s_{Λ;θ}(X_Λ)||²] = F_M(θ) − C, uniquely minimized by the true unnormalized density (Proposition 4.3)
+  hypothesis: the two intractable quantities in the marginal objective (unobserved-coordinate integrals) can each be approximated — by importance sampling (simpler, finite-sample bounds) or variational inference (scalable) — yielding complementary practical methods
+method:
+  conceptual_change: stop attempting to impute or corrupt data and instead derive a score matching objective that lives entirely on the observed marginal, treating the unobserved coordinates as an internal integration problem
+  mechanism: Marg-IW — estimate marginal scores by Monte Carlo with importance samples X′ from a chosen proposal p′ (Algorithm 1, Definition 4.4); Marg-Var — learn a variational family p′_ϕ(·|x_λ) to approximate p_θ(·|x_λ), closing the objective's gradient via KL/Fisher identities (Corollary 4.9, Proposition 4.12, Algorithm 2); both extend to truncated (weighted, boundary-vanishing g), sliced, and denoising score matching (App. A.1)
+  formulation: marginal score function (Eq. 2); marginal objective (Eq. 4); gradient identities (Eqs. 10–11) with Ψ_Λ expectation/covariance corrections; Theorem 4.6 finite-sample bound P(F_TM(θ_{n,r}) ≥ β₁√(p log(dnrA/δ)/min{r,n})) < δ — √n rates with r ≈ n (r=10 suffices in practice)
+claims:
+  - id: C1
+    claim: the marginal score matching objective is uniquely minimized by the true unnormalized density under regularity conditions (theoretical)
+    importance: central
+    evidence: Proposition 4.3 (with Assumptions 4.2(a)-(e)); also stated for truncated variant
+  - id: C2
+    claim: the IW estimator achieves finite-sample √n convergence rates in bounded-domain settings, with r (importance samples) controllable and small r effective in practice (theoretical)
+    importance: central
+    evidence: Theorem 4.6 + Remark 4.7 (rates w.r.t. marginal Fisher divergence; O(n²) worst-case cost, r=10 used)
+  - id: C3
+    claim: Marg-IW performs especially strongly in small-sample, lower-dimensional settings (comparative)
+    importance: central
+    evidence: Abstract; Fig. 1 (truncated Gaussian Fisher divergence vs Zeroed, EM), Fig. 2 (ICA-style non-Gaussian estimation across dimensions)
+  - id: C4
+    claim: Marg-Var is strongest in complex, high-dimensional settings, demonstrated on graphical model estimation with real and simulated data (comparative)
+    importance: central
+    evidence: Abstract; Figs. 3, 5, 7 (star GGM, yeast data — Marg-Var clearly best AUC)
+experiments:
+  - id: E1
+    research_question: RQ1 — do the methods recover the score in controlled estimation tasks?
+    setup: 10-dim truncated Gaussian (MCAR 0.2, 1000 samples, 200 replications, Fisher divergence) and non-Gaussian ICA-style model across dimensions (§5.1, Figs. 1–2)
+    baseline: Zeroed Score Matching (natural adaptation of MissDiff), EM (Uehara et al. 2020)
+    result: Marg-IW and EM best on truncated Gaussian (Fig. 1); Marg-IW best across dimensions on non-Gaussian (Fig. 2)
+    interpretation: IW's unbiasedness pays off where parametric structure is strong; naive marginalisation (Zeroed) "poorly models strong relationship between dimensions"
+    supported_claim: C3
+  - id: E2
+    research_question: does the framework support downstream structure learning (GGM edge detection) under truncation + missingness?
+    setup: star-shaped truncated GGM with missingness 0.2–0.9; L1-regularized precision estimation via proximal SGD; AUC vs ground-truth edges (§5.2.1, Fig. 3)
+    baseline: Zeroed, EM
+    result: Marg-Var performs best at all missingness levels
+    interpretation: variational approach scales where IW's cost would explode
+    supported_claim: C4
+  - id: E3
+    research_question: when does the variational advantage appear and disappear?
+    setup: unstructured dense GGM (Fig. 4); star count sweep at constant edge density (Fig. 5); S&P 100 stock data (Fig. 6); yeast genomics (Fig. 7)
+    baseline: Zeroed, EM
+    result: Marg-Var advantage grows with structure (star graphs) and vanishes as graphs become unstructured ("naive marginalisation is a better approximation"); Marg-Var clearly best on both real datasets
+    interpretation: the variational method exploits conditional dependence structure that naive zeroing discards
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (score matching's reach), Gap (no missing-data treatment beyond diffusion), Insight preview (two complementary methods), Contribution map (sections)]
+  introduction_move: motivates by enumerating score matching's downstream uses first, then positions the missing-data gap as a general-tool gap rather than an application gap — the contributions are announced as a two-method complementarity ("distinct but closely related methods complement each other")
+  related_work_strategy: exclusion-table style — each prior line named with its precise disqualifier (NN-only, corruption-required, biased, expensive, single-variant) (§2)
+  method_strategy: MLE-analogy-first — the method is introduced by asking "how might we use MLE with missing data?" and mirroring its marginal-likelihood reduction, giving the reader an anchor before the Fisher-divergence algebra (§4)
+  experiments_strategy: estimation experiments (Fisher divergence, parameter error) then application experiments (GGM AUC), with a deliberately designed negative result — the star-count sweep showing when Marg-Var stops winning — used to explain the mechanism
+  conclusion_strategy: restates the two-method complementarity, notes the variational-in-with-missing-data refinement opportunity, and points to diffusion-based generative modeling as the natural extension
+reviewer_defense:
+  strengths: exact objective identity (not an approximation) before any approximation enters; finite-sample theorem for IW; honest accounting of IW's O(n²) worst-case cost and the divergence-metric caveat (Remark 4.7); negative result included and explained
+  vulnerabilities: theory is MCAR-only in the main text (MNAR deferred to App. A.1.4); finite-sample bound covers truncated/marginal divergence, not full Fisher divergence (conceded, Remark 4.7); variational family choice unanalyzed; Gaussian-ish experimental models dominate
+  anticipated_attacks: '"just impute then score-match" — not directly compared, but Zeroed/EM baselines represent the marginal-imputation spectrum and are beaten where structure matters; "r=10 too small for theory" — explicitly acknowledged as practice-vs-theory gap (§4.2.1)'
+writing:
+  paragraph_patterns: definition → proposition → "we approximate this objective by..." pattern repeated for each variant; algorithms boxed immediately after their objectives (Algorithms 1–2)
+  transition_patterns: appendix cross-references carry extensions ("Full details... can be found in (Liu et al., 2022)"-style anchoring), keeping the main line lean
+  terminology_patterns: careful notation section (§3.1) with indexing conventions (X_Λ, −λ complements) used consistently; method names coined once (Marginal IW / Marginal Variational, abbreviated Marg-IW / Marg-Var in all figures)

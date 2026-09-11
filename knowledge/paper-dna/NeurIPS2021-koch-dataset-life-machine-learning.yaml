@@ -1,0 +1,88 @@
+# thesis: This paper shows that machine learning research is concentrating on fewer datasets,
+# mostly created for other tasks and mostly introduced by a handful of elite institutions, because
+# benchmark-centric incentive structures reward SOTA on established benchmarks, and therefore argues
+# (via a quantitative study of 60k PWC papers) that the field needs diversified evaluation plus
+# equity-oriented funding for dataset creation at less-resourced institutions.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: science of machine learning / datasets & benchmarks (meta-science, sociology of ML)
+  task: quantitative study of benchmark dataset usage, creation, and institutional origins in ML research 2015–2020
+  problem: '"benchmark datasets play a central role in the organization of machine learning research ... relatively little attention has been paid to the dynamics of benchmark dataset use and reuse, within or across machine learning subcommunities" (Abstract)'
+  importance: '"Because advancement on established benchmarks is viewed as an indicator of progress" it shapes researcher behavior, industry deployment expectations, and scientific evaluation; concentration patterns have "implications for scientific evaluation, AI ethics, and equity/access within the field" (§1 para 2, Abstract)'
+  source: full
+paradigm:
+  existing_approach: dataset audits focusing on individual datasets' biases and documentation practices; critical commentary on benchmark culture (§1 paras 3–4)
+  core_assumption: benchmark performance is a valid, community-endorsed indicator of progress and of real-world suitability — task communities "implicitly endorse these data as meaningful abstractions of a task or problem domain" (§1 para 2)
+  limitation: 'no field-wide, longitudinal picture of which datasets get used, created, transferred, and by whom (§1 para 4: "surprisingly little attention has been paid to patterns of dataset use and reuse across the field as a whole")'
+gap:
+  unresolved_problem: measure (RQ1) concentration of usage within task communities, (RQ2) adoption-vs-creation of datasets across tasks over time, (RQ3) institutional concentration of dataset introducers (§1 para 5)
+  evidence_for_gap: literature review shows audit-level and norm-level studies but none of use/reuse dynamics across the whole field; PWC corpus now makes such measurement feasible (§1–3)
+insight:
+  observation: PWC offers a community-curated, machine-readable catalog of 4,384 datasets and 60,647 dataset-using papers with task and provenance metadata (§3)
+  central_insight: dataset usage can be quantified with inequality measures (sample-corrected Gini coefficients) and adoption/creation proportions, turning benchmark culture into an observable, longitudinal system (§4.1–4.3)
+  hypothesis: if benchmarks confer scientific capital, usage should concentrate over time, new task communities should import rather than create evaluation data, and introducers should be elite institutions (framing of §1, §5.2 "Matthew Effect")
+method:
+  conceptual_change: treat datasets as a social-scientific object of study — an ecosystem with birth (creation), migration (cross-task adoption), and institutional origin — rather than a neutral evaluation tool
+  mechanism: 'three analyses on the PWC corpus (downloaded 06/16/2021): Gini concentration per task-year with beta regression (controls: task size, age, category dummies, random intercepts; model selected by AIC/BIC); adoption and creation proportions per task; Gini of usages by dataset and by institution linked to Microsoft Academic Graph (§4, Eqs. 1)'
+  formulation: sample-corrected Gini Gs = (n/(n−1))G over dataset-usage counts within a task; Adoption Proportion = papers using other-task datasets / (those + own-task datasets); Creation Proportion analog for datasets (§4.1, §4.2)
+claims:
+  - id: C1
+    claim: dataset usage within task communities is increasingly concentrated — "controlling for task size, task age, and task-specific effects", Gini rises with a marginal increase of 0.113 from 2015–2020; median task Gini 0.60 by 2020 (empirical, causal-adjusted via regression)
+    importance: central
+    evidence: §4.1.2, Model 1, Fig. 1, Table A2
+  - id: C2
+    claim: '"the majority of papers within most tasks use datasets that were originally created for other tasks" even though most tasks create more datasets than they import — e.g. only 7.49% of Image Generation papers evaluate on Image-Generation-origin datasets (empirical)'
+    importance: central
+    evidence: §4.2 (Fig. 2), §5 discussion, Fig. 4a-b
+  - id: C3
+    claim: dataset introduction is institutionally concentrated — "over 50% of dataset usages in PWC as of June 2021 can be attributed to just twelve institutions" (primarily Western, many for-profit), with institutional Gini over 0.80 in recent years (empirical)
+    importance: central
+    evidence: §4.3.2, Fig. 3
+  - id: C4
+    claim: NLP communities deviate — concentration increases are attenuated, new datasets created at higher rates, outside datasets used at lower rates (empirical, model-sensitive)
+    importance: supporting
+    evidence: '§4.1.2 (flagged: "the only result that varies somewhat with our model specification"), §5 discussion'
+  - id: C5
+    claim: these concentration dynamics create a "Matthew Effect" that lets a small number of elite institutions shape the field's research agenda and values, and make benchmarking "a vehicle for inequity in science" (interpretive/social-scientific)
+    importance: central
+    evidence: '§5.2 (authors mark the agenda-shaping claim as beyond the paper''s empirical scope: "Empirical support for this claim is beyond the scope of this paper")'
+  - id: C6
+    claim: interventions that merely reward dataset development (e.g. NeurIPS D&B track) are insufficient; funding for dataset creation at less-resourced institutions is needed (practical recommendation)
+    importance: supporting
+    evidence: §5.2 final paragraph
+experiments:
+  - id: E1
+    research_question: RQ1 (paper's own) — is usage concentrated within task communities and increasing?
+    setup: Gini per task-year on 133 parent tasks >34 papers (2,063 datasets, 49,008 usages), beta regression with year and category interactions, controls and task random intercepts (§4.1, Model 1, Table 1)
+    baseline: alternative nested models compared by AIC/BIC; sensitivity analyses in appendix
+    result: significant increasing trend (ΔGini = 0.113 over 2015–2020); NLP attenuation
+    interpretation: benchmark monoculture is deepening, not an artifact of task size/age
+    supported_claim: C1, C4
+  - id: E2
+    research_question: RQ2 (paper's own) — do tasks adopt or create datasets, and how does this change over time?
+    setup: adoption/creation proportions per task (960 datasets, 33,034 usages), aggregated and by category; case study of Image Generation and Face Recognition (§4.2, Fig. 2, Fig. 4)
+    result: most tasks' papers mostly use other-task datasets; newly created datasets used at lower rates
+    interpretation: ecological-validity concern — datasets "adopted ... whole cloth" or adapted may be misaligned with the destination task
+    supported_claim: C2
+  - id: E3
+    research_question: RQ3 (paper's own) — who introduces the dominant datasets?
+    setup: link dataset-introducing papers to MAG; Gini of usages by dataset and institution per year; map of institutions (1,933 datasets, 43,140 usages) (§4.3, Fig. 3)
+    result: 12 institutions ≈ 50% of usages; institutional Gini > 0.80
+    interpretation: benchmarking as stratification mechanism
+    supported_claim: C3, C5
+narrative:
+  introduction_roles: [Context (datasets organize MLR), Stakes (benchmarks = scientific capital + deployment signal), Critical turn (audits exist), Gap (no usage/reuse dynamics study), Findings preview (three numbered), Implications preview, Paper roadmap]
+  introduction_move: sociology-style setup — first establish that benchmarks are infrastructure ("backbone"), then argue that infrastructure this consequential demands empirical study of its dynamics; the three findings are previewed in the intro with their implications before any method appears
+  related_work_strategy: functional genealogy of benchmarking (post-AI-winter government funding → dominant paradigm → "rapid discovery science") then mapping of critique streams (audit, norms, validity), ending at the unmeasured dynamics (§2)
+  method_strategy: 'measurement-first with social-science tools imported and justified (Gini footnote comparing to country income inequality: Slovenia 24.6, South Africa 63, US 41.4 — a vivid calibration device)'
+  experiments_strategy: three analyses mapped one-to-one onto the three RQs announced in the intro; each finding paragraph states method → result → caveat; case studies (Image Generation, Face Recognition) convert statistics into memorable concrete instances (retracted MS-Celeb-1M)
+  conclusion_strategy: 'discussion-led — implications organized by stakeholder theme (scientific rigor/ecological validity §5.1; social stratification §5.2), recommendations at individual and institutional level, then limitations (§5.3: PWC coverage/structure contingency) and future work'
+reviewer_defense:
+  strengths: novel corpus-scale evidence (60k papers, 4,384 datasets, longitudinal 2015–2020); careful statistics (beta regression, controls, model selection, sensitivity analyses, released code/datasheet); findings triangulated across three independent analyses
+  vulnerabilities: authors concede results "are contingent on the structure and coverage of PWC" (§5.3); PWC noise mitigated by cleaning heuristics (dropping usages without shared tasks; manual annotation of top-90 dataset papers); Gini/proportions are descriptive — no causal identification of the mechanism; the Matthew-Effect/agenda-shaping claim is interpretive, explicitly beyond the data; NLP result model-sensitive
+  anticipated_attacks: '"concentration on shared benchmarks is healthy" — granted in §5 ("a certain degree of research focus ... is both necessary and healthy") then bounded; "elite datasets are just costly to curate" — granted ("may require unique or privileged data") and turned into the equity argument; "cross-task dataset reuse is standard practice" — distinguished into adaptation vs wholesale adoption (§5.1)'
+writing:
+  paragraph_patterns: finding-then-implication paragraphs; vivid calibration footnotes (Gini vs country inequality); each RQ section follows Methods → Findings with numbered regression models
+  transition_patterns: '"In this paper, we dig into these dynamics" repeated as a refrain (Abstract, §1); discussion subsections named by theme rather than by experiment'
+  terminology_patterns: 'sociological imports defined on use ("Matthew Effect", "origin task" vs "destination task", "rapid discovery science"); numbered RQs embedded in section titles (Analysis 1 (RQ1): ...)'

@@ -1,0 +1,93 @@
+# thesis: This paper shows that arbitrary-order generation narrows rather than expands the
+# reasoning potential of diffusion LLMs, because confidence-based decoding bypasses high-entropy
+# "forking" tokens whose future context then resolves them (entropy degradation), and therefore
+# proposes JustGRPO — standard GRPO applied to an AR-policy scaffold over the untouched dLLM
+# backbone — matching or beating diffusion-specific RL while preserving parallel decoding.
+paper:
+  venue: ICML
+  year: 2026
+  field: LLM reasoning / diffusion language models
+  task: RL post-training of dLLMs for general reasoning (math, code)
+  problem: "\"theoretically, [arbitrary-order generation] constitutes a superset of the fixed autoregressive trajectory and has the potential to unlock more advanced problem-solving abilities\" \u2014 yet for general reasoning tasks \"arbitrary order generation may in fact limit the reasoning potential of dLLMs\" (Abstract, \u00a71)"
+  importance: the community is investing in complex diffusion-specific RL to preserve order flexibility (combinatorial trajectories, intractable likelihoods, inaccurate approximations); showing flexibility is dispensable removes a costly commitment (§1, §4.1)
+  source: full
+paradigm:
+  existing_approach: dLLM RL methods (d1, ESPO, SPG, GDPO, LLaDOU, LLaDA-1.5) engineered to accommodate the combinatorial space of denoising trajectories T with ELBO-based surrogates (§4.1)
+  core_assumption: "\"preserving arbitrary-order flexibility is essential\" for eliciting reasoning via RL (\u00a71)"
+  limitation: flexibility imposes a tax — ambiguous token-level credit assignment, O(N!) trajectory likelihoods, and sampler-learner mismatch between confidence-based rollouts and likelihood-targeted objectives (§4.1)
+gap:
+  unresolved_problem: is arbitrary order actually beneficial — or even neutral — for general reasoning, and can RL for dLLMs be simplified if not?
+  evidence_for_gap: Pass@k proxy argument (RL sharpens the base distribution, so base Pass@k bounds post-RL ceiling — Yue et al. 2025), showing AR mode has steeper Pass@k scaling than arbitrary order (Fig. 3)
+insight:
+  observation: adaptive decoding "preferentially generates 'easy' tokens with high certainty while bypassing 'hard' ones", and the frequently bypassed tokens are logical connectives ("Therefore", "Thus", "Since") that act as reasoning forks (Fig. 6, §3.2)
+  central_insight: bypassing forks causes entropy degradation — by the time the sampler returns to a connector, future context has resolved its ambiguity, so the model no longer explores branches but retrospectively bridges a pre-determined gap (Fig. 2, Fig. 7, §3.2)
+  hypothesis: constraining RL rollouts to AR order forces confrontation with forks and restores exploration; since the constraint is only a training scaffold, the dLLM's parallel decoding should survive untouched
+method:
+  conceptual_change: decouple exploration from execution — reason in AR order (where uncertainty is met head-on), decode in parallel order (where dLLMs are efficient); stop treating the policy and the sampler as the same object
+  mechanism: define an AR policy on the frozen dLLM backbone — feed x̃_k = [o_1..o_{k−1}, MASK...] and read the softmax at position k (Eqs. 5–6), factorized likelihood (Eq. 7); apply unmodified GRPO (Eq. 8); no causal masking, architecture untouched (§4.2)
+  formulation: Pass@k as reasoning-potential proxy (§2.3); entropy measured at forking tokens at decode time (Fig. 7); JustGRPO-Fast — restrict exact per-position ratio computation to the sparse high-entropy fork positions to cut overhead (§5.3)
+claims:
+  - id: C1
+    claim: AR-order decoding of dLLMs yields higher reasoning potential (Pass@k scaling) than arbitrary order across models and benchmarks, despite lower k=1 accuracy in some cases (comparative)
+    importance: central
+    evidence: Fig. 3 (LLaDA-Instruct, Dream-Instruct, LLaDA-1.5 × GSM8K/MATH-500/HumanEval/MBPP), Fig. 5 (more arbitrariness, less potential — semi-AR interpolation)
+  - id: C2
+    claim: "the solution space reachable by arbitrary order is effectively a small subset of AR's (e.g. HumanEval: 21.3% solved exclusively by AR vs 0.6% exclusively by AO) (comparative)"
+    importance: central
+    evidence: Fig. 4, Pass@1024 coverage analysis on LLaDA-Instruct
+  - id: C3
+    claim: the mechanism is entropy degradation at forking tokens — arbitrary order sharply reduces decode-time entropy at logical connectors relative to AR (mechanistic)
+    importance: central
+    evidence: "Fig. 6 (bypassed-token identification), Fig. 7 (fork entropy: global entropy comparable, fork entropy drops)"
+  - id: C4
+    claim: JustGRPO — unmodified GRPO on an AR scaffold — outperforms diffusion-specific RL methods (89.1% GSM8K, 45.1% MATH-500, 49.4% HumanEval, 52.4% MBPP at len 256) (comparative)
+    importance: central
+    evidence: Table 1 (heterogeneous baselines) + Table 2 (reproduced baselines under unified protocol, same conclusion)
+  - id: C5
+    claim: the AR training constraint preserves parallel decoding — accuracy gains over the instruct model grow with parallelism (+10.6%→+25.5% on MBPP) (mechanistic)
+    importance: central
+    evidence: Fig. 8 (EB-sampler, 1–5 tokens/step)
+experiments:
+  - id: E1
+    research_question: does arbitrary order expand reasoning potential? (§3 diagnostic)
+    setup: Pass@k curves, k up to 1024, 3 dLLMs × 4 benchmarks, both decoding modes (Figs. 3–5)
+    baseline: AR-order decoding of the same models
+    result: flatter AO scaling; AO-solved ⊂ AR-solved; monotone decline in potential with more arbitrariness
+    interpretation: the theoretical superset argument inverts in practice under confidence-based sampling
+    supported_claim: C1, C2
+  - id: E2
+    research_question: what is the mechanism? (entropy analysis)
+    setup: identify frequently bypassed tokens; measure their entropy at decode time under both modes (Figs. 6–7)
+    baseline: AR order
+    result: connectors disproportionately deferred; their decode-time entropy collapses under AO while global entropy stays comparable
+    interpretation: exploration is destroyed exactly at reasoning forks — the "flexibility trap"
+    supported_claim: C3
+  - id: E3
+    research_question: RQ1 — does JustGRPO improve the primary objective (benchmark accuracy) over diffusion RL baselines?
+    setup: LLaDA-Instruct, full fine-tuning, no task-specific SFT, GSM8K/MATH-500/AceCoder training, evals at len 128/256/512 (§5.1, Tables 1–2)
+    baseline: d1, LLaDOU, LLaDA-1.5, wd1, d-TreeRPO, ESPO, GDPO, SPG
+    result: best or near-best across all benchmarks; still ahead under the unified reproduction protocol
+    interpretation: optimizing over combinatorial trajectories "may not be necessary" — the AR scaffold is the simpler sufficient recipe
+    supported_claim: C4
+  - id: E4
+    research_question: does AR training sacrifice dLLM inference efficiency?
+    setup: parallel decoding with training-free EB sampler at increasing tokens/step (§5.2, Fig. 8); wall-clock accuracy trade-off incl. JustGRPO-Fast (§5.3, Fig. 9)
+    baseline: original LLaDA-Instruct; ESPO for efficiency
+    result: full parallel compatibility, growing gains at higher parallelism; matches ESPO peak accuracy at comparable wall time and keeps improving
+    interpretation: the scaffold refines the distribution rather than overfitting a trajectory — more robust under parallel sampling approximation
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (dLLM surge; two advantages), Existing assumption (flexibility ⇒ potential), Counter-intuitive observation (Pass@k), Mechanism preview (forks, bypass, entropy degradation), Implication (rethink RL; drop the complexity tax), Solution (JustGRPO), Contribution (results + retained parallelism)]
+  introduction_move: leads with the field's a priori (superset argument), then detonates it with one measured curve (Fig. 1 left) before explaining anything — the counter-intuitive observation is the hook, and the mechanism (entropy degradation) is held back until §3.2
+  related_work_strategy: "split by function \u2014 dLLM models, puzzle-specific non-sequential successes (Ye et al. 2025a; Kim et al. 2025, which this paper bounds: \"specific tasks\" vs \"general reasoning\"), and diffusion-RL methods whose complexity the paper taxes (\u00a74.1)"
+  method_strategy: diagnosis-then-minimalism — the entire §3 is diagnosis (potential, coverage, mechanism) justifying §4's deliberately boring prescription ("a return to simplicity"); the method's hardest task is defending that AR training ≠ converting to an ARM (Remarks, §4.2)
+  experiments_strategy: hypothesis-paired evaluation — §5 explicitly states the two hypotheses (elicitation without complexity; intact parallel decoding) and maps experiments onto them; heterogeneous Table 1 shored up by self-reproduced Table 2
+  conclusion_strategy: recap the inversion (flexibility limits potential) and the decoupling principle (AR exploration, parallel execution)
+reviewer_defense:
+  strengths: mechanism evidence (which tokens, whose entropy) not just outcome deltas; unified-protocol reproduction of baselines addresses the confound it names; parallel-decoding result answers the obvious "why not just use an ARM?" attack preemptively
+  vulnerabilities: Pass@k-as-ceiling proxy relies on the sharpening hypothesis from prior work (Yue et al. 2025); observations on LLaDA-family models with confidence-based samplers — other samplers may differ; baselines partially quoted under non-identical settings (acknowledged, Table 1 caption)
+  anticipated_attacks: "\"puzzles showed arbitrary order wins\" \u2014 scoped explicitly to general reasoning tasks (math/code) vs sudoku/zebra where sequence order is task-dependent (\u00a71, footnote 1); \"AR training destroys the diffusion model\" \u2014 Remarks + Fig. 8 demonstrate scaffold-only constraint; \"exact GRPO is slower\" \u2014 JustGRPO-Fast and the wall-clock curve (Fig. 9) answer directly"
+writing:
+  paragraph_patterns: observation → named phenomenon → implication triplets; the coined term "entropy degradation" is introduced only after the measurement that warrants it (§3.2)
+  transition_patterns: section conclusions explicitly summarize ("Conclusion. In summary, our findings suggest...", §3.2) and hand off to the next section's design decision
+  terminology_patterns: memorable naming throughout — "flexibility trap", "flexibility tax", "entropy degradation", "forking tokens", "JustGRPO" (the "Just" itself argumentative); figures captioned with the takeaway sentence

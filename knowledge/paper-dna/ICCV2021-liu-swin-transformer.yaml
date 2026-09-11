@@ -1,0 +1,100 @@
+# thesis: This paper shows that a Transformer can serve as a general-purpose vision
+# backbone because hierarchical feature maps plus shifted-window local attention give
+# linear complexity to image size without losing cross-window modeling power, and
+# therefore proposes the Swin Transformer.
+paper:
+  venue: ICCV
+  year: 2021
+  field: vision backbones
+  task: image classification, object detection/instance segmentation, semantic segmentation via one unified backbone
+  problem: "\"expand the applicability of Transformer such that it can serve as a general-purpose backbone for computer vision, as it does for NLP and as CNNs do in vision\" (§1 para 2)"
+  importance: "backbones \"have led to performance improvements that have broadly lifted the entire field\" (§1 para 1); a unified vision-language architecture \"would facilitate joint modeling of visual and textual signals\" (§1 last para)"
+  source: full
+  inferred: "[field]  # paper does not name a field label; categorization is mine"
+paradigm:
+  existing_approach: CNNs (ResNet, RegNet, EfficientNet) as the standard backbone; ViT/DeiT as the emerging Transformer backbone (§1–2)
+  core_assumption: "global self-attention over fixed-scale tokens — \"tokens are all of a fixed scale, a property unsuitable for these vision applications\" (§1 para 2)"
+  limitation: "ViT \"produces feature maps of a single low resolution and [has] quadratic computation complexity to input image size\", making it \"unsuitable for use as a general-purpose backbone network on dense vision tasks or when the input image resolution is high\" (§2, Transformer-based vision backbones para)"
+gap:
+  unresolved_problem: how to get the Transformer's modeling power at CNN-like linear complexity and multi-scale feature maps, so one architecture works for classification AND dense prediction (§1 para 2–3)
+  evidence_for_gap: "modality-difference argument (scale variation + high pixel resolution, §1 para 2) plus ViT's poor dense-task results \"with relatively lower performance\" (§2 last para)"
+insight:
+  observation: "sliding-window self-attention variants have \"significantly larger [real] latency than the convolutional networks\" despite good FLOPs, due to different key sets per query hurting memory access (§1 para 4, footnote 1; §2)"
+  central_insight: compute self-attention within fixed non-overlapping local windows (linear complexity, hardware-friendly shared key sets) and shift the window partition between consecutive layers so cross-window connections return at zero extra windows (§1 para 3–4, Fig. 2)
+  hypothesis: this hierarchical shifted-window design matches or beats CNNs and global-attention Transformers across classification and dense prediction at similar latency (§1 para 4–5)
+method:
+  conceptual_change: stop copying NLP's global attention over fixed-scale tokens; treat vision tokens as needing a scale hierarchy (like CNN pyramids) and locality (like convolutions)
+  mechanism: patch merging downsampling stages build the hierarchy; alternating regular/shifted window partitions (W-MSA/SW-MSA) give cross-window connections; cyclic shift + masking makes the shifted configuration batch-efficient (§3.1–3.2, Fig. 3–4)
+  formulation: complexity Ω(MSA)=4hwC²+2(hw)²C vs Ω(W-MSA)=4hwC²+2M²hwC — linear in hw for fixed window size M=7 (§3.2, Eq. 1–2); block pair z^l = W-MSA→MLP, z^(l+1) = SW-MSA→MLP (Eq. 3); relative position bias B in Attention(Q,K,V)=SoftMax(QK^T/√d+B)V (Eq. 4)
+claims:
+  - id: C1
+    claim: "Swin surpasses previous SOTA on dense tasks — \"+2.7 box AP and +2.6 mask AP on COCO, and +3.2 mIoU on ADE20K\" (comparative)"
+    importance: central
+    evidence: abstract; Table 2(c), Table 3
+  - id: C2
+    claim: "The shifted window scheme brings \"greater efficiency by limiting self-attention computation to non-overlapping local windows while also allowing for cross-window connection\" — shifted beats no-shift by +1.1% top-1, +2.8 box AP/+2.2 mask AP, +2.8 mIoU (mechanistic/comparative)"
+    importance: central
+    evidence: Table 4 ablation
+  - id: C3
+    claim: "Shifted-window attention is much faster in real latency than sliding-window alternatives (\"40.8×/2.5×, 20.2×/2.5× ... more efficient\") at similar accuracy (mechanistic)"
+    importance: central
+    evidence: Table 5 (real speed), Table 6 (accuracy parity, +2.3% over Performer)
+  - id: C4
+    claim: "Relative position bias beats absolute position embedding, which even harms dense tasks (+0.4% top-1 but \"-0.2 box/mask AP ... -0.6 mIoU\") (comparative)"
+    importance: supporting
+    evidence: Table 4
+  - id: C5
+    claim: "The hierarchical design and shifted windows \"also prove beneficial for all-MLP architectures\" (generalization)"
+    importance: peripheral
+    evidence: abstract; §1 para 4
+experiments:
+  - id: E1
+    research_question: RQ1 — does Swin improve the primary objective (accuracy) on image classification at competitive throughput?
+    setup: ImageNet-1K, regular training and ImageNet-22K pre-training, Swin-T/S/B/L (§4.1)
+    baseline: DeiT-S/B, ViT-B/L, RegNetY, ResNet variants
+    result: 81.3–84.5 (1K), 87.3 top-1 (22K Swin-L); +1.5% over DeiT at similar complexity
+    interpretation: "speed-accuracy trade-off beats both ConvNet and Transformer backbones; \"manually adapted from a standard Transformer and has potential for further improvement\" (Table 1a discussion)"
+    supported_claim: C1
+  - id: E2
+    research_question: RQ1/RQ4 — does the backbone transfer to dense prediction across many frameworks (generality)?
+    setup: COCO, four detection frameworks (Cascade Mask R-CNN, ATSS, RepPointsV2, Sparse RCNN) with backbone swapped only (§4.2)
+    baseline: ResNet-50, X101, DeiT-S (with deconv for hierarchy)
+    result: consistent +3.4–4.2 box AP over R-50 across frameworks; 58.7/51.1 test-dev SOTA
+    interpretation: gains come from the backbone, not a task-specific trick
+    supported_claim: C1
+  - id: E3
+    research_question: RQ1 — semantic segmentation transfer
+    setup: ADE20K with UperNet (§4.3)
+    baseline: ResNet-101, ResNeSt, DeiT-S, SETR
+    result: Swin-L 53.5 mIoU, +3.2 over SETR with smaller model
+    interpretation: hierarchy enables direct use of standard segmentation frameworks
+    supported_claim: C1
+  - id: E4
+    research_question: RQ3 (mechanism ablation) — does shifting actually matter?
+    setup: Swin-T with/without shifted windows, position-embedding variants on all three tasks (§4.4, Table 4)
+    baseline: w/o shifting; no pos.; abs. pos.
+    result: shifting +1.1% top-1 / +2.8 AP / +2.8 mIoU; rel. pos. bias best overall
+    interpretation: cross-window connection is the load-bearing design element, not window locality alone
+    supported_claim: C2, C4
+  - id: E5
+    research_question: RQ3 — is the efficiency claim real wall-clock, not just FLOPs?
+    setup: measured MSA stage times and end-to-end FPS on V100 for sliding window (naive/kernel), Performer, padding vs cyclic shifted windows (§4.4, Table 5)
+    baseline: sliding-window self-attention, Performer
+    result: cyclic-shifted fastest; 13–18% faster than naive padding end-to-end
+    interpretation: design is optimized for hardware memory access, not only asymptotic complexity
+    supported_claim: C3
+narrative:
+  introduction_roles: [Context (CNNs dominate), Parallel paradigm (Transformer in NLP), Failure mode (two modality differences: scale, resolution), Gap, Solution (Swin overview), Key design element (shifted windows), Results preview, Vision (unified architectures)]
+  introduction_move: opens with a two-column history (CNN ascent vs Transformer ascent), then derives the required architecture from two named modality differences — scale variation → hierarchy, high resolution → locality — so the reader can predict the design before it is presented; the shift trick is introduced as the answer to an objection (windows cut connections) the reader has not yet raised
+  related_work_strategy: four-way landscape map (CNNs; self-attention backbones; attention-complementing CNNs; Transformer vision backbones) where each block ends in the exact limitation Swin removes (memory access, quadratic complexity, single resolution)
+  method_strategy: "formulation-first for efficiency (Eq. 1–2 before the shift trick), motivation-first for the shift (stated as fixing W-MSA's \"lack of connections across windows\"); engineering details (cyclic shift) presented as a problem the authors found and solved, with Fig. 4"
+  experiments_strategy: three benchmark SOTA sections in order (classification → detection → segmentation), then a dedicated ablation section that maps one-to-one onto design elements introduced in §3 (shift, position bias, attention implementation)
+  conclusion_strategy: two-sentence restatement of mechanism + SOTA, closing on the unification belief, not on numbers
+reviewer_defense:
+  strengths: "ablations directly tie each design element to numbers on all three tasks; latency claims backed by measured wall-clock (Table 5), not only FLOPs; consistent gains across four independent detection frameworks reduce the \"tuned framework\" objection"
+  vulnerabilities: "\"manually adapted\" architecture without NAS justification; PyTorch implementation admittedly unoptimized (\"A thorough kernel optimization is beyond the scope of this paper\", §4.2); COCO/ADE20K SOTA relies on 22K pre-training and strong system-level (HTC++) recipes"
+  anticipated_attacks: "\"is this just ViT with tricks?\" — answered by the complexity equations (Eq. 1–2) and dense-task results; \"sliding windows get similar accuracy\" — preempted with Table 5/6 showing similar accuracy but multi-fold latency gap; concurrent similar works — distinguished by linear complexity and locality (§2 last para)"
+writing:
+  paragraph_patterns: "intro paragraphs end by pivoting to the next need (\"To overcome these issues...\"; \"A key design element...\"); every design element paragraph ends pointing at its evidence table (\"see Table 4\", \"as shown in Table 5\")"
+  transition_patterns: "problem→solution pairs compressed into single sentences (\"The window-based self-attention module lacks connections across windows... To introduce cross-window connections while maintaining the efficient computation..., we propose...\")"
+  terminology_patterns: "heavy naming discipline — Swin-T/S/B/L, W-MSA/SW-MSA introduced once (Fig. 3 caption) and reused; \"shifted window\" never paraphrased; numeric variants tied to existing complexity classes (Swin-T ≈ ResNet-50) for instant comparability"

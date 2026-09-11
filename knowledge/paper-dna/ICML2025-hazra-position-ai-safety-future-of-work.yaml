@@ -1,0 +1,65 @@
+# thesis: This position paper argues that AI safety should prioritize the future of work,
+# because generative AI's rapid, rent-seeking automation erodes human agency, economic
+# dignity, and learning faster than society can adapt, and therefore proposes a pro-worker
+# governance program — transition support, open training data with Shapley-style royalties,
+# AI detection, and anti-capture stakeholder policy-making.
+paper:
+  venue: ICML
+  year: 2025
+  field: AI safety / policy (Position track)
+  task: reorienting AI safety priorities toward labor-market and economic-justice impacts
+  problem: "\"Current efforts in AI safety prioritize filtering harmful content, preventing manipulation of human behavior, and eliminating existential risks... While pressing, this narrow focus overlooks critical human-centric considerations that shape the long-term trajectory of a society\" (Abstract)"
+  importance: "\"AI safety cannot be divorced from labor market dynamics and economic justice\"; \"the greatest immediate risk may be the systematic disruption of human agency and economic dignity in the workforce\", weakening both direct control (voting, consumer choice) and indirect participation (\u00a71)"
+  source: full
+paradigm:
+  existing_approach: AI safety research centered on adversarial robustness, manipulation, x-risks (bio/cyber/rogue AI, deceptive alignment) (§1)
+  core_assumption: safety is a property of model outputs and capabilities, evaluated independently of the socio-economic system the model enters
+  limitation: "\"relatively less emphasis has been placed on the medium and long-term impacts of generative AI on society\"; benchmarks reward assistive healthcare systems that actually displace existing workers (\u00a71, \u00a72.1)"
+gap:
+  unresolved_problem: how should AI safety research and governance account for systematic labor disruption — job displacement (21% fewer writing/coding job posts after ChatGPT, Demirci et al. 2024), skill-biased gains, extractive data practices?
+  evidence_for_gap: labor-market statistics, adoption speed ("shift from 'assistance' to 'automation'... so rapid and abrupt", §2.2), and economic theory (rent-seeking, Tullock/Krueger; Life-Cycle and Permanent Income hypotheses, §1–2.1)
+insight:
+  observation: AI disruption is intertemporal — job insecurity breaks the consumption-smoothing assumptions of LCH/PIH, and rushed deployments accumulate "technical debt" with societal-scale costs (§2.1)
+  central_insight: generative AI firms behave as extractive institutions (Acemoglu & Robinson 2013) — concentration of benefits, training-data monopolization, devaluation of skilled labor — so safety must be evaluated as an economic-institutions problem, not only an alignment problem (§2.3)
+  hypothesis: a pro-worker governance framework (compensation, openness, detection, shared policy-making) can convert AI from "a highway for labor displacement" into a tool "for upholding shared prosperity" (§4.3 conclusion)
+method:
+  conceptual_change: widen the definition of AI safety from "prevent harm from model behavior" to "prevent systemic harm from model deployment in labor markets" — safety includes economic justice
+  mechanism: "argument structure \u2014 six named risks (P1\u2013P6: technical debt, unchecked automation, declining shared prosperity, uneven global democratization, impaired learning/AI slop, copyright failure) each grounded in economic theory + empirical studies, mapped onto six recommendations (R1\u2013R6: worker support, worker interests/open AI, detection accountability, training-data disclosure + Shapley Royalty Share royalties, creative-labor safeguards, anti-regulatory-capture stakeholder engagement)"
+  formulation: intertemporal consumption theory (LCH/PIH) as the analytic lens for AI-induced earnings volatility; rent-seeking theory for closed-source data practices; Shapley-value-based royalty sharing (Wang et al. 2024b, SRS) as the concrete compensation mechanism (§3 R5)
+claims:
+  - id: C1
+    claim: generative AI automation is proceeding at a speed that outpaces society's adaptive capacity, shifting from assistance to replacement (position commitment, causal)
+    importance: central
+    evidence: §2.2 (nursing anxieties, no-hiring announcements, OpenAI automation aims; Acemoglu & Restrepo 2019 counterpoint engaged)
+  - id: C2
+    claim: the extractive structure of generative AI firms reinforces inequality and weakens worker bargaining power (position commitment, descriptive-theoretical)
+    importance: central
+    evidence: P3 with World Bank shared-prosperity framing; anti-worker rhetoric quotes (§2.3)
+  - id: C3
+    claim: AI impairs learning and knowledge creation and floods channels with undetectable AI slop, harming education, peer review, and behavioral research (position commitment)
+    importance: supporting
+    evidence: §2.5 (Bastani et al. 2024 GPT-4 crutch; Latona et al. 2024 LLM peer reviews; identity misportrayal)
+  - id: C4
+    claim: current copyright practice fails to safeguard creative labor, and fair compensation requires disclosure, collective licensing, and contribution-based royalties (position commitment + policy design)
+    importance: central
+    evidence: P6 + §2.6 (Books3/NYT/Meta-LibGen cases, Authors Guild survey, HarperCollins $2,500 flat fee), §3 R5
+  - id: C5
+    claim: AI safety research should incorporate future-of-work benchmarks and governance, and slowing progress is not a viable alternative (methodological commitment)
+    importance: supporting
+    evidence: §2.1 (benchmarks ignoring labor replacement), §3 (slowdown shifts locus of progress, Acemoglu & Johnson 2023)
+experiments: []  # Position paper — no experiments; evidence base is cited empirical studies (labor statistics, learning studies, copyright cases), economic theory, and documented industry events
+narrative:
+  introduction_roles: [Context (AI safety's current focus), Gap (labor-market neglect), Importance claim (agency + economic dignity), Insight preview (economic theories as lens), Structure preview (6 risks → 5 recommendations)]
+  introduction_move: borrows the authority of economics before making any claim — rent-seeking, LCH/PIH, inclusive-vs-extractive institutions are introduced in the first two pages so that every later risk reads as an instantiation of established theory; numbered propositions (P1–P6) function like theses in a policy paper
+  related_work_strategy: discipline-crossing — ML safety literature vs labor economics vs copyright law, used not as survey but as an apparatus of arguments; AI-safety-only focus is diagnosed as the field's blind spot
+  method_strategy: risk-then-recommendation mirroring — each recommendation R1–R6 answers a numbered proposition P1–P6, making the paper auditable; concrete named mechanisms (SRS royalties, Pangram detectors, unions/CODE) rather than abstract appeals
+  experiments_strategy: none; persuasive burden carried by externally verifiable events (job-post statistics, lawsuits, survey results, product launches) each cited to a source
+  conclusion_strategy: restates the wing-taking sentence ("safeguarding human labor should be taken under the wings of AI safety") and reframes governance as the condition for AI being "a tool for upholding shared prosperity rather than a highway for labor displacement"
+reviewer_defense:
+  strengths: every claim anchored to published empirical work or documented events; theory-grounded rather than anecdotal; recommendations are specific and assigned to actors (researchers, policymakers, educators, workers)
+  vulnerabilities: predictions rest on extrapolation from short-run statistics (job-post counts) — the "market adapts" alternative view (§4.1, Industrial Revolution precedent, Aghion incentives) is conceded as serious; detection-based recommendations acknowledge false-positive harms; normative premises (shared prosperity as safety goal) are asserted, not argued against libertarian framings
+  anticipated_attacks: "\"labor markets self-correct\" \u2014 \u00a74.1 presents Smith/Autor/Mokyr/Aghionsteel-manned before rebutting with skill-biased distribution concerns; \"safety should target catastrophic risks only\" \u2014 \u00a74.2 grants Hendrycks' x-risk taxonomy, then argues deployed-model economic harm is nearer-term and structural; \"policy is premature\" \u2014 \u00a74.3 answers that firms' self-governance is exactly the regulatory-capture risk P3/R6 warns of"
+writing:
+  paragraph_patterns: boxed proposition statements (P1–P6) placed after their evidentiary paragraphs, like theorem boxes — the position paper's analogue of formal results
+  transition_patterns: each risk section closes by connecting back to the economic lens ("connecting back to the intertemporal consumption theory from Section 2.1", §2.2)
+  terminology_patterns: economic vocabulary adopted wholesale (rent-seeking, technical debt, extractive institutions, regulatory capture, consumption smoothing) and defined on first use; R-numbers and P-numbers kept cross-referenced

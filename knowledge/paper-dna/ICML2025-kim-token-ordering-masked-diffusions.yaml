@@ -1,0 +1,93 @@
+# thesis: This paper shows that masked diffusion models train on provably intractable
+# infilling subproblems that ARMs never face, but their logits already encode which positions
+# are easy, so adaptive token-order selection at inference sidesteps the hard subproblems —
+# lifting pretrained MDMs from <7% to ~90% on Sudoku and beating order-supervised ARMs
+# without any retraining.
+paper:
+  venue: ICML
+  year: 2025
+  field: generative models / discrete diffusion (language modeling)
+  task: understanding and exploiting token ordering in masked diffusion models vs autoregressive models
+  problem: MDMs "trade off complexity at training time with flexibility at inference time" — they must learn an exponentially large number of infilling problems but can decode in arbitrary order; "what are the strengths and limitations of MDMs compared to ARMs?" (Abstract, §1)
+  importance: MDMs underperform ARMs on language modeling but promise advantages in reasoning, planning, infilling; a principled account of the training-complexity/inference-flexibility tradeoff guides where MDMs can "challenge the dominance of ARMs" (§1)
+  source: full
+paradigm:
+  existing_approach: ARMs reverse a fixed left-to-right unmasking process; MDMs (Shi et al. 2024; Sahoo et al. 2025; Lou et al. 2024) reverse random coordinate-wise masking with an ELBO objective equivalent to learning all infilling problems (Proposition 2.1, Zheng et al. 2024; Ou et al. 2024)
+  core_assumption: (implicit in the MDM-vs-ARM debate) that the two families differ mainly in capacity/architecture, not in the computational complexity of their training subproblems
+  limitation: vanilla MDM inference evaluates marginals for random unmasking orders, including the poorly-trained hard ones (§1 "(2) Planning for the best")
+gap:
+  unresolved_problem: does inference flexibility outweigh training complexity — and if so, can MDMs be rescued at inference time without touching training?
+  evidence_for_gap: 'theoretical + empirical imbalance evidence (Fig. 2: MDM masking subproblems strictly harder than ARM''s by likelihood and FLOPs; L&O-NAE-SAT task-error map shows latent-position failures)'
+insight:
+  observation: MDM loss is a linear combination of all infilling losses (Proposition 2.1), so "the minimizer of the loss learns to solve every masking problem" — but trained imperfectly, subproblem quality is severely imbalanced (§2.1, §3.3, Fig. 1 top)
+  central_insight: MDMs offer many valid sampling paths, and any path is exact for a perfect model (chain-rule argument, §4) — so a pretrained imperfect MDM can be steered along paths that only visit its well-trained marginals; the logits themselves provide the ordering signal (Fig. 1 bottom)
+  hypothesis: simple certainty-based oracles (top probability / top probability margin) that choose *where* to unmask next should recover most of the ARM-comparable performance without any additional training
+method:
+  conceptual_change: stop treating inference as passively reversing the forward process — treat the denoiser's own confidence map as a plan for which subproblems to evaluate
+  mechanism: 'adaptive MDM inference — at each step select unmasking set S = F(θ, x_t) ⊆ {i : x_t^i = 0} via an oracle, then sample x_s^i ∼ p_θ(·|x_t) (§4 box); oracles: Top probability F = TopK max_j p_θ(x^i=j|x_t) and proposed Top probability margin F = TopK |p_θ(x^i=j1|x_t) − p_θ(x^i=j2|x_t)| (§4.1)'
+  formulation: forward/reverse masking processes with schedule α_t (§2); Proposition 2.1 decomposition of L_θ over mask sets; hardness via planted-CSP/belief-propagation overlap results (Theorem B.8, 1RSB cavity prediction, Prop. 3.3) and L&O distributions with cryptographic-observation constructions (§3.1)
+claims:
+  - id: C1
+    claim: for distributions with a known generation order, ARM training subproblems are computationally tractable while a large fraction of MDM masking subproblems are provably hard at relevant noise levels (theoretical)
+    importance: central
+    evidence: §3 (hash-based construction, Prop. 3.3 under 1RSB cavity prediction), empirical Fig. 2 left
+  - id: C2
+    claim: the complexity imbalance persists on real text — most MDM masking subproblems are harder than the ARM's next-token problem (empirical generalization)
+    importance: central
+    evidence: Fig. 2 (log-FLOPs vs −log p_θ on text; MDM worse in likelihood than ARM)
+  - id: C3
+    claim: adaptive inference substantially improves pretrained MDMs without retraining — Sudoku 6.88% → 89.49% (top-prob. margin, 6M params), beating order-supervised ARMs with 7× parameters (comparative/causal)
+    importance: central
+    evidence: Table 2 (ARM w/ ordering 89.42% 42M vs MDM top-margin 89.49% 6M), Table 3 Zebra (76.9→98.3/98.5%)
+  - id: C4
+    claim: top probability margin is a more reliable ordering oracle than top probability when multiple values compete, especially on hard reasoning tasks (comparative/mechanistic)
+    importance: supporting
+    evidence: Table 4 LLaDA-8B (HumanEval-Multiline 25.4% vs 20.8%, Math 34.3% vs 31.3%), Sudoku margin 89.49% vs top-prob 18.51%
+  - id: C5
+    claim: order-agnostic MDM training + adaptive inference gives easy-to-hard generalization on unseen puzzle strategies, beating order-supervised ARMs (49.88% vs 32.57%) (generalization)
+    importance: supporting
+    evidence: Table 5 hard Sudokus (backtracking/strategy-not-seen), §4.5
+experiments:
+  - id: E1
+    research_question: RQ3-style (does adaptive inference improve the primary objective — likelihood matching / accuracy)?
+    setup: L&O-NAE-SAT distribution with known latent order; observation-token prediction accuracy for vanilla vs adaptive inference (§4.2, Table 1)
+    baseline: vanilla random-order MDM inference (naive guessing = 75%)
+    result: 'e.g. (25,275): 78.06% → 93.76%; consistent gains across (N,P) settings'
+    interpretation: adaptive paths avoid the poorly-trained latent-position subproblems identified in §3.3
+    supported_claim: C3
+  - id: E2
+    research_question: RQ1 — does the theory hold on real text?
+    setup: 1.1B pretrained MDM; generative perplexity (LLaMA2-7B-judged likelihood) and sample entropy across inference strategies (§4.2, Fig. 3)
+    baseline: vanilla MDM inference
+    result: substantial perplexity decrease under adaptive inference at similar entropy (diversity preserved)
+    interpretation: gains are not just greedy degeneration — the sampler stays on-distribution
+    supported_claim: C2
+  - id: E3
+    research_question: can order-blind MDMs beat order-supervised ARMs on sequence-dependent-order tasks?
+    setup: Sudoku/Zebra from Shah et al. (2024) training data; baselines ARM w/o and w/ ordering (teacher-forced); accuracies (§4.3, Tables 2–3)
+    baseline: ARM (with ordering) 89.42% Sudoku / 91.17% Zebra
+    result: MDM top-margin 89.49% / 98.3% with 6M/19M params vs 42M ARM
+    interpretation: unsupervised order discovery via logits beats supervised order learning, at a fraction of compute
+    supported_claim: C3, C4
+  - id: E4
+    research_question: does the recipe transfer to frontier-scale LDMs and robustness to harder distributions?
+    setup: LLaDA-8B on HumanEval variants, Math, MMLU, ROCStories (Table 4); hard Sudokus requiring unseen strategies/backtracking (Table 5)
+    baseline: vanilla inference; ARM (with ordering) for Table 5
+    result: consistent adaptive gains (e.g., HumanEval-Split 14.2→22.3%); hard-Sudoku 49.88% vs ARM 32.57%, MDM random 3.62%
+    interpretation: MDMs solve exponentially more infilling problems during training, extracting problem knowledge more efficiently — robust to distribution shift
+    supported_claim: C4, C5
+narrative:
+  introduction_roles: [Context (discrete diffusion nascent), Trade-off statement (training complexity vs inference flexibility), Guiding question, Part 1 (train for the worst — hardness), Part 2 (plan for the best — adaptive inference), Headline preview (Sudoku <7%→≈90%)]
+  introduction_move: structures the entire paper as the two horns of one question, with titled halves ("Training for the worst", "Planning for the best") announced in the intro; the title itself is the argument's summary and each half gets its own evidence type (theory vs inference fixes)
+  related_work_strategy: sparse in main text, focused on the ARM-vs-MDM debate literature (scaling laws, limitations, order-learning works Shah/Lehnert) used to set up the strongest possible ARM baselines
+  method_strategy: negative-result-then-rescue — Section 3's hardness conclusions are deliberately pessimistic so that Section 4's zero-training fix reads as a surprise; the oracles are presented as intuition-first heuristics ("certainty"), with the margin variant motivated by a named failure mode of top-probability
+  experiments_strategy: escalating realism — synthetic L&O-SAT (theory check) → pretrained 1.1B text (perplexity) → small-model puzzles (head-to-head vs ARM baselines) → 8B LLaDA (frontier) → hard out-of-distribution puzzles (robustness)
+  conclusion_strategy: two-sentence recap mirroring the two halves, ending on the ordering-oracle design space as future work
+reviewer_defense:
+  strengths: both sides evidenced (hardness theory + imbalance measurements; inference fix + breadth of tasks); strongest-baseline discipline (order-supervised ARMs via teacher forcing); diversity-controlled evaluation (entropy)
+  vulnerabilities: hardness results rely on the 1RSB cavity *prediction* (Conjecture B.13) and purpose-built L&O constructions; adaptive strategies are heuristic oracles with no guarantee; Sudoku dataset discrepancy with Ye et al. (2024) is flagged but unresolved (footnote 2)
+  anticipated_attacks: '"adaptive decoding is just greedy nucleus-like sampling" — explicitly cautioned against: oracles select positions, not values (§4.1), and entropy is held constant (Fig. 3); "MDM wins only on puzzles" — Table 4 shows gains on standard code/math/text benchmarks too'
+writing:
+  paragraph_patterns: question-driven headings ("What should priorities be...?" style avoided here; instead imperative claims "MDMs train on hard problems", "MDMs can plan around hard problems") — section titles carry the argument
+  transition_patterns: §4 opens by accepting §3's bad news ("While this might suggest that we need to fundamentally revisit how MDMs are trained... surprisingly, simple modifications at the inference stage...") — a concession-pivot move
+  terminology_patterns: paired naming discipline — "vanilla vs adaptive MDM inference", "Top probability vs Top probability margin", "ARM (w/ ordering) vs (w/o ordering)"; consistent algorithm box for the inference procedure

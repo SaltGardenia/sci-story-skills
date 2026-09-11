@@ -1,0 +1,232 @@
+# thesis: This paper shows that diffusion models escape memorization and converge to the same
+# density because DNN denoisers are inductively biased toward geometry-adaptive harmonic bases
+# (GAHBs), and therefore proposes (establishes) analyzing trained denoisers via Jacobian
+# eigendecomposition to explain strong generalization and its suboptimal edge cases.
+paper:
+  venue: ICLR
+  year: 2024
+  field: diffusion generative models / science of deep learning
+  task: understanding generalization and inductive biases of image denoisers
+  problem: >-
+    Whether diffusion models learn the "true" continuous density or merely memorize the training
+    set — "recent reports of memorization of the training set raise the question of whether these
+    networks are learning the 'true' continuous density of the data" (Abstract); and what
+    inductive biases let them "defy the curse of dimensionality" (§1)
+  importance: >-
+    Diffusion models "have recently surpassed all previous methods of learning probability models
+    of images"; explaining their approximation class "is of fundamental interest" and offers "a
+    means of evaluating the accuracy of the learned probability models, which is generally
+    difficult in high-dimensions" (§4, §3)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Score-based diffusion: train a denoiser, recover the score, sample by reverse diffusion
+    (§1); memorization studied empirically by others (Somepalli et al., Carlini et al.) (§1)
+  core_assumption: >-
+    Standard generalization assessment via average train/test error is the accepted evidence —
+    which the paper argues is weak ("stronger and more direct evidence of generalization than
+    standard comparisons of average performance", §1)
+  limitation: >-
+    The approximation class of DNN denoisers "is not well understood" (§1); no one knows whether
+    high sample quality implies a correct density estimate
+gap:
+  unresolved_problem: >-
+    Do denoisers trained on different data converge to the same function, and if so, what
+    representational bias enables it? ("we take several steps toward elucidating this mystery", §1)
+  evidence_for_gap: >-
+    Empirical tension: memorization reports at small training-set size vs. impressive sampling at
+    scale (§1 para 2); the curse of dimensionality argument that density estimation should be
+    infeasible (§3 opening)
+insight:
+  observation: >-
+    Denoisers trained on small sets memorize, but two denoisers trained on non-overlapping sets
+    of ~10^5 images generate nearly identical samples from the same noise — model variance falls
+    to zero (Fig. 2, §2.2)
+  central_insight: >-
+    A bias-free denoiser is piecewise linear, so its Jacobian eigendecomposition reveals that it
+    performs shrinkage in an image-adaptive basis whose eigenvectors are oscillating harmonics
+    aligned with image geometry — a geometry-adaptive harmonic basis (GAHB) (§3.1 Eq. 6, §3.2,
+    Fig. 3)
+  hypothesis: >-
+    If GAHBs are the inductive bias, denoisers should be near-optimal exactly where GAHBs are
+    optimal (Cα/bandlet class) and suboptimal where they are not (low-dimensional manifolds,
+    shuffled pixels) (§3.2, §1 para 4)
+method:
+  conceptual_change: >-
+    Study generalization through model variance (divergence of two models trained on disjoint
+    data) rather than train/test gap; study the denoiser's function geometry instead of its
+    sample quality
+  mechanism: >-
+    (1) Convergence experiment: train UNet denoisers on non-overlapping CelebA subsets, sample
+    from the same noise initialization, compare images and cosine similarities (§2.2, Fig. 2);
+    (2) Jacobian analysis: diagonalize ∇f(y) to get adaptive shrinkage factors λk(y) and basis
+    vectors ek(y) (§3.1)
+  formulation: >-
+    f(y) = Σ_k λk(y) ⟨y, ek(y)⟩ ek(y) (Eq. 6) — shrinkage in an adaptive basis; optimal denoiser
+    Jacobian ∇f*(y) = σ^{-2} Cov[x|y] (Eq. 9); KL density error bounded by integrated denoising
+    sub-optimality (Eq. 5); oracle basis analysis gives PSNR slope α/(α+1) (Eq. 13)
+claims:
+  - id: C1
+    claim: >-
+      "two DNNs trained on non-overlapping subsets of a dataset learn nearly the same score
+      function, and thus the same density, when the number of training images is large enough"
+      (~10^5); for small sets they memorize (generalization)
+    importance: central
+    evidence: empirical — Fig. 1 (train/test PSNR transition), Fig. 2 (converged samples + cosine-similarity distributions)
+  - id: C2
+    claim: >-
+      DNN denoisers perform shrinkage in a geometry-adaptive harmonic basis: eigenvectors show
+      "oscillating patterns both along the contours and in uniformly regular regions" (mechanistic)
+    importance: central
+    evidence: empirical — Jacobian eigendecomposition analysis, Fig. 3
+  - id: C3
+    claim: >-
+      On Cα images, where bandlet bases are provably near-optimal, DNN denoisers "achieve this
+      optimal rate and learn GAHBs" — empirical PSNR slopes match theoretical α/(α+1)
+      (theoretical/comparative)
+    importance: central
+    evidence: empirical vs. theory — Fig. 4 (slopes 0.46/0.61/0.75/0.83 vs. parenthesized optimal values)
+  - id: C4
+    claim: >-
+      GAHB bias persists even when suboptimal: on low-dimensional manifold data the denoiser
+      approximates the optimal tangent-space projection "but also partially retains content lying
+      within a subspace spanned by... additional GAHB vectors" (causal/mechanistic)
+    importance: central
+    evidence: empirical — disk-manifold experiment, Fig. 5 (PSNR slope < 1.0); similar results in App. C.2
+  - id: C5
+    claim: >-
+      The inductive bias must come from architecture (convolutions + ReLU interactions), not the
+      data — "this permutation does not preserve locality... the resulting mismatch... result in
+      substantially worse performance" (mechanistic, inference)
+    importance: supporting
+    evidence: empirical — shuffled-faces control experiment, Appendix C.3
+experiments:
+  - id: E1
+    research_question: >-
+      When do diffusion models transition from memorization to generalization? (paper's framing,
+      §2.2)
+    setup: >-
+      UNet denoisers trained on CelebA subsets of size N = 10^0..10^5, blind universal across
+      noise levels; train/test PSNR curves per noise level (Fig. 1)
+    baseline: N=1 memorization endpoint
+    result: >-
+      "At N = 10^5, empirical test and train error are matched for all noise levels" (§2.2)
+    interpretation: overfitting is a small-data regime; a generalization regime exists at realistic scales
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      Does the learned model become independent of the specific training set? (model-variance
+      framing, §2.2)
+    setup: >-
+      Two denoisers trained on non-overlapping subsets S1, S2 (duplicates filtered); reverse
+      diffusion from identical noise; cosine-similarity distributions of cross-model sample pairs
+      and sample-vs-closest-train-image pairs (Fig. 2)
+    baseline: small-N models (memorization regime)
+    result: >-
+      For N = 10^5, "the two networks generate nearly identical samples, which no longer resemble
+      images in their corresponding training sets" (Fig. 2 caption)
+    interpretation: >-
+      "a much stronger demonstration of convergence than comparison of average train and test
+      performance" (§2.2)
+    supported_claim: C1
+  - id: E3
+    research_question: What function does the trained denoiser compute? (inductive-bias analysis, §3.1–3.2)
+    setup: >-
+      Eigendecompose the Jacobian of a UNet trained on 10^5 faces, evaluated on a noisy test
+      image; inspect shrinkage factors, eigenvectors, signal coefficients (Fig. 3)
+    baseline: classical shrinkage/oracle-basis theory (§3.1, Eqs. 11–13)
+    result: >-
+      Rapidly decaying λk and coefficients; eigenvectors are harmonics along contours and in
+      homogeneous regions — a GAHB
+    interpretation: denoising = adaptive-basis shrinkage; explains the strong generalization
+    supported_claim: C2
+  - id: E4
+    research_question: >-
+      Are denoisers near-optimal when GAHBs are optimal? (positive prediction of the GAHB
+      hypothesis, §3.2)
+    setup: >-
+      Train UNets on synthetic geometric Cα image classes (α = 1,2,3,5); measure output-vs-input
+      PSNR slopes (Fig. 4)
+    baseline: theoretical optimal slopes α/(α+1) from bandlet literature
+    result: >-
+      "The empirical slopes closely match the theoretical optimal slopes" (Fig. 4 caption); learned bases similar to bandlets
+    interpretation: >-
+      "This generalization performance confirms that inductive biases of DNNs favor GAHBs" (§3.2)
+    supported_claim: C3
+  - id: E5
+    research_question: >-
+      Do GAHBs emerge even when suboptimal? (negative/adversarial prediction of the hypothesis, §3.2)
+    setup: >-
+      Disk images varying position/size/intensities — a 5-dimensional manifold; optimal denoiser
+      ≈ projection onto tangent space (5 non-negligible eigenvalues, optimal MSE ≈ 5σ^2, PSNR
+      slope 1) (§3.2, Fig. 5)
+    baseline: optimal tangent-projection denoiser
+    result: >-
+      Extra non-negligible eigenvectors with GAHB structure; PSNR slope < 1.0, suboptimality
+      growing as noise decreases
+    interpretation: >-
+      "the inductive biases of the DNN are not perfectly aligned with low-dimensional manifolds" — the bias is intrinsic
+    supported_claim: C4
+  - id: E6
+    research_question: >-
+      Does the bias depend on image locality? (control experiment, App. C.3)
+    setup: shuffled faces — one common pixel permutation applied to all training images
+    baseline: unpermuted faces
+    result: substantially worse denoising performance
+    interpretation: harmonic structure comes from the architecture's locality bias, not the dataset
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context, Tension (memorization vs. quality), Gap, Solution program, Result 1 (convergence), Result 2 (GAHB discovery), Result 3 (suboptimality evidence)]
+  introduction_move: >-
+    A results-first scientific intro: open with the field-level paradox (density estimation
+    should be cursed; models look too good), then walk through the paper's three findings in
+    order — convergence, GAHB identification, hypothesis-testing on synthetic classes — each
+    paragraph ending in the implication that sets up the next (§1 paras 1–4). No method is
+    pitched; the investigation itself is the contribution.
+  related_work_strategy: >-
+    Citation-dense inline positioning rather than a separate section: memorization reports
+    (Somepalli, Carlini) supply the tension; harmonic-analysis literature (Donoho, Mallat,
+    bandlets) supplies the optimality yardsticks; no dedicated Related Work section
+  method_strategy: >-
+    Theory scaffolding first: §2.1 derives the denoiser–density equivalence (Eqs. 2–5) before any
+    experiment, so every later measurement is licensed; §3.1 builds the shrinkage/oracle-basis
+    framework before applying it
+  experiments_strategy: >-
+    Escalating rigor: qualitative transition (Fig. 1) → quantitative convergence (Fig. 2) →
+    mechanistic anatomy (Fig. 3) → confirmatory prediction (Fig. 4) → falsifiable edge case
+    (Fig. 5) → controls (appendices); ablation logic is hypothesis-testing, not component-dropping
+  conclusion_strategy: >-
+    Discussion-style: restate the two findings, honestly flag what is NOT delivered ("We do not
+    provide a formal mathematical definition of the class of GAHBs", §4) and conjecture the
+    architectural origin (convolutions + ReLUs) as future work
+reviewer_defense:
+  strengths: >-
+    The convergence claim is unusually direct (identical samples from identical noise across
+    disjoint training sets); claims are tested against known ground truth via synthetic classes
+    where optimal bases are provable; bound (Eq. 5) connects denoising error to density error
+  vulnerabilities: >-
+    (1) GAHB is never formally defined (conceded, §4); (2) conclusions drawn from small UNets and
+    low-resolution/downsampled CelebA and specific synthetic classes; (3) "high visual quality
+    does not necessarily guarantee low model bias" (§2.1, conceded); (4) the architectural origin
+    of GAHB is a conjecture ("presumably engender", §4); (5) experiments use nonstandard
+    diffusion (Kadkhodaie & Simoncelli 2020 sampler) rather than mainstream DDPM/SDM
+  anticipated_attacks: >-
+    "Maybe it's just overfitting curves" — preempted by defining generalization as model variance
+    which "is agnostic to model bias" (§2.1); "GAHB might be an artifact of the test image" —
+    answered with multiple image classes, architectures (BF-CNN, App. B), and datasets (LSUN
+    bedroom, App. B)
+writing:
+  paragraph_patterns: >-
+    Bold-run mini-headers inside sections ("Jacobian eigenvectors as an adaptive basis.",
+    "Denoising in a fixed basis.", "Best adaptive bases.", "Cα images and bandlet bases.",
+    "Low-dimensional manifolds.") that carry the argument chain; intro paragraphs each end on an
+    implication
+  transition_patterns: >-
+    Prediction-then-test chaining: "If DNN denoisers induce biases towards the GAHB
+    approximation class, then they should perform sub-optimally..." (§1) → §3.2 executes exactly
+    that test; "We now evaluate... through this lens" (end of §3.1)
+  terminology_patterns: >-
+    One coinage (GAHB) introduced once (§3.2) and reused thereafter; precise named quantities
+    (model bias vs. model variance, shrinkage factors λk(y)) defined before use; equations
+    numbered and cross-referenced in prose

@@ -1,0 +1,90 @@
+# thesis: This paper shows that diffusion models' scattered design choices can be factored into a
+# modular design space (schedule, scaling, preconditioning, sampler, loss, augmentation) where each
+# component can be swapped independently, because the probability-flow ODE and a general Langevin
+# decomposition expose the actual degrees of freedom hidden behind theoretical derivations, and
+# therefore proposes improved deterministic/stochastic samplers and principled network preconditioning
+# that yield SOTA FID 1.79 (CIFAR-10) and 1.36 (ImageNet-64) at 35 NFE.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: diffusion-based generative models / image synthesis
+  task: improving image quality (FID), training cost, and sampling speed of diffusion models
+  problem: '"the theory and practice of diffusion-based generative models are currently unnecessarily convoluted"; "a proposed model may appear as a tightly coupled package where no individual component can be modified without breaking the entire system" (Abstract, §1)'
+  importance: diffusion models are "a powerful new framework for neural image synthesis" spreading to audio, video, segmentation, and translation; better quality/cost/speed plus an explicitly tabulated design space "will allow easier innovation on the individual components" (§1)
+  source: full
+paradigm:
+  existing_approach: diffusion models derived as tightly-coupled instantiations of theoretical SDE frameworks (DDPM's discrete noise schedule, NCSN/VE's score matching, iDDPM, DDIM) — sampler, schedule, parameterization and loss arrived at together from each theory (§1, §2, Table 1)
+  core_assumption: the design must follow as directly as possible from a particular stochastic-process derivation
+  limitation: '"this approach has a danger of obscuring the available design space"; prior samplers use Euler integration and implicit stochasticity choices with "no special properties"; training targets/inputs vary immensely in magnitude across noise levels (§1, §3, §4, §5)'
+gap:
+  unresolved_problem: (a) an explicit decomposition of diffusion models into independently modifiable components; (b) better discretization/sampler; (c) a principled account of network preconditioning, loss weighting, training noise distribution, and augmentation (§1 contributions 1–3)
+  evidence_for_gap: reframing DDPM/VE/iDDPM in one framework (Table 1) shows the same behavior expressible by very different-looking formulas — "indirection and recursion have been removed" — proving components are tangled, not essential (§2)
+insight:
+  observation: if D(x; σ) is the L2-optimal denoiser, then ∇x log p(x; σ) = (D(x;σ) − x)/σ² (Eqs. 2–3) — so the score is just noise-isolation by a denoiser, and everything else (schedule, scaling, parameterization) is free design (§2)
+  central_insight: once models are expressed as a probability-flow ODE over a denoiser with explicit preconditioning Dθ(x;σ) = c_skip(σ)x + c_out(σ)Fθ(c_in(σ)x; c_noise(σ)), all prior methods become points in one design space (Table 1), and the Langevin decomposition dx = (ODE) + (noise decay) + (noise injection) shows stochasticity's role is error correction whose amount should be tuned empirically (§2, §4, Eq. 6–7)
+  hypothesis: principled choices — 2nd-order Heun solver with tuned t_i, σ(t)=t schedule, unit-variance input/output scaling, minimal error amplification c_skip, λ(σ)=1/c_out(σ)² loss equalization, log-normal training noise distribution, and non-leaking augmentation — will each improve FID independently and compose (§3–5)
+method:
+  conceptual_change: stop deriving designs from SDE theory; start from "tangible objects" (denoiser, ODE, sampler, preconditioned network) and treat every prior formula as a coordinate choice in a common framework
+  mechanism: (1) Heun 2nd-order solver with geometric time discretization; (2) σ(t) = t, s(t) = 1 schedule; (3) stochastic sampler = ODE step + churn (add noise to t̂_i, denoise back) with γ_i, S_noise, S_churn hyperparameters (Algorithm 2); (4) preconditioning Eq. 7 derived from unit-variance targets and minimal error amplification; (5) λ(σ)=1/c_out² and log-normal p_train(σ) targeting the σ range where loss can actually drop (Table 1, Fig. 5a); (6) non-leaking augmentation regularization
+  formulation: probability-flow ODE dx/dt = −σ̇(t)σ(t)∇x log p(x;σ(t)) (Eq. 1); generalized ODE with scaling s(t) (Eq. 4); Langevin decomposition (Eq. 6); preconditioned denoiser and effective-weight form of the training loss (Eqs. 7–8)
+claims:
+  - id: C1
+    claim: diffusion methods (VP, VE, iDDPM, DDIM) are reproducible in one modular framework with no implicit inter-component dependencies — "changing one component does not necessitate changes elsewhere" (descriptive/structural)
+    importance: central
+    evidence: §2, Table 1, Appendix C
+  - id: C2
+    claim: replacing only the sampler in pre-trained models from prior work gives large quality gains at low NFE — e.g. ImageNet-64 FID 2.07 → 1.55 ("near-SOTA" vs 1.48), and drop-in improvements on CIFAR-10 VP/VE (comparative)
+    importance: central
+    evidence: §3, Fig. 2 (a–c), §6
+  - id: C3
+    claim: the principled preconditioning keeps FID largely unchanged but "makes the training more robust, enabling us to ... redesign the loss function without adverse effects" — VE at 64×64 improves considerably (mechanistic)
+    importance: supporting
+    evidence: §5, Table 2 configs D vs A–C
+  - id: C4
+    claim: loss weighting λ(σ)=1/c_out(σ)² plus log-normal p_train(σ) "lead[s] to a dramatic improvement in FID in all cases" when combined with the preconditioning (comparative)
+    importance: central
+    evidence: §5, Table 2 config E (e.g. CIFAR-10 cond VP 2.09→1.88; FFHQ VE 3.39→2.81)
+  - id: C5
+    claim: 'full recipe (sampler + training improvements + non-leaky augmentation) yields new state-of-the-art FID: 1.79 conditional CIFAR-10, 1.97 unconditional, 1.36 ImageNet-64, at only 35 NFE (comparative)'
+    importance: central
+    evidence: Abstract, §5 Table 2 config F, §6
+  - id: C6
+    claim: '"The implicit Langevin diffusion drives the sample towards the desired marginal distribution at a given time, actively correcting for any errors made in earlier sampling steps" — explaining why stochasticity helps, with the optimal amount to be found empirically (mechanistic)'
+    importance: supporting
+    evidence: §4, Eq. 6 discussion
+experiments:
+  - id: E1
+    research_question: RQ5/RQ1-flavored — how do samplers compare in FID-vs-NFE on pre-trained models?
+    setup: pre-trained VP-CIFAR-10, VE-CIFAR-10, DDIM-ImageNet-64; sweep NFE; compare original samplers, reimplementations, +Heun & {t_i}, +σ(t)/s(t), black-box RK45 (§3, Fig. 2)
+    baseline: each model's original sampler (Euler/DDIM)
+    result: large FID improvements at low NFE from solver+discretization+schedule alone
+    interpretation: sampler is a separable, swappable component
+    supported_claim: C2
+  - id: E2
+    research_question: RQ6 — what is the effect of stochasticity (churn) and its hyperparameters?
+    setup: stochastic sampler ablations over S_churn, S_noise, S_tmin, S_tmax and step counts on CIFAR-10/ImageNet-64 (§4, Algorithm 2, Figs. 4 etc.)
+    result: tuned churn improves FID over deterministic at matched NFE; optimal parameters found empirically
+    interpretation: stochasticity = error-correcting Langevin term; "the optimal amount of stochasticity should be determined empirically"
+    supported_claim: C6
+  - id: E3
+    research_question: RQ2 — do the training improvements each cause FID gains?
+    setup: cumulative training configurations A→F on CIFAR-10 (cond/uncond, VP/VE), FFHQ-64, AFHQv2-64; FID under the new deterministic sampler (§5, Table 2)
+    baseline: config A = baseline VP/VE training of Song et al.; configs B/C adjust hyperparameters and capacity to isolate the effects of D/E/F
+    result: monotone improvement to FID 1.79/1.97 (CIFAR-10), 2.39/2.53 (FFHQ), 1.96/2.16 (AFHQv2); VE-64 specifically rescued by preconditioning (25.95→3.39)
+    interpretation: preconditioning (D), loss redistribution (E), augmentation (F) are separable, compounding causes
+    supported_claim: C3, C4, C5
+narrative:
+  introduction_roles: [Context (diffusion success), Failure mode (convoluted, tightly-coupled designs), Contribution 1 (common framework), Contribution 2 (sampling), Contribution 3 (training/preconditioning), Results preview, Open release]
+  introduction_move: the intro is a three-part contribution list that mirrors the paper's structure (framework → sampling → training); the rhetorical target is convolutedness itself, not any one method — the villain is theory-driven coupling, and the weapon is tabulated formulas (Table 1) that let any component be swapped
+  related_work_strategy: prior methods appear inside Table 1 as rows to be reframed rather than a separate related-work narrative — comparison by translation into the common language
+  method_strategy: decomposition-first — each section states the degree of freedom, analyzes what prior works chose, then proposes a principled alternative; derivations pushed to appendices, main text keeps the "tangible" objects
+  experiments_strategy: ablation-ladder design (Table 2 configs A→F) where each rung is one design change; sampler improvements evaluated on frozen pre-trained networks to prove modularity before touching training
+  conclusion_strategy: 'restate the modularity payoff (sampler swap on ImageNet-64: 2.07→1.55→1.36), position contributions as orthogonal to orthogonal extensions (super-resolution, large networks), and concede parameter re-tuning for higher resolutions plus the open stochasticity/training-objective interaction'
+reviewer_defense:
+  strengths: framework demonstrably reproduces prior SOTA methods (Table 1) so comparisons are apples-to-apples; sampler gains shown on frozen models (causal isolation of sampling vs training); cumulative ablation ladder with matched evaluation; open code and models
+  vulnerabilities: hyperparameters (σ ranges, ρ, P_mean/P_std, churn parameters) tuned empirically per dataset and "may need to be re-adjusted for higher resolution datasets" (§6); FID-only evaluation; compute footprint large (~250 MWh, disclosed); stochasticity-training interaction admitted as unresolved (§6)
+  anticipated_attacks: '"isn''t this just re-tuning?" — configs B/C in Table 2 control for hyperparameters and capacity, showing D/E/F add gains beyond them; "VE was already known to be worse" — preconditioning is shown to rescue VE-64 specifically (Table 2 D row); "churn is heuristic" — §4 derives it as a Langevin decomposition and then tunes it openly'
+writing:
+  paragraph_patterns: '"degree-of-freedom → prior choices → our choice → why" paragraphs; frequent forward pointers to appendices for derivations; figure captions carry quantitative interpretation (e.g. "the dot indicates the lowest NFE whose FID is within 3% of the lowest observed FID", Fig. 2)'
+  transition_patterns: numbered contribution mapping between intro and sections 2/3/4/5; "Contrary to the usual order of treatment, we begin by examining the ODE" — explicit reordering declaration
+  terminology_patterns: neutral naming of components (c_skip, c_out, c_in, c_noise, p_train, λ) that becomes the field's vocabulary; "churn" as a memorable coinage; configs labeled A–F across the central table

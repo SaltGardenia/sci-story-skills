@@ -1,0 +1,94 @@
+# thesis: This paper shows that scene motion can be modeled as an image-space generative
+# prior rather than raw video generation because natural oscillatory motion is compactly
+# captured by low-frequency spectral volumes (Fourier transforms of per-pixel trajectories),
+# and therefore proposes a frequency-coordinated diffusion model that predicts a spectral
+# volume from a single image, enabling looping videos and interactive dynamics via
+# image-based rendering.
+paper:
+  venue: CVPR
+  year: 2024
+  field: generative models / video synthesis
+  task: modeling an image-space prior on natural oscillatory scene motion from a single image (cinemagraphs, looping video, interactive dynamics)
+  problem: "learning to produce realistic subtle scene motion from a single picture — \"training a model to learn or produce realistic scene motion is far from trivial\" because true dynamics depend on unmeasurable physical properties (§1 para 1)"
+  importance: "\"human sensitivity to motion can cause imagery without motion (or with slightly unrealistic motion) to seem uncanny or unreal\" (§1 para 1)"
+  source: full
+paradigm:
+  existing_approach: "text-to-video / image-conditioned video generation models that \"generate video frames autoregressively or predict each future output frame independently\" via 3D-UNet video volumes (§2, §4.1); single-image animation via motion fields from external drivers (§2)"
+  core_assumption: (video generation models) the video tensor itself is the right object to model, time included in the generative target
+  limitation: "these videos \"suffer from artifacts like incoherent motion, unrealistic temporal variation in textures, and violations of physical constraints like preservation of mass\" (§2); autoregressive/per-frame prediction \"neither strategy ensures long-term temporal consistency\" (§4.1)"
+gap:
+  unresolved_problem: "a generative prior over scene motion that yields long-term coherent, controllable animation from one image without external guidance signals or user annotation (§2 \"Animating images\" block: prior methods \"either require additional guidance signals or user input, or utilize limited motion representations\")"
+  evidence_for_gap: capability survey of three families (generative synthesis, animation, motion priors) with named artifact classes; empirical observation that humans predict motion distributions from stills easily, models do not (§1 para 2)
+insight:
+  observation: "empirical power spectrum of motion from 1,000 real video clips \"decreases exponentially with increasing frequency\" — natural oscillations live in a few low-frequency Fourier coefficients; K=16 suffices \"to realistically reproduce the original natural motion\" (§4.1, Fig. 2)"
+  central_insight: "predict motion in the frequency domain, not the time domain — a spectral volume (FFT of per-pixel trajectories) is lower-dimensional, quasi-periodic by construction, and \"highly effective as an output of a diffusion model\" (§1 para 3); generating intermediate motion \"leads to more coherent long-term generation and more fine-grained control over animations\" (§1 para 4)"
+  hypothesis: an LDM conditioned on a single image can sample plausible spectral volumes, which then drive image-based rendering into realistic looping/interactive video without modeling RGB frames directly (§1 para 3, §3)
+method:
+  conceptual_change: factor the video into (image, motion) and make motion the generative target in a Fourier representation — reuse of a graphics/modal-analysis representation (Davis et al.) as a diffusion output, plus its reinterpretation as image-space modal bases for interactivity
+  mechanism: "LDM denoises 4K-channel spectral volume latents with interleaved spatial layers and frequency-attention (\"frequency-coordinated\" denoising, Fig. 3); inverse FFT gives a motion texture; IBR module (ResNet-34 features, softmax splatting, inpainting network) renders future frames (§4, §5); applications via test-time guidance — motion self-guidance for looping (Eq. 5), Euler-integrated mass-spring-damper simulation on modal bases for interaction (Eq. 6)"
+  formulation: S(p) = FFT(F(p)) (Eq. 2); LDM loss ||ϵ − ϵθ(z^n; n, c)||² (Eq. 3); frequency-adaptive normalization S'fj(p) = sign(Sfj)·sqrt(Sfj(p)/sfj) with per-frequency 95th-percentile scaling (Eq. 4); looping guidance Lng = ||F_T^n − F_1^n||₁ + ||∇F_T^n − ∇F_1^n||₁ (Eq. 5); modal response Ft(p) = Σ Sfj(p)qfj(t) (Eq. 6)
+claims:
+  - id: C1
+    claim: "Spectral volumes are \"well-suited to prediction with diffusion models\" for natural oscillatory motion (descriptive/mechanistic)"
+    importance: central
+    evidence: "§1 para 3; §4.1 power-spectrum analysis (Fig. 2); ablation K sweep (Table 2: K=16 optimal, marginal beyond)"
+  - id: C2
+    claim: "The approach \"significantly outperforms prior single-image animation baselines in terms of both image and video synthesis quality\" — FID 4.03, FVD 47.1, DTFVD 2.53 (comparative)"
+    importance: central
+    evidence: Table 1; Fig. 6 (sliding-window metrics show no degradation over time)
+  - id: C3
+    claim: "The global spectral volume representation yields long-term temporal coherence — videos \"do not suffer from degradation over time\" (comparative/mechanistic)"
+    importance: central
+    evidence: §7.1; Fig. 6 sliding-window FID/DTFVD flat vs baselines rising
+  - id: C4
+    claim: "The same motion prior enables downstream applications without retraining — seamless looping via motion self-guidance and \"interactive dynamic images via image-space modal bases\" (generalization)"
+    importance: central
+    evidence: "§6; Eq. 5–6; user study: 80.9% preference over AnimateDiff/ModelScope/Gen-2 (§7.4, Fig. 7)"
+  - id: C5
+    claim: "Frequency-adaptive normalization is needed — without it, \"nearly all the coefficients at higher frequencies will end up close to zero\" and small prediction errors become large after denormalization (mechanistic)"
+    importance: supporting
+    evidence: §4.2; Table 2 (w/o adaptive norm. DTFVD 3.16 vs 2.53)
+experiments:
+  - id: E1
+    research_question: RQ1 — does the method beat prior single-image animation methods on synthesis quality?
+    setup: 3,015 collected oscillatory videos (150K+ image-motion pairs), 10% test; all baselines retrained on the same data; FID/KID/FVD/DTFVD at 256×128 (§7, Table 1)
+    baseline: TATS, Stochastic-I2V, MCVD, LFDM, DMVFN, Endo et al., Holynski et al.
+    result: FID 4.03 / FVD 47.1 / DTFVD 2.53 — large margins on all metrics
+    interpretation: motion-prior decomposition + Fourier representation beats direct video prediction
+    supported_claim: C2
+  - id: E2
+    research_question: RQ4 — does quality persist over long horizons (temporal coherence)?
+    setup: sliding-window FID (30 frames) and DTFVD (16 frames) across 120 frames (Fig. 6)
+    baseline: same methods
+    result: our curves stay flat; baselines degrade with frame index
+    interpretation: the global representation prevents error accumulation, unlike autoregression
+    supported_claim: C3
+  - id: E3
+    research_question: RQ3 — which design choices matter (K, normalization, coordination, rendering)?
+    setup: "ablations in Table 2: K ∈ {4,8,16,24}, w/o adaptive norm, independent frequency prediction, volume prediction, baseline splatting (§7.3)"
+    baseline: full model (K=16)
+    result: every variant worse; K=16 the sweet spot; coordination beats independent prediction
+    interpretation: each component contributes to the central design
+    supported_claim: C1, C5
+  - id: E4
+    research_question: RQ4/generalization — how does it compare to large video diffusion models on realism?
+    setup: "user study on 30 test videos vs AnimateDiff, ModelScope, Gen-2 (\"which video is more realistic?\", §7.4)"
+    baseline: three large video diffusion models
+    result: 80.9% preference for ours; baselines drift in color and lose input adherence (Fig. 7)
+    interpretation: explicit motion modeling beats scale for this motion class
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (world is always in motion), Failure mode (models cannot; physical causes unmeasurable), Key concession ("measuring them is not necessary"), Observation (humans predict motion distributions from stills), Existing paradigms and artifacts, Solution (motion prior as spectral volumes via diffusion), Downstream applications]
+  introduction_move: "opens physical (world in motion), immediately concedes the hard part is unmeasurable — then dissolves the difficulty with the observation that observed 2D motion suffices and is predictable; positions the contribution as modeling \"a generative prior for image-space scene motion\" rather than a video model, which reframes the competition class"
+  related_work_strategy: "three-block landscape (generative synthesis; animating images; motion models/priors + videos as textures) each block ending in a specific representational deficiency the paper fixes; openly credits Davis et al. as the source of the representation (\"We adopt the frequency-space spectral volume motion representation from Davis et al.\", §2) and claims only its prediction-by-diffusion as new"
+  method_strategy: representation-first — the argument for WHY frequency domain (Fig. 2 data plots) precedes any architecture; engineering details (normalization) presented as a discovered problem with a data-driven fix; applications framed as bonuses of the same object (modal basis interpretation)
+  experiments_strategy: quantitative SOTA (Table 1) → temporal-coherence curves (Fig. 6) → design ablations (Table 2) → user study against larger models (§7.4); ablation rows named after the removed component
+  conclusion_strategy: "limitation-first discussion (\"Since our approach only predicts lower frequencies...\") before the conclusion; conclusions restate the representation as the contribution"
+reviewer_defense:
+  strengths: strong margins across both image and video metrics with baselines retrained on the authors' own data; an empirical data plot (Fig. 2) grounds the core representational choice; ablation covers every named design element; applications demonstrate the representation's dual use
+  vulnerabilities: "scope limited to oscillatory motion — conceded (\"can fail to model non-oscillating motions or high-frequency vibrations\", §8); training data small and curated (3,015 videos of oscillating scenes); IBR artifacts on thin structures/large motions/large unseen content (Fig. 8); metrics are distributional (FID/FVD), the human study covers only 30 videos"
+  anticipated_attacks: "\"just an LDM, where is the novelty?\" — preempted by the representation claim and normalization/coordination ablations (Table 2); \"large video models will crush this\" — preempted by the 80.9% user preference and named artifact classes of big models (§7.4, Fig. 7); \"loops need looping training data\" — preempted by test-time self-guidance (Eq. 5)"
+writing:
+  paragraph_patterns: "concession-then-resolution moves (\"Fortunately, measuring them is not necessary...\"); every section opens by naming its object (motion texture, spectral volume) before formalizing it"
+  transition_patterns: "application sections flow from the same formal object (§6 items both derive from spectral volume properties); equations introduced as answers to just-stated problems (\"One issue we observed is...\", §4.2)"
+  terminology_patterns: precise representational vocabulary used unchanged throughout (spectral volume, motion texture, modal bases, frequency-coordinated); consistent attribution of borrowed components (LDM, DDIM, classifier-free guidance, universal guidance) to their sources

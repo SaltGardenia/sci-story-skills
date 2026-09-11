@@ -1,0 +1,82 @@
+# thesis: This paper shows that the learning rate in convex Lipschitz optimization can be
+# set automatically with no performance loss because a lower bound on the unknown distance
+# to solution D can be estimated online from an improved dual-averaging regret bound and
+# grown during training, and therefore proposes D-Adaptation — the first hyper-parameter-free
+# method achieving the optimal O(DG/√n) rate without log factors or extra evaluations.
+paper:
+  venue: ICML
+  year: 2023
+  field: optimization / hyperparameter-free learning
+  task: automatic learning-rate (step-size) selection for convex Lipschitz minimization, extended to SGD/Adam deep learning
+  problem: "\"Setting γk optimally requires knowledge of the distance to a solution\" D = ||x0 − x*||; without it, grid search is \"the current standard practice\" (§1)"
+  importance: "the learning rate is \"the main quantity controlling if and how fast the method converges\"; wrongly chosen rates oscillate or stall, and hand-tuning dominates ML practice (§1)"
+  source: full
+paradigm:
+  existing_approach: subgradient method with fixed step D/(G√n); AdaGrad-Norm (adaptive to G but still needs D); log-spaced grid search over d0..dmax; Polyak step size (needs f*); exact line searches; bisection (Carmon & Hinder 2022); DoG; coin-betting (§1, §5)
+  core_assumption: that achieving the optimal rate without problem parameters must cost either extra log factors (from parameter-free analyses), extra function/gradient evaluations (line searches, backtracking), or an unknown constant somewhere
+  limitation: "every prior parameter-free approach pays a multiplicative log factor or impractical overhead — \"Our method is the first to achieve complete asymptotic independence from problem parameters while still maintaining the optimal rate of convergence\" (§5)"
+gap:
+  unresolved_problem: optimal-rate convergence with zero problem-constant knowledge (not even D), no line searches, no extra evaluations (abstract; §1)
+  evidence_for_gap: analytical — a taxonomy of five prior parameter-free families each shown to miss one requirement (§5.1–5.6)
+insight:
+  observation: in the classical dual-averaging bound the D² error term is loose; following Carmon & Hinder (2022), replacing D² by D‖s_{n+1}‖ and adding a negative −½γ_{n+1}‖s_{n+1}‖² term makes the bound tight enough that it can be rearranged (using Σ d_k(f(x_k)−f*) ≥ 0) into a computable lower bound on D (§2)
+  central_insight: "the unknown constant D need not be given — it can be *lower-bounded into existence*: run the optimizer with the current lower bound d_k, and the regret inequality itself certifies a larger d̂_{k+1} whenever the bound is too loose (§2, Alg. 1)"
+  hypothesis: with d_k ≤ D the method inherits the optimal rate asymptotically, and any fixed-n dependence on d0 is only logarithmic — so the only user input, d0, barely matters (Theorems 1–2; §7.10)
+method:
+  conceptual_change: treat the distance-to-solution not as a hyperparameter to guess but as a quantity the algorithm can certify from its own trajectory
+  mechanism: "D lower bounding inside dual averaging — maintain s_k = Σ d_i g_i, AdaGrad-style step γ_{k+1} = 1/√Σ‖g_i‖², compute d̂_{k+1} = [γ_{n+1}²‖s‖² − Σ γ_k d_k²‖g_k‖²]/(2‖s‖) (or the hyper-gradient Option II), keep d_{k+1} = max(d_k, d̂_{k+1}); deep-learning variants: D-Adapted SGD (with momentum ×2 bound) and D-Adapted Adam (weighted norms, EMA correction √(1−β₂²)) (Alg. 1, 4, 5, §2, §6)"
+  formulation: "weighted-sum bound Σ d_k(f(x_k)−f*) ≤ D‖s_{n+1}‖ + ½Σγ_k d_k²‖g_k‖² − ½γ_{n+1}‖s_{n+1}‖² (§2); rates: f(x̂_n)−f* = O(DG/√(n+1)) asymptotic (Thm 1), non-asymptotic worse only by log₂(1+D/d₀) (Thm 2)"
+claims:
+  - id: C1
+    claim: "\"D-Adaptation ... asymptotically achieves the optimal rate of convergence for minimizing convex Lipschitz functions, with no back-tracking or line searches, and no additional function value or gradient evaluations per step\" (abstract)"
+    importance: central
+    evidence: theoretical — Theorem 1
+  - id: C2
+    claim: "\"the first hyper-parameter free method for this class without additional multiplicative log factors in the convergence rate\" (abstract)"
+    importance: central
+    evidence: theoretical — Theorem 2 (non-asymptotic penalty is only log₂(1+D/d₀)), versus log(dmax/d₀) grid/bisection rates (§5.3)
+  - id: C3
+    claim: "the method \"automatically matches hand-tuned learning rates across more than a dozen diverse machine learning problems, including large-scale vision and language problems\" (abstract)"
+    importance: central
+    evidence: comparative — Figs. 2–6, Table 1 (logistic regression, CNNs, ViT, LSTM, RoBERTa, GPT, detection, DLRM)
+  - id: C4
+    claim: final accuracy is insensitive to the initial guess d0 (values as small as 10⁻¹⁶ work) (§4.2, §7.10)
+    importance: supporting
+    evidence: "empirical — Fig. 7 (\"across every dataset, there is no dependence on the initial value of d0\")"
+experiments:
+  - id: E1
+    research_question: RQ5 — does the automatic learning rate match a grid-searched one on convex problems?
+    setup: logistic regression on 12 LIBSVM benchmarks, 100 epochs, batch 16 (§7.1, Fig. 2)
+    baseline: Adam with grid-searched learning rate
+    result: "\"D-Adaptation matches or exceeds the performance of the grid-search based learning rate on all 12 problems, to within 0.5% accuracy\" (§7.1)"
+    interpretation: the D estimate converges fast enough to act like a tuned constant
+    supported_claim: C3
+  - id: E2
+    research_question: RQ5 — does it transfer to large-scale deep learning without tuning?
+    setup: CIFAR10/100 + ImageNet with WideResNet/DenseNet/ResNet (§7.2); IWSLT14 LSTM (§7.3); RoBERTa MLM on Book-Wiki (§7.4); GPT auto-regressive LM (§7.5); detection (§7.6); ViT (§7.7); DLRM Criteo (§7.9); standard schedules with D-Adapted base rate (§7)
+    baseline: hand-tuned baselines per problem
+    result: matches or exceeds baselines on each problem (Figs. 3–6, Table 1)
+    interpretation: works with the same schedules practitioners already use — only the base rate is automated
+    supported_claim: C3
+  - id: E3
+    research_question: RQ4 — is the method robust to its one remaining input d0, and does it beat other parameter-free methods?
+    setup: sweep d0 over 10⁻¹⁶..10⁻² (Fig. 7); comparison to COCOB (Table 2)
+    baseline: COCOB parameter-free method
+    result: "no d0 dependence across datasets; COCOB \"is not able\" to match final accuracy on the test problems (§7.10, §7.12)"
+    interpretation: the log₂(1+D/d0) guarantee manifests as practical robustness
+    supported_claim: C4, C2
+narrative:
+  introduction_roles: [Context (subgradient method, rate), Failure mode (needs D and G), Existing workarounds (grid search), Solution (D lower bounding), Contributions preview]
+  introduction_move: derives the optimal step size formula on line 3 of the paper, making the reader see exactly which constant (D) is missing; positions the whole contribution as removing one symbol from one formula; Algorithm 1 appears on page 2 — formulation-first with almost no throat-clearing
+  related_work_strategy: six named families (Polyak, line search, bisection, DoG, coin-betting, reward doubling), each given its specific cost — a completeness argument by exhaustion
+  method_strategy: "proof-driven algorithm design — the improved bound is presented first, and the algorithm falls out of rearranging an inequality; \"our key innovation: D lower bounding\" (§2)"
+  experiments_strategy: breadth over depth — a dozen heterogeneous problems each with its standard schedule, plus robustness (d0 sweep) and rival parameter-free comparison as closing sections
+  conclusion_strategy: "two-sentence recap elevating the proof technique (\"may be of independent interest\") alongside the practical result (§8)"
+reviewer_defense:
+  strengths: tight theory (no log factors, asymptotic optimality); zero-overhead implementation; d0-insensitivity empirically demonstrated over 14 orders of magnitude
+  vulnerabilities: "analysis restricted to convex Lipschitz deterministic setting (§4.2 concedes stochastic extension unproven here, cf. Carmon & Hinder); asymptotic guarantee hides fixed-n dependence on d0 (Theorem 1 vs 2); Adam variant motivated heuristically (\"crude approximation ... appears to work very well\", §6)"
+  anticipated_attacks: "\"AdaGrad already adapts to G\" — still needs D and performs \"poorly when it is estimated wrong\" (§1); \"DoG also removes D\" — DoG's estimator is unbounded with a convex counterexample (§5.4); \"negative d̂ looks unstable\" — explained: the bound can decrease once progress is fast enough (§4, Fig. 1)"
+writing:
+  paragraph_patterns: "inequality→interpretation paragraphs; short \"key differences from the classical bound\" lists (§2)"
+  transition_patterns: each related-work subsection ends by naming the missing property the paper supplies; limitation subsection (§4.2) placed before related work, an unusual order that preempts the obvious attack
+  terminology_patterns: "method named once (\"D-Adaptation\") and inflected freely (D-Adapted SGD/Adam, D lower bounding); constant names (D, G, d0, d̂k) kept visually distinct"

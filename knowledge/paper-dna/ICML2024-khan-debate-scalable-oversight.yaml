@@ -1,0 +1,94 @@
+# thesis: This paper shows that non-experts (weaker LLMs and humans) can supervise
+# information-asymmetric expert LLMs via debate — reaching 76%/88% judge accuracy vs
+# 48%/60% naive — because truth has a persuasion advantage: debaters optimised for judge
+# approval become relatively better at arguing the correct answer, and therefore proposes
+# debate as a scalable-oversight protocol whose strength can be optimised without ground
+# truth (via Elo/win-rate persuasiveness metrics).
+paper:
+  venue: ICML
+  year: 2024
+  field: LLM alignment / scalable oversight
+  task: enabling weak (non-expert) judges to evaluate strong (expert) models without ground truth
+  problem: "\"as models grow increasingly sophisticated, they will surpass human expertise, and the role of human evaluation will evolve into non-experts overseeing experts. In anticipation of this, we ask: can weaker models assess the correctness of stronger models?\" (abstract)"
+  importance: "when models exceed expert knowledge there may \"be no ground truth to rely on, rendering most alignment approaches unusable\" — scalable oversight methods that scale with capability are needed (§1)"
+  source: full
+paradigm:
+  existing_approach: "human-labelled data alignment (RLHF etc.); weak-to-strong generalization and critique-based oversight, which assume \"it is easier to identify or critique the correct answer than it is to generate it\" (§1); prior debate studies with human debaters (Michael et al. 2023) found no positive results with LLM debaters"
+  core_assumption: that judging/critiquing is easier than generating — the assumption underlying both critique methods and Irving et al.'s (2018) debate game
+  limitation: "critique quality itself needs evaluation (\"a critique of a critique can help\"); prior LLM-debater attempts did not exploit cross-play win rates to improve debaters and were single-turn (§5)"
+gap:
+  unresolved_problem: empirical evidence that debate actually helps non-expert judges with strong LLM debaters, and a way to measure/improve debate quality without ground-truth labels (§1)
+  evidence_for_gap: citation pattern — prior QuALITY debate studies (Michael et al. 2023; Radhakrishnan 2023) were single-turn, human-debater-focused, or RL-trained, none testing multi-round LLM self-play debates with human + LLM judges
+insight:
+  observation: in Elo tournaments, models obtain higher ratings when assigned the correct answer than the incorrect one, and this correctness advantage grows with aggregate persuasiveness (Fig. 3-left/middle; Insight 2)
+  central_insight: "\"telling the truth is easier than lying\" — optimizing an LLM for judge approval (persuasiveness, measurable without ground truth via Elo) mechanically increases its effectiveness at arguing the truth relative to falsehood, so judge accuracy rises with debater persuasiveness for debate but *falls* for consultancy (Fig. 3, Fig. 4)"
+  hypothesis: adversarial protocols (two debaters with conflicting incentives) expose falsehood, while non-adversarial ones (single consultant) let optimized persuasion steer judges wrong — so debate should scale with model capability where consultancy does not
+method:
+  conceptual_change: treat debater persuasiveness (judge approval) — not ground-truth accuracy — as the optimizable and monitorable quantity for oversight
+  mechanism: "information-asymmetric protocols on QuALITY (HARD subset, ~7000-token Project Gutenberg stories): debate (two experts, N=3 rounds, 150-word arguments), interactive debate (judge interjects), consultancy baseline (single consultant, 300-word turns); experts get a verified-quote tool (<v quote>/<u quote>); persuasiveness measured by Elo ratings from cross-play/self-play tournaments and optimized by best-of-N and critique-and-refinement against a text-blind preference model (§2, Fig. 2; §3)"
+  formulation: judge accuracy α(D, J) over self-play matches; correct/incorrect Elo ratings E^C, E^I; win rate ω^C (Eq. 4); advantage = correct rating − incorrect rating as an unsupervised quality metric (Fig. 3-middle)
+claims:
+  - id: C1
+    claim: "\"debate consistently helps both non-expert models and humans answer questions, achieving 76% and 88% accuracy respectively (naive baselines obtain 48% and 60%)\" (abstract; Insight 1, Insight 6)"
+    importance: central
+    evidence: comparative — Fig. 1 (five judges), Fig. 6 (human study, 6476 judgements; static/interactive p=0.001/0.048 vs consultancy)
+  - id: C2
+    claim: "\"Optimising debaters for persuasiveness improves a judge's ability to identify truth in debates\", generalizing to unseen judges (abstract; Insight 2)"
+    importance: central
+    evidence: comparative/mechanistic — Fig. 3 (Elo tournaments), Fig. 5 (cross-judge), Fig. 7 (side-by-side with consultancy)
+  - id: C3
+    claim: "the asymmetry is adversarial-protocol-specific — \"judge accuracy decreases as consultants are more persuasive\" (abstract; Insight 4)"
+    importance: central
+    evidence: comparative — Fig. 4 (consultant win rate vs judge accuracy, negative trend, p<0.05 fits)
+  - id: C4
+    claim: "human judges under debate are well calibrated and reliable — \"rejecting judgements with confidences below 75% retains 65% of questions and achieves a judge accuracy of 94%\" (Insight 8)"
+    importance: supporting
+    evidence: empirical — Fig. 6-middle/right (rejection curves, calibration)
+  - id: C5
+    claim: "debate recovers a large fraction of the expert ceiling — \"Debate has a 60% performance gap recovered\" (Fig. 9)"
+    importance: supporting
+    evidence: descriptive — Fig. 9 (PGR metric of Burns et al. 2023)
+experiments:
+  - id: E1
+    research_question: RQ1 — does debate help non-expert LLM judges answer hard comprehension questions?
+    setup: QuALITY HARD (TL 400 / DL 291 questions), five LLM judges (GPT-3.5-Turbo, Mixtral-8x7B, Claude 2.1, GPT-4-Turbo, human), expert judge toplines, best-of-16 debaters, 3 rounds, 900-word transcripts (§2.2, §3, Fig. 1, Fig. 8)
+    baseline: naive judge (no experts), consultancy, expert judge
+    result: all protocols beat naive; debate beats consultancy; GPT-4-Turbo judges reach 75.6% vs 92.5% expert top-line (Insight 1)
+    interpretation: adversarial structure transfers truth better than a single persuader
+    supported_claim: C1
+  - id: E2
+    research_question: does optimizing debaters for persuasiveness (unsupervised) improve judge accuracy?
+    setup: 20-debater cross-play tournament (4 base LLMs × best-of-N / critique-and-refinement), Elo from 80 win rates, self-play judge accuracy on withheld data (Insight 2, Insight 3; Fig. 3, 5)
+    baseline: bo1 (unoptimized) debaters
+    result: correct-vs-incorrect Elo advantage grows with aggregate Elo; self-play judge accuracy rises with aggregate rating for debate (Fig. 7)
+    interpretation: persuasiveness is a valid ground-truth-free proxy that selects truthful debaters
+    supported_claim: C2
+  - id: E3
+    research_question: does the same optimization hurt non-adversarial protocols?
+    setup: consultant pools optimized with best-of-N/critique-and-refinement; win rate vs judge accuracy (Fig. 4)
+    baseline: bo1 consultants
+    result: incorrect consultants gain persuasiveness faster than correct ones; judge accuracy falls as consultant win rate rises (Fig. 4-middle/right)
+    interpretation: without adversarial opposition, optimized persuasion misleads — the core asymmetry claim
+    supported_claim: C3
+  - id: E4
+    research_question: do LLM results generalize to human judges?
+    setup: large human study — 6476 judgements total, static vs interactive variants (Table 1), confidence ratings, four-week test phase (§4)
+    baseline: consultancy (static/interactive)
+    result: debate > consultancy in both settings (p=0.001, p=0.048); humans outperform all LLM judges; interactive judging surprisingly does not help (Insight 6, 7, Fig. 6)
+    interpretation: debate's benefit is protocol-level, not LLM-judge-specific; error analysis shows debater quality (quote choice) is the bottleneck (Insight 9)
+    supported_claim: C1, C4
+narrative:
+  introduction_roles: [Context (alignment needs labels), Failure mode (superhuman models), Paradigm (weak-to-strong, critiques), Gap (empirical debate evidence), Solution preview (protocols), Contribution list (three numbered findings), Methods (§2)]
+  introduction_move: "casts the paper as a simulation of the future (\"non-experts overseeing experts\") using information asymmetry as a stand-in for capability asymmetry; states the three insights as a findings list in the intro before any method detail — results-forward structure"
+  related_work_strategy: proximity ladder from scalable oversight → debate lineage, explicitly differentiating from Michael et al. (no cross-play), Radhakrishnan (single-turn, RL), Perez et al. (extractive debaters) (§5)
+  method_strategy: "protocol-first — protocols and the persuasiveness metric defined before results; insights labeled explicitly (\"Insight 1..9\") as the paper's narrative spine"
+  experiments_strategy: LLM judges first (cheap, controlled), human judges second (expensive, confirmatory); ablations (rounds, quoting, temperature) pushed to appendices with signposted conclusions
+  conclusion_strategy: "discussion doubles as limitations — five explicit caveats (information-only asymmetry, RLHF honesty propensity, reliance on verified evidence, domain scale, parametric knowledge) — then the forward-looking claim that \"optimising for persuasiveness can lead to more truthful models\" (§6)"
+reviewer_defense:
+  strengths: both LLM and human judges (6476 judgements) confirm the core result; the consultancy contrast makes the adversarial claim falsifiable; unsupervised metrics (Elo advantage) give deployment-ready monitoring
+  vulnerabilities: "strength difference is information access only, not reasoning (conceded §6); RLHF-trained models \"have a propensity for honesty\" — unclear for deceptive models (conceded, cites Greenblatt/Hubinger); results depend on a verified-quote tool — without it an incorrect debater could fabricate an unfalsifiable narrative (conceded §6); single task domain (~8000-token fiction)"
+  anticipated_attacks: "\"consultancy was weak before\" — optimized consultants are the real baseline and they actively degrade (Fig. 4); \"dataset contamination\" — expert-vs-naive toplines check contamination (§2.2); \"humans are the real judge\" — entire §4 plus calibration analysis"
+writing:
+  paragraph_patterns: "numbered \"Insight N:\" paragraphs, each with claim + figure pointer; limitation list inside Discussion as labeled caveats"
+  transition_patterns: "intro's three-point findings list is replayed section by section; appendix signposts (\"We assess the importance of quoting in Appendix A.6\")"
+  terminology_patterns: "protocol names fixed (debate / interactive debate / consultancy); \"expert/non-expert\" tied strictly to information access; metric coinages (persuasiveness, aggregate Elo, judge accuracy, PGR)"

@@ -1,0 +1,76 @@
+# thesis: This paper shows that Neural Collapse arises under MSE loss with exact closed-form
+# dynamics, because the trained classifier tracks the least-squares optimum (a "central path")
+# where the loss is invariant to within-covariance renormalization, so gradient flow of the SNR
+# matrix can be solved in closed form — and therefore proposes the central-path decomposition
+# of MSE loss plus the continually renormalized gradient flow that provably yields NC1–NC4.
+paper:
+  venue: ICLR
+  year: 2022
+  field: theory of deep learning / empirical phenomena
+  task: theoretical explanation of Neural Collapse under MSE loss
+  problem: Neural Collapse (NC) is known empirically for CE-trained nets; "The analytically-tractable MSE loss offers more mathematical opportunities than the hard-to-analyze CE loss" and the paper leverages it "towards the theoretical investigation of NC" (Abstract, §1.2)
+  importance: MSE-trained nets "perform comparably to those trained with CE" (Demirkaya et al. 2020; Hui & Belkin 2020), so a theory of MSE-NC covers a practically competitive training regime while being mathematically tractable (§1.2)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: empirical characterization of NC during Terminal Phase of Training (Papyan, Han & Donoho 2020); theoretical rationales via unconstrained-features/layer-peeled models, mostly for CE loss or without dynamics (Mixon et al. 2020; Poggio & Liao 2020a;b; Fang et al. 2021) (§1, §4)
+  core_assumption: (implicit in prior CE work) NC must be analyzed loss-landscape-wise, without tracking training dynamics
+  limitation: prior MSE-NC analyses "rely on a linearization of the unconstrained features model ODE" or special network classes; "Neither... provide exact, closed-form dynamics" (§4)
+gap:
+  unresolved_problem: exact, closed-form training dynamics that predict the NC limits (NC1–NC4)
+  evidence_for_gap: positioning against Mixon/Poggio-Liao in §4 — dynamics vs landscape/minima characterization
+insight:
+  observation: MSE loss decomposes into a least-squares component plus a non-negative deviation term, and Figure 2 shows the deviation term "becomes negligible... starting from an early epoch" (Theorem 1, Fig. 2)
+  central_insight: real classifiers track W_LS(H) — the pair stays on the "central path" — and on that path the loss is invariant to renormalizing features by Σ_W^{-1/2}, so dynamics can be studied on the SNR matrix Σ_W^{-1/2}M (§2, §3.1–3.2)
+  hypothesis: gradient flow of renormalized features on the central path should have closed-form singular-value dynamics that force NC1–NC4 in the limit
+method:
+  conceptual_change: replace "analyze the loss landscape of the network" with "prove that the network effectively trains a simpler object — the least-squares classifier on evolving features — and solve that simpler dynamics exactly"
+  mechanism: three-step pipeline — (I) decomposition L = L_LS(H) + L^⊥_LS(W,H) with L_LS = L_NC1 + L_NC2/3 (Theorems 1–2); (II) empirical validation that L^⊥ ≈ 0 (Fig. 2) defining the central path P; (III) continually renormalized gradient flow dX/dt = −Π_TX^X(∇_X L_LS(X)) on identity-covariance features (Eq. 5), solved via SNR SVD
+  formulation: W_LS = (1/C)M̃^T(Σ̃_T + µ̃_Gµ̃_G^T + λI)^{-1} (Prop. 1, Webb & Lowe with weight decay); SNR = Σ_W^{-1/2}M̃ (Eq. 8); dynamics c1 log ω_j + c2 ω_j^2 + c3 ω_j^4 = a_j + t (Prop. 2, Eq. 9) → ω_j(t) ~ (t/c3)^{1/4} all j, ratios → 1 (Cor. 1) → Simplex ETF limit (Cor. 2, Eq. 10–11)
+claims:
+  - id: C1
+    claim: NC (NC1–NC4) emerges empirically in MSE-trained deep nets across three canonical networks and five benchmarks (descriptive)
+    importance: central
+    evidence: Appendix A experiments (MNIST, FashionMNIST, CIFAR10, SVHN, STL10 × VGG/ResNet/DenseNet); supplementary Table 1 App. A for MSE-vs-CE test accuracy parity
+  - id: C2
+    claim: the MSE loss decomposes as L = L_NC1 + L_NC2/3 + L^⊥_LS, where the first two terms are NC-interpretable and assume the least-squares classifier (theoretical)
+    importance: central
+    evidence: Theorems 1–2 (§2); L_NC2/3 = (1/2C)||W_LS M̃ − I||_F^2 pushes to ETF, L_NC1 pushes Σ_W to zero
+  - id: C3
+    claim: L^⊥_LS becomes negligible early in training, so classifier-feature pairs are effectively on the central path during TPT (empirical generalization)
+    importance: central
+    evidence: Figure 2 across 5 datasets × 3 networks; outlier behavior discussed App. A.7
+  - id: C4
+    claim: under continually renormalized gradient flow restricted to the central path with zero-mean init, Neural Collapse emerges with explicit closed-form dynamics — singular values grow as t^{1/4} and equalize, giving the Simplex ETF (theoretical)
+    importance: central
+    evidence: Theorem 3 + Proposition 2 (Eq. 9) + Corollaries 1–2 (Eqs. 10–11)
+experiments:
+  - id: E1
+    research_question: does MSE training exhibit NC at all? (prerequisite for the theory)
+    setup: 5 datasets × 3 networks (VGG/ResNet/DenseNet), MSE loss, NC1–NC4 metrics over epochs (App. A)
+    baseline: CE-trained networks (analogous measurements in Papyan et al. 2020)
+    result: '"(NC1)-(NC4) indeed occur for networks trained with MSE loss" (§1.3)'
+    interpretation: MSE-NC modeling is empirically well-motivated; paper explicitly frames this as "a preliminary" (Abstract)
+    supported_claim: C1
+  - id: E2
+    research_question: is the central-path assumption empirically valid? (assumption-checking experiment)
+    setup: measure decomposition terms L_NC1, L_NC2/3, L^⊥_LS during training (Fig. 2)
+    baseline: none — internal consistency check
+    result: L^⊥_LS negligible from an early epoch through TPT; L_NC2/3 diminishes fastest (means reach ETF first, then within-class collapse)
+    interpretation: justifies assumptions (A1)–(A2) of Theorem 3; also yields a dynamics narrative (ETF first, compression second)
+    supported_claim: C3
+narrative:
+  introduction_roles: [Context (unexplained paradigms incl. training past zero error), Existing phenomenon (NC under CE), Bridge (MSE comparable to CE), Insight preview (decomposition + central path + dynamics), Contribution bullets (I)(II)(III)]
+  introduction_move: uses the CE/MSE comparability result as a license for tractability — "MSE offers more mathematical opportunities" — framing the choice of loss as a methodological instrument rather than an object of study; contributions are enumerated as a numbered theory pipeline mirroring section order
+  related_work_strategy: 'contrast-by-mechanism — sorts prior NC theories into linearization vs homogeneous networks vs landscape-only, and claims the empty cell: exact closed-form dynamics (§4)'
+  method_strategy: theory-then-assumption-audit — each theorem is followed by an explicit discussion of its assumptions (A1)–(A3), each empirically or conceptually motivated; unusual candor about idealization
+  experiments_strategy: experiments are subordinate to theory — main-text Fig. 2 is an assumption check, full NC-measurement suite deferred to Appendix A ("lengthy—together spanning four pages", §1.3)
+  conclusion_strategy: linear recap of the three-step pipeline (verify → decompose → flow), no generalization beyond MSE
+reviewer_defense:
+  strengths: exact (not linearized) dynamics; assumptions individually motivated and empirically checked; code + data released (reproducibility statement)
+  vulnerabilities: theory restricted to λ=0 (§3), zero global mean (A2), unconstrained-features model — a deliberate idealization of real nets; CIFAR100/ImageNet excluded from experiments because MSE needs a scaling heuristic there (footnote 6); dynamics are on renormalized features, so the mapping back to raw features is indirect
+  anticipated_attacks: '"unconstrained features is not a real network" — addressed by citing the established modeling perspective (Mixon et al. 2020; Fang et al. 2021, footnote 9) and by Fig. 2 empirical proximity; "NC1 says Σ_W→0, contradicting full-rank assumption" — pre-empted in footnote 12 (zero-matrix never actually achieved)'
+writing:
+  paragraph_patterns: numbered contribution/assumption lists; "Note that we can interpret..." intuition paragraphs after each formal statement (§2)
+  transition_patterns: explicit cross-section promises ("As we will see in the next section...", §3.2 end); assumptions (A1)(A2)(A3) threaded from §3 into Theorem 3's statement
+  terminology_patterns: careful naming discipline — "central path", "renormalized features", "SNR matrix" each coined with a Definition and reused verbatim; footnotes carry technical caveats so main text stays narrative

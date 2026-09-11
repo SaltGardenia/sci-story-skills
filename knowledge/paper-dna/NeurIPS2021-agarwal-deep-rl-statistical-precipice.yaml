@@ -1,0 +1,99 @@
+# thesis: This paper shows that published deep RL comparisons rest on statistically unreliable
+# point estimates (medians/means from 3–10 runs are highly variable, biased, and protocol-dependent),
+# because few-run evaluation with high run-to-run variance dominates the signal, and therefore proposes
+# a rigorous few-run evaluation methodology — stratified bootstrap CIs, performance/score profiles,
+# and robust aggregates (IQM, optimality gap, probability of improvement) — plus the rliable library.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: deep reinforcement learning / experimental methodology
+  task: reliable evaluation and comparison of deep RL algorithms with few runs per task
+  problem: '"reliable evaluation in the few-run deep RL regime cannot ignore the uncertainty in results without running the risk of slowing down progress in the field"; most published results compare point estimates "ignoring the statistical uncertainty implied by the use of a finite number of training runs" (Abstract)'
+  importance: unreliable point estimates give "a false impression of fast scientific progress", steer researchers to superficially beneficial methods, obscure the true state of the art, risk a reproducibility crisis, and erode trust in deep RL research (§1 para 2)
+  source: full
+paradigm:
+  existing_approach: compare point estimates of aggregate performance (mean, median normalized scores across tasks) computed from 3–10 training runs per task; occasional max-score protocols (§1, §3)
+  core_assumption: '"folk wisdom in experimental RL suggests that 20 or 30 runs are enough" and that aggregate point estimates faithfully rank algorithms (§3)'
+  limitation: '"a small number of training runs coupled with high variability ... leads to substantial statistical uncertainty"; evaluating more runs is computationally prohibitive (e.g. >1000 GPU-days for 5 runs on Atari 100k) and trending worse as benchmarks grow (§1 para 2, §4 opening)'
+gap:
+  unresolved_problem: how to make algorithm comparisons statistically defensible with only a handful of runs, and how much published evidence survives once uncertainty is accounted for (§1, §4)
+  evidence_for_gap: empirical — the Atari 100k case study with 100 independent runs per algorithm shows sample medians vary/bias enough to flip conclusions; folk wisdom (20–30 runs) measured to be wrong (50–100 needed) (§3)
+insight:
+  observation: '"there are substantial discrepancies between conclusions drawn from point estimates alone versus a more thorough statistical analysis" — e.g. point estimates suggest OTR > DER, but DER may in fact be better (Abstract, §3)'
+  central_insight: in the few-run regime the quantity being compared is itself a random variable, so evaluation must shift from point estimates to full distributions — interval estimates, score distributions, and uncertainty-aware aggregates (§4)
+  hypothesis: if aggregate metrics are chosen to be unbiased, outlier-robust, and statistically efficient (small CIs with few runs), reliable comparisons become possible at 3–10 runs; IQM has these properties where median (robust but inefficient) and mean (efficient but fragile) do not (§4.3, §6)
+method:
+  conceptual_change: treat the reported aggregate score as a random quantity to be estimated with uncertainty, and judge algorithms by their whole score distribution rather than a single scalar (§4)
+  mechanism: 'three tools — (1) stratified bootstrap confidence intervals for aggregate metrics (runs and tasks as strata); (2) performance profiles / run-score distributions with pointwise bootstrap bands; (3) new aggregates: IQM (25% trimmed mean), optimality gap, probability of improvement — packaged in the rliable library (§4.1–4.3)'
+  formulation: '"the sample median is a biased estimator of the true median: E[Median(X̄1:M)] ≠ Median(E[X1:M]) in general" (§3); IQM "discards the bottom and top 25% of the runs and calculates the mean score of the remaining 50% runs" (§4.3); score distribution = fraction of runs above normalized score τ (§4.2)'
+claims:
+  - id: C1
+    claim: sample medians reported on Atari 100k exhibit substantial variability with 3–5 runs, large enough to flip algorithm rankings (e.g. DER vs OTR) (empirical/descriptive)
+    importance: central
+    evidence: Fig. 2 (left), 100-run case study §3
+  - id: C2
+    claim: sample median is a biased estimator in the few-run regime, with bias magnitude/sign depending on the algorithm — for SPR the 5-vs-100-run bias is ~36% of its mean improvement over DrQ(ε) (empirical/mechanistic)
+    importance: central
+    evidence: §3, Fig. 3
+  - id: C3
+    claim: statistical concerns "cannot be satisfactorily addressed with few runs" — ~50–100 runs are needed for tight median CIs, far beyond feasibility; median detects a +25% lift only at 25 runs, +10% at 100 runs (empirical)
+    importance: central
+    evidence: §3, Fig. 2 (right), Fig. 4
+  - id: C4
+    claim: non-standard evaluation protocols (max during training) invalidate cross-paper comparisons — protocol differences exceed real algorithm differences (CURL vs DER; much of SUNRISE's improvement explained by protocol) (empirical/causal)
+    importance: central
+    evidence: §3, Fig. 5, Appendix A.4
+  - id: C5
+    claim: IQM is more statistically efficient than median (much smaller CIs, detects improvements with far fewer runs) and more robust than mean; optimality gap is robust to outliers (comparative)
+    importance: central
+    evidence: §4.3, Fig. 4, Fig. 6, Fig. A.15, A.17
+  - id: C6
+    claim: prior comparisons on ALE (Atari 200M), Procgen, and DeepMind Control Suite show significant overlapping interval estimates contradicting published superiority claims (e.g. M-IQN vs Rainbow, C51 vs DQN-Adam) (empirical)
+    importance: central
+    evidence: §5, Figs. 9–12
+  - id: C7
+    claim: increasing compute will not resolve the problem for future benchmarks, so "ongoing progress in reinforcement learning will require greater experimental discipline" (practical)
+    importance: supporting
+    evidence: §6 closing argument (40-year-old games already affected)
+experiments:
+  - id: E1
+    research_question: RQ2-flavored (causal probe of the evaluation practice itself) — how variable and biased are few-run point estimates?
+    setup: 100 independent runs per algorithm (DER, OTR, CURL, DrQ(ε), SPR) on 26 Atari 100k games; subsample 3–100 runs with replacement 100,000 times to characterize the sampling distribution of medians (§3)
+    baseline: published point-estimate comparisons
+    result: medians vary substantially; bias E[Median] ≠ Median; DER>OTR contradicts published ordering
+    interpretation: point estimates "are unlikely to provide definitive answers" in the few-run regime
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ6-flavored — how many runs until statistical uncertainty is negligible?
+    setup: 95% CIs on sample medians for varying run counts; synthetic-lift design (inflate one SPR experiment by ℓ%) to measure detectability of a known improvement (§3, Fig. 2 right, Fig. 4)
+    baseline: folk wisdom of 20–30 runs
+    result: 50–100 runs needed for medians; IQM detects lifts with far fewer runs
+    interpretation: more-runs advice is infeasible; metric choice (IQM) is the lever
+    supported_claim: C3, C5
+  - id: E3
+    research_question: RQ2-flavored — does the evaluation protocol itself change the reported ranking?
+    setup: re-evaluate DER under CURL's max-score protocol and compare with published CURL/SUNRISE numbers (§3, Fig. 5)
+    result: protocol effect larger than real algorithm differences; DER under CURL's protocol beats CURL's published score
+    interpretation: cross-paper comparisons under mixed protocols are invalid
+    supported_claim: C4
+  - id: E4
+    research_question: RQ4-flavored (generalization of the diagnosis) — do the same problems afflict other standard benchmarks?
+    setup: re-analysis of published results on ALE 200M, Procgen, DMC using rliable interval estimates and score distributions (§5)
+    result: overlapping CIs contradict several published superiority claims; metric choice even changes which algorithm looks best (Fig. 9)
+    interpretation: the crisis is field-wide, not Atari-specific
+    supported_claim: C6
+narrative:
+  introduction_roles: [Context (aggregate evaluation guides progress), Failure mode (few runs + high variance), Consequences cascade (false progress, wrong SotA, reproducibility crisis, eroded trust), Case-study promise, Solution preview (methodology + rliable), Contribution list]
+  introduction_move: argue by consequences — each sentence of the gap paragraph adds another downstream harm of unreliable evaluation, escalating from technical (bias) to sociological (reproducibility crisis, eroded trust); the metaphor "edge of the statistical precipice" carries the stakes; the paper is framed as diagnosis (case study) then treatment (§4 tools)
+  related_work_strategy: prior calls for rigor acknowledged and then declared ineffective ("the field has not yet found sure footing"); distinction between results/methods reproducibility imported from Goodman et al. to scope the claim (§6, App. A.3)
+  method_strategy: recommendation-first — each subsection names the tool, explains why the standard alternative fails, then defines the tool; definitions carried by figures (IQM/optimality gap as shaded regions of a score profile, Fig. 8)
+  experiments_strategy: diagnosis before prescription — a deep case study (Atari 100k, 100 runs) establishes each failure mode, then breadth (other benchmarks) shows generality; ablation-like synthetic-lift experiments quantify detectability
+  conclusion_strategy: restate findings, address the incentive problem for adoption honestly (reviewers/checklists as pragmatic lever), close on the title metaphor (rock-climber discipline)
+reviewer_defense:
+  strengths: gold-standard evidence — 100 runs per algorithm where the field uses 5; both diagnosis and remedy; open library + released individual runs; the methodology applies beyond RL
+  vulnerabilities: all diagnosis rests on 5 algorithms on one benchmark for the controlled case study; the proposed metrics shift rather than eliminate arbitrariness (IQM's 25% trimming, optimality gap threshold γ "may be chosen differently" — §4.3); no theoretical characterization of IQM efficiency
+  anticipated_attacks: '"just run more seeds / fix seeds" — countered by cost argument (§1) and by the seed-fixing rebuttal ("does not really address the question ... fixed seeds might benefit certain algorithms more", §6); "use significance tests" — rebutted via dichotomous-test critique (§2); "adoption has no incentives" — conceded and addressed via checklist argument (§6)'
+writing:
+  paragraph_patterns: bolded one-sentence claim headings inside the case study ("High variability in reported results.", "Substantial bias in sample medians."); consequence-stacking paragraphs in the intro
+  transition_patterns: '"We begin with a case study to illustrate..." — every diagnosis section ends by naming the tool that fixes it; prescription sections reference back ("As we already argued that these metrics are deficient, we now consider...")'
+  terminology_patterns: memorable coinages used consistently — "few-run regime", "score distributions", "probability of improvement"; the title metaphor recurs at the close; heavy figure-first argumentation

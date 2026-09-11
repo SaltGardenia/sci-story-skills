@@ -1,0 +1,61 @@
+# thesis: This paper shows that high-accuracy (polylog(1/δ)) sampling is achievable with score
+# evaluations alone, because rejection sampling can be simulated from unbiased first-order
+# estimates of the log-tilt via a Bernoulli-factory/Poisson-product trick, and therefore proposes
+# First-Order Rejection Sampling (FORS), yielding diffusion samplers with exponentially better
+# δ-dependence than all prior work and the first polylog(1/δ) gradient-only log-concave sampler.
+paper:
+  venue: ICML
+  year: 2026
+  field: sampling algorithms / diffusion model theory
+  task: high-accuracy sampling from score access (diffusion models) and gradient access (log-concave distributions)
+  problem: "\"What is the complexity of sampling from a continuous probability distribution, given access to evaluations of the gradient of the log-density? ... can one design algorithms whose iteration complexity scales as polylog(1/\u03b4), or must they necessarily take poly(1/\u03b4) steps?\" (\u00a71); diffusion samplers \"only learn the score function and not the density function itself\", so rejection-style high-accuracy methods don't apply (\u00a71)"
+  importance: high-accuracy guarantees "ensure that one can draw an extremely accurate sample without too many iterations"; existing SDE discretizations are accuracy-limited by discretization error, and the Ω(1/δ) DDPM lower bound "motivate[s] changing the algorithm" (§1)
+  source: full
+paradigm:
+  existing_approach: discretizations of reverse SDEs (DDPM-type; best 1/δ^{1/2} under minimal assumptions, Li & Cai 2024; higher-order discretizations at ~d^{1+1/p}/δ^{1/p}); high-accuracy samplers needing density/quantized-score access (Huang et al. 2024; Wainwright 2025; Huang et al. 2025c) (§1)
+  core_assumption: without density evaluations, discretization error necessarily forces poly(1/δ) complexity
+  limitation: every prior score-only method is polynomial in 1/δ; density-evaluation methods are impractical ("estimating the densities can be extremely challenging") and quantized scores change the training objective (§1.2)
+gap:
+  unresolved_problem: "\"Is there a diffusion model sampler which achieves a high-accuracy guarantee using only score evaluations, under minimal assumptions on both the data distribution and the score error?\" (stated question, \u00a71)"
+  evidence_for_gap: complexity-table reasoning — DDPM lower bound Ω(1/δ) (Jiao et al. 2025) shows the algorithm, not the analysis, must change; higher-order methods stall at d·exp(O(√log(d/δ))) at best (footnotes 2–3)
+insight:
+  observation: rejection sampling needs only the *value* of the tilt w(x) through a Bernoulli coin; the identity f(x) = E_{y∼Unif[0,x]}[x f′(y)] (Eq. 8) gives unbiased first-order estimates of values (§3.1)
+  central_insight: Bernoulli factory via Taylor expansion — with J ∼ Poisson(2), e^{E[W₁]} = e^{−1}E[Π_j (1+W_j)/2], so the accept coin can be simulated from a random product of unbiased estimates, never evaluating the function itself (§3.1)
+  hypothesis: if the backward diffusion transition kernel is a Gaussian tilt of the proposal (a special case of the FORS setup), then running FORS step-by-step yields δ error in polylog(1/δ) score queries under L2 score error
+method:
+  conceptual_change: stop approximating an SDE and instead implement exact rejection sampling per step, sourcing the rejection coin from gradients rather than densities — "discretization does not bias the algorithm"
+  mechanism: FORS (Algorithm 1) — given proposal q and unbiased tilt estimators W_x, output from q̃ ∝ q·e^{E[W|x]} with O(Be^{2B}(T+log(1/δ))) estimator draws (Theorem 3.1); diffusion template (Algorithm 2) — exponential-integrator proposal q_k = N(X̄_k, η̄_k I) (nearly KL-minimal, Thm E.10) with path-integral corrector W (Eqs. 12–13); proximal sampler RGO step via FORS for log-concave targets (Algorithm 3)
+  formulation: "Gaussian tilt sampling with exact oracle (Theorem 3.3, interpolating Lipschitz/smooth); intrinsic dimension d\u22c6 = dim_{\u03c3\u2080\u00b2/\u03b1\u2080\u00b2}(p_data) via covering numbers (Definition 4.1, Example 4.2 manifold case); Corollary 4.4: K \u2264 \u00d5((d\u22c6 + log(\u03ba/\u03b4)) log\u00b2(d\u22c6\u03ba/\u03b4)) with error \u03b4\u00b2 + \u03a3\u03b7_k \u03b5\u00b2_score"
+claims:
+  - id: C1
+    claim: FORS outputs exactly from q(x)e^{E[W₁|x]} using only unbiased first-order estimates, with bounded total estimator usage (theoretical)
+    importance: central
+    evidence: Theorem 3.1 + Algorithm 1; Bernoulli-factory construction (§3.1)
+  - id: C2
+    claim: under minimal data assumptions (finite second moment), δ error in the bounded Lipschitz metric in Õ(d⋆ log³((d+M₂²)/δ)) score queries with Cap_x = O(1) — strictly improving all prior results (theoretical)
+    importance: central
+    evidence: Corollary 4.4 + §1.1 bullet; improvement list over Chen et al. 2023a, Benton et al. 2024, Conforti et al. 2025, etc.
+  - id: C3
+    claim: under a non-uniform L-Lipschitz condition on the score, complexity drops to Õ(L log³((d+M₂²)/δ)) — "almost dimension-free" (theoretical)
+    importance: central
+    evidence: §1.1 bullet 2, Theorem 4.9 (via Assumptions 4.6–4.8), with operator-norm case Õ(min{d⋆^{2/3}L^{1/3}, √d L})
+  - id: C4
+    claim: the first polylog(1/δ) sampler for general log-concave (and isoperimetric) distributions using only gradient evaluations — recovering Fan et al. (2023)-level guarantees without density access (theoretical)
+    importance: central
+    evidence: §5 (proximal sampler + FORS RGO; LSI/Poincaré/log-concavity query bounds)
+experiments: []  # theory paper — no empirical experiments ("we are working toward implementation and experimental evaluation, which will be left for future work", §6); validation is via theorems and complexity comparisons
+narrative:
+  introduction_roles: [Context (sampling complexity question), Existing split (density-based high-accuracy vs gradient-based low-accuracy), Failure mode (discretization error), Stated question (boxed), Solution (FORS), Contribution bullets (diffusion + log-concave)]
+  introduction_move: poses the guiding question explicitly and boxes it ("Is there a diffusion model sampler which achieves a high-accuracy guarantee using only score evaluations...?") — the paper's structure is the affirmative answer; the one-dimensional warm-up (f on [0,1]) precedes all generality
+  related_work_strategy: precision-comparative — each prior line tagged with its exact blocker (zeroth-order queries, quantized scores, sub-exponential norms); concurrent work (Gatmiry et al. 2026) compared on both assumptions and complexity, deferred to Appendix A.1
+  method_strategy: simplest-case-first pedagogy — §3.1 solves the toy problem in full (identity → Bernoulli factory → Poisson product) before defining the meta-algorithm, so every later abstraction is already motivated
+  experiments_strategy: none — the evidence architecture is theorem hierarchy (FORS guarantee → Gaussian tilt → diffusion corollaries → log-concave section) plus explicit improvement tables against the prior-art landscape
+  conclusion_strategy: four-sentence recap mapping contributions to theorem numbers, with a candid "primarily theoretical work" disclaimer and implementation promised as future work
+reviewer_defense:
+  strengths: exactness (no discretization bias by construction); minimal assumptions (second moment only; L2 score error); intrinsic dimension gives manifold-adaptive dimension dependence; unifies two literatures (diffusion sampling and log-concave sampling) under one primitive
+  vulnerabilities: per-step FORS involves rejection loops whose wall-clock cost in practice is untested (no implementation, conceded §6); guarantee is for the early-stopped distribution with a W₂-conversion step to p_data (σ₀² ≍ δ²/(d+M₂²)); correctnessor construction assumes access to score estimates along diffusion paths with the stated L2 control
+  anticipated_attacks: "\"higher-order discretizations already get sub-polynomial 1/\u03b4\" \u2014 footnote 2 shows those still carry d\u00b7exp(O(\u221alog)) and C_P with implicit exponential-in-p dependence; \"just learn densities too\" \u2014 \u00a71.2 argues density estimation is impractical and changes the training pipeline"
+writing:
+  paragraph_patterns: warm-up example → generalization pattern; the "Task:" boxed Bernoulli-factory formulation inside §3.1 is a computer-science-style problem statement embedded in prose
+  transition_patterns: "\"A key insight is that sampling from the backward transition kernel... is a special case of the setup of Section 3\" (\u00a74) \u2014 explicit reduction statements connect sections"
+  terminology_patterns: heavy but disciplined notation section up front (§1.3) defining divergences and Õ conventions before use; FORS/Algorithm numbering kept stable across theorem statements

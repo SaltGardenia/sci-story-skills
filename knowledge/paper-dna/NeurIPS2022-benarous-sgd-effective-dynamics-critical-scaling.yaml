@@ -1,0 +1,86 @@
+# thesis: This paper shows that high-dimensional SGD with constant step-size does not generically
+# behave like gradient flow on the population loss — tracking summary statistics, its trajectories
+# converge to ODE/SDE "effective dynamics" that depend dramatically on initialization and on a
+# critical step-size scaling (δ_n ~ c/n) at which a population corrector term changes the phase
+# diagram — because finite-dimensional limit theory breaks down as dimension grows, and therefore
+# proposes a unified limit theorem (Theorem 2.3) that predicts surprising phenomena: sharp
+# mean-reverting/mean-repellent transitions, convergence to sub-optimal classifiers with
+# probability bounded away from zero, and rigorous overparametrization benefits.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: optimization theory / high-dimensional statistics (SGD dynamics)
+  task: proving scaling limits for trajectories of summary statistics of online SGD with constant step-size as dimension → ∞
+  problem: '"In recent years, there has been considerable interest in understanding the high-dimensional setting ... one cannot simply take the learning rate to be arbitrarily small as this would force an unlimited sample size and run-time" (§1); classical fixed-dimension theory predicts convergence to population gradient flow, but "one cannot develop a high-dimensional scaling limit for the full trajectory of SGD" (§1)'
+  importance: SGD is "the go-to method for large-scale optimization problems in modern data science"; a unified limit theorem applies across "a broad range of estimation tasks" and explains practically observed training phases (ballistic/diffusive) and initialization pathologies (§1)
+  source: full
+paradigm:
+  existing_approach: fixed-dimensional asymptotics (gradient-flow limits as learning rate → 0, diffusion approximations, large deviations); high-dimensional analyses specialized to particular problems (linear regression, online PCA, phase retrieval, teacher-student from warm starts) (§1)
+  core_assumption: the finite-dimensional intuition that SGD tracks gradient flow of the population loss carries over to high dimensions with small step-size
+  limitation: prior high-dimensional scaling limits are problem-specific (warm vs random starts handled inconsistently); no unified framework tracks arbitrary summary statistics with arbitrary initialization and step-size scaling (§1)
+gap:
+  unresolved_problem: a general limit theorem for SGD in the high-dimensional regime — any chosen summary statistics, any initialization (warm/random/cold), any constant step-size scaling — yielding both ballistic (ODE) and diffusive (SDE) limits (§1, §2)
+  evidence_for_gap: literature survey in §1 — each cited line of work either takes the learning rate to zero, fixes the data dimension, or addresses a single task; the correction term was observed only for teacher-student networks [64,65,73]
+insight:
+  observation: in practice SGD exhibits "ballistic phases where the summary statistics macroscopically change in value, and diffusive phases, where they fluctuate microscopically" (§1); and "one of course cannot develop a high-dimensional scaling limit for the full trajectory"
+  central_insight: track finitely many summary statistics instead of the full trajectory — under localizability and asymptotic-closure assumptions the statistics' evolution converges to du_t = h(u_t)dt + Σ(u_t)dB_t (Theorem 2.3), where h = −f + g splits into population drift f and a population corrector g that is zero only below a critical step-size scaling (§2, §2.1)
+  hypothesis: at the critical scaling δ_n ~ c_δ/n the corrector g and diffusion Σ become non-zero and the phase portrait deviates from population gradient flow — producing extra fixed points with sharp stability transitions, degenerate diffusions at fixed points, and initialization-dependent convergence probabilities (§1, §2.1–2.2, Parts 2)
+method:
+  conceptual_change: replace trajectory-wise convergence with convergence of a chosen finite-dimensional observable (summary statistic) — the statistic, not the problem, defines the limit
+  mechanism: 'martingale-problem argument (Theorem 2.3 proof, §6): define δ_n-localizability (Definition 2.1: regularity bounds tying step-size to the statistics'' derivatives) and asymptotic closure (Definition 2.2: the statistics'' drift closes within the chosen family); the limit is the SDE (2.4); diffusive limits obtained by re-centering/rescaling near fixed points (ũ_n = δ_n^{-α}(u_n − u*)) (§2.2)'
+  formulation: 'online SGD X_ℓ = X_{ℓ-1} − δ_n∇L_n(X_{ℓ-1}, Y_ℓ); Theorem 2.3: (u_n(t))_t → (u_t)_t weakly solving du_t = h(u_t)dt + Σ(u_t)dB_t with h = −f + g (population drift, population corrector) and Σ the diffusion matrix (Eqs. 2.4–2.8)'
+claims:
+  - id: C1
+    claim: under mild regularity, trajectories of any chosen summary statistics of high-dimensional online SGD converge weakly to solutions of an ODE/SDE system — the "effective dynamics" — determined by the statistics, initialization, and step-size scaling (theoretical)
+    importance: central
+    evidence: Theorem 2.3, §2, proof §6 ("a version of the classical martingale problem ... for high-dimensional stochastic gradient descent")
+  - id: C2
+    claim: there is a unique critical step-size scaling below which the classical population-gradient-flow picture applies (g = Σ = 0) and at which a non-trivial correction term appears that "changes the phase diagram" (theoretical)
+    importance: central
+    evidence: §2.1 (sub-critical vs critical scaling regimes); Abstract
+  - id: C3
+    claim: for spiked matrix/tensor estimation at critical scaling, the ballistic dynamics gain extra fixed points vs population gradient flow whose stability has sharp transitions at special signal-to-noise ratios, and random initialization lands in a microscopic neighborhood where the dynamics are mean-reverting or mean-repellent OU processes (theoretical)
+    importance: central
+    evidence: §3, Part 2
+  - id: C4
+    claim: for two-layer networks on XOR-type Gaussian mixtures with random Gaussian initialization, "the algorithm will converge to a classifier with macroscopic generalization error with probability 29/32 and then follow a degenerate diffusion"; overparametrizing the second layer drives this failure probability to zero — "a mathematically rigorous example of the lottery ticket hypothesis" (theoretical)
+    importance: central
+    evidence: §1, §5 (39 connected fixed-point regions among 22-dim summary statistics)
+  - id: C5
+    claim: for two-component Gaussian mixtures with two-layer networks, SGD converges first to a bad classifier with probability 1/2 under random initialization (theoretical + empirical for positive SNR, proven in the SNR→0 limit)
+    importance: supporting
+    evidence: §1, §4
+  - id: C6
+    claim: training phases (ballistic/diffusive, possibly alternating) are captured by the framework, and "multimodal timescales to convergence" arise in the examples (theoretical/descriptive)
+    importance: supporting
+    evidence: §1, Abstract
+experiments:
+  - id: E1
+    research_question: RQ3-flavored (worked demonstrations of the theorem) — what do the effective dynamics reveal about spiked matrix/tensor estimation?
+    setup: apply Theorem 2.3 to spiked matrix and tensor models where the dynamics are exactly solvable; analyze fixed points and OU behavior near them at critical scaling (§3)
+    baseline: population gradient flow phase portrait
+    result: extra fixed points; sharp stability transitions; mean-reverting/mean-repellent OU dichotomy from random starts
+    interpretation: the correction term is not a technicality but changes which solutions SGD finds
+    supported_claim: C3
+  - id: E2
+    research_question: RQ7-flavored (failure analysis) — when does SGD from random initialization fail to learn?
+    setup: two-component Gaussian mixture (§4) and XOR-type mixture (§5) with two-layer networks; compute convergence probabilities to Bayes-optimal vs macroscopic-error classifiers; verify empirically for positive SNR and prove in SNR→0 limit (§4, §5)
+    baseline: warm-start analyses from prior literature
+    result: failure probabilities 1/2 (two-component) and 29/32 (XOR) from Gaussian initialization; overparametrization → failure probability → 0
+    interpretation: random initialization is not benign in high dimensions; width is a cure
+    supported_claim: C4, C5
+narrative:
+  introduction_roles: [Context (SGD everywhere; classical theory), Regime shift (high dimensions force constant step-size), Gap (problem-specific limits), Solution preview (summary-statistics limits, Theorem 2.3), Phenomena ladder (spiked models → mixtures → XOR), Overparametrization payoff, Scope statement]
+  introduction_move: the intro walks from the classical picture to its breakdown, states the theorem informally, then spends most of its length on the surprising consequences (29/32 failure probability, lottery-ticket rigor) — the examples, not the theorem, are the narrative engine; scope is honestly bounded (online SGD only)
+  related_work_strategy: three-thread map — fixed-dimensional asymptotics, high-dimensional sample-complexity results, and problem-specific scaling limits — each acknowledged as partial coverage; statistical physics tradition noted separately
+  method_strategy: assumptions-first — Definitions 2.1/2.2 (localizability, asymptotic closure) presented before the theorem with remarks explaining what each assumption buys and what can be relaxed (Remark 2); examples then instantiate the abstract machinery (Part 2)
+  experiments_strategy: no benchmark experiments — the "experiments" are exactly solvable example analyses plus empirical checks of the theory at positive SNR (§4); the paper positions itself as a theorem-generator for future problems
+  conclusion_strategy: no separate conclusion — Part 2 examples close with future directions (finite-rank PCA, k-Gaussian mixtures, batching/re-use variants left to future work)
+reviewer_defense:
+  strengths: 'general theorem with mild assumptions (weaker than uniform Lipschitz, Remark 1); unified treatment of warm/random/cold starts; exactly solvable examples with quantitative probabilities (1/2, 29/32); connects to empirical observations (Remark 3: edge-of-stability)'
+  vulnerabilities: online SGD only (batching/re-use excluded); theorems concern specific model classes for the examples (spiked models, Gaussian mixtures); summary-statistic choice can be open-ended in unstructured settings (§2); failure probabilities are asymptotic (n→∞) and SNR-limited
+  anticipated_attacks: '"just a diffusion approximation?" — §1 distinguishes from fixed-dimension diffusion approximations; the corrector term is new at critical scaling; "assumptions too restrictive?" — Remark 2 details exactly which assumptions can be dropped and at what cost; "random-start failure is known" — prior work needed warm starts; here it is quantified and tied to overparametrization'
+writing:
+  paragraph_patterns: long theorem-then-remarks structure; small-caps section titles; phenomenon-first example intros ("These examples exhibit surprising phenomena including ...")
+  transition_patterns: '"Before delving into the XOR problem, we first analyze ..." — difficulty-ordered example ladder; explicit sub-critical/critical regime naming reused as vocabulary throughout'
+  terminology_patterns: coined machinery terms (δ_n-localizable, asymptotically closable, effective dynamics, population corrector, ballistic/diffusive phases) defined once and used with discipline; probability statements given exactly (1/2, 29/32)

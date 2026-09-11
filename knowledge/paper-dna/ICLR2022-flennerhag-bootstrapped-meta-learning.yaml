@@ -1,0 +1,93 @@
+# thesis: This paper shows that meta-gradient optimization is bottlenecked by curvature and
+# myopia because the meta-objective is defined directly as the learner's objective over a short
+# K-step horizon, and therefore proposes Bootstrapped Meta-Gradients, which bootstrap a future
+# target from the meta-learner itself and optimize a distance to it in a chosen metric space.
+paper:
+  venue: ICLR
+  year: 2022
+  field: meta-learning / reinforcement learning
+  task: meta-optimization of update rules (hyperparameters of RL agents, few-shot initializations)
+  problem: '"Meta-learning is challenging because to evaluate an update rule, it must first be applied" — most works optimize performance after K updates and assume gains persist, incurring short-horizon bias (§1)'
+  importance: meta-optimization failures cause "degraded lifetime performance, collapsed exploration, biased learner updates, and poor generalisation" across the literature (§1, citation list)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: standard meta-gradients (MG) — unroll the update rule K steps and take the gradient of the learner's objective at x(K) (Eq. 1) (§3)
+  core_assumption: the meta-objective must be defined directly in terms of the learner's objective, i.e. performance after K update steps (§1 para 4)
+  limitation: two bottlenecks — curvature (meta-objective inherits the learner's ill-conditioned geometry) and myopia (objective only sees the K-step horizon) (§1 para 4, §3)
+gap:
+  unresolved_problem: how to infuse information about future learning dynamics into the meta-objective without backpropagating through all updates, while keeping the meta-loss landscape controlled?
+  evidence_for_gap: cited empirical failure modes of meta-optimization (§1); theoretical analysis showing MG improvement is tied to the learner's gradient norm geometry (Lemma 1, §4)
+insight:
+  observation: TD learning works by using the agent's own future predictions as targets; meta-learning lacks this self-referential mechanism (§2 para 1)
+  central_insight: the meta-objective can be decoupled from the learner's objective — bootstrap a target from the meta-learner's future self and minimize a distance to it, so "the meta-learner becomes its own teacher" (§1 para 7)
+  hypothesis: distance-to-target objectives remove curvature constraints (any pseudo-metric works), extend the effective horizon without extra backprop (target is not differentiated), and guarantee larger local improvements than MG (Theorem 1)
+method:
+  conceptual_change: stop evaluating the meta-learner by "performance after K steps" and instead evaluate it by proximity to a state its own future trajectory would reach
+  mechanism: Target Bootstrap ξ (unroll L further steps + final gradient step, no backprop through it) + matching function µ (Euclidean, KL policy matching, value matching) — BMG update w̃ = w − β∇w µ(x̃, x(K)(w)) (Eq. 2) (§3)
+  formulation: 'MG is a special case of BMG under squared Euclidean µ and one-step gradient TB (Eq. 3); Theorem 1: BMG improvement = (β/α)(µ(x̃,x(K)−αG^Tg) − µ(x̃,x(K))) — improvements proportional to meta-loss magnitude when target aligns with steepest descent'
+claims:
+  - id: C1
+    claim: BMG guarantees local performance improvements under appropriate targets, and the guarantee can be strictly stronger than MG's (theoretical)
+    importance: central
+    evidence: Theorem 1 + Corollary 1 (f(x(K)(w̃)) ≤ f(x(K)(w0)), strictly when GGT≠GT and GT∇f=0)
+  - id: C2
+    claim: BMG achieves a new state of the art for model-free agents on Atari ALE (~611% median HNS vs ~364% STACX) (comparative)
+    importance: central
+    evidence: Fig. 4 right panel, published-baseline comparison over 200M frames, 3 seeds
+  - id: C3
+    claim: BMG extends the effective meta-learning horizon without backpropagating through all updates (mechanistic)
+    importance: central
+    evidence: Fig. 2 (BMG benefits from larger horizons, MG does not), Fig. 5 center (performance uniformly increasing in L), App. B.2 (constant cost in L)
+  - id: C4
+    claim: BMG enables meta-learning quantities absent from the loss (ε-greedy exploration) that MG cannot readily optimize (generalization/practical)
+    importance: supporting
+    evidence: Fig. 3 — meta-learned ε beats best fixed ε by tuning (§5.1)
+  - id: C5
+    claim: BMG improves data and compute efficiency in multi-task few-shot learning, reaching MG's best performance in roughly half the time (comparative)
+    importance: supporting
+    evidence: Fig. 6 center (MiniImagenet wall-clock), left panel (data efficiency beyond 50k meta-updates)
+experiments:
+  - id: E1
+    research_question: does bootstrapping counter myopia? (paper's own framing, §5.1)
+    setup: non-stationary non-episodic grid world, online actor-critic, entropy-rate weight meta-learned; 50 seeds
+    baseline: MG with actor-critic meta-objective; fixed tuned entropy weight; no MG
+    result: BMG utilizes greater horizons, MG "shows no clear benefit of longer meta-learning horizons, indicating that myopia stems from the objective itself" (§5.1)
+    interpretation: myopia is a property of the meta-objective, not of computation
+    supported_claim: C3
+  - id: E2
+    research_question: RQ1 — does BMG improve the primary objective at scale?
+    setup: Atari ALE 57 games, STACX adapted to BMG, ceteris-paribus (same agent updates), 200M frames, 3 seeds (§5.2)
+    baseline: STACX (MG), IMPALA, published model-free SOTA
+    result: median HNS ~610% (L=4, KL&V) vs ~364% STACX; gains across almost all games (Fig. 4)
+    interpretation: '"apples-to-apples" claim — at L=1 same data and gradients, only the meta-objective differs'
+    supported_claim: C2
+  - id: E3
+    research_question: RQ3 — which component causes the gains? (ablation)
+    setup: decompose BMG into STACX over optimizer, matching function, L (Fig. 5 left)
+    baseline: BMG with (SGD, L2, L=1) ≡ STACX
+    result: ~45% of gains from curvature correction (RMSProp target), ~25% from matching function, ~30% from L; meta-gradient cosine similarity improved by two orders of magnitude
+    interpretation: both proposed mechanisms (curvature control, myopia reduction) contribute measurably
+    supported_claim: C1, C3
+  - id: E4
+    research_question: does BMG transfer to supervised multi-task meta-learning?
+    setup: MiniImagenet 5-way 5-shot, MAML setup, BMG bootstraps L SGD steps on validation data (§6)
+    baseline: MAML/MG with tuned K∈{1,5,10}
+    result: strictly superior beyond 50k meta-updates; best MG performance in ~half the wall-clock time (Fig. 6)
+    interpretation: the target acts like a "warm" distillation expert vs MG's "cold" one-hot expert (§6)
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (learners vs humans), Existing paradigm (meta-learning), Failure mode (short-horizon bias catalogue), Gap (two bottlenecks named), Insight (bootstrap from future self), Solution (two-step procedure), Contribution (theory + SOTA + new capability)]
+  introduction_move: names the two bottlenecks (curvature, myopia) as an explicit analytical contribution before proposing anything, then presents the algorithm as the unique fix for each bottleneck — a diagnosis-then-cure structure
+  related_work_strategy: provenance-based — traces bootstrapping from TD learning through self-supervised learning to meta-learning, positioning BMG as the missing transfer of a proven idea
+  method_strategy: definition-first — builds MG formally, states the two bottlenecks as observations on Eq. 1, then introduces BMG as a strict generalization (Eq. 3 shows MG is a special case)
+  experiments_strategy: controlled demonstration (grid world) → scale (Atari SOTA) → ablation decomposition of the gains → generality (few-shot), each mapping to one claim
+  conclusion_strategy: elevates to a principle — "efficient meta-learning does not require the meta-objective to be expressed directly in terms of the learner's objective" — and concedes that bootstrapping "some grounding is necessary"
+reviewer_defense:
+  strengths: ceteris-paribus Atari comparison (only meta-objective changed); theoretical guarantee with explicit trade-off; ablation attributing gains to named mechanisms
+  vulnerabilities: noiseless analysis only (conceded §4 Discussion); TB choice "a small subset of all possible choices" (§3); degeneracy when bootstrapping from the meta-learner for all L steps (App. C.2); Atari results 3 seeds
+  anticipated_attacks: '"is this just distillation/TrustRegion?" — addressed in §2 by contrasting fixed/moving targets vs trajectory-bootstrapped ones; "is the gain just RMSProp?" — the ablation (Fig. 5 left) explicitly splits curvature vs horizon contributions'
+writing:
+  paragraph_patterns: numbered two-step procedure in the intro (§1) — algorithm previewed as a recipe before any formalism
+  transition_patterns: section transitions state what question the next section answers ("In this analysis... we ask three questions", §4)
+  terminology_patterns: coines "meta-bootstrap", "Target Bootstrap (TB)", "matching function/matching space" and uses them consistently; keeps MG/BMG acronym pairing

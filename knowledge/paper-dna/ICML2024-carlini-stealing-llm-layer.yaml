@@ -1,0 +1,76 @@
+# thesis: This paper shows that parts of production LLMs can be stolen precisely through
+# their own APIs because the final logit layer is low-rank (h ≪ l) and logit-bias/logprob
+# features let an adversary reconstruct enough logits to expose that rank via SVD, and
+# therefore proposes the first practical model-stealing attack extracting the embedding
+# projection layer (or hidden dimension) of OpenAI's ada/babbage/gpt-3.5 for under $20,
+# with defenses both APIs subsequently deployed.
+paper:
+  venue: ICML
+  year: 2024
+  field: adversarial ML / security of deployed LLMs
+  task: high-fidelity model stealing (last-layer extraction and width recovery) from black-box LLM APIs
+  problem: "\"Little is publicly known about the inner workings of today's most popular large language models ... This secrecy is often ascribed to 'the competitive landscape' and 'safety implications'\" — yet models are exposed via APIs, and prior stealing attacks cannot scale to them (§1, §2)"
+  importance: "an \"existence proof that it is possible to steal one layer of a production language model\" — the first time any precise information about a deployed transformer has been stolen — raising the question of whether extensions can recover more, and showing how innocuous API parameters create vulnerabilities (§1, §9, §10)"
+  source: full
+paradigm:
+  existing_approach: model-stealing attacks optimizing accuracy or fidelity — ReLU-focused gradient/finite-difference extraction (Milli et al. 2019, Carlini et al. 2020), bottom-up layer-by-layer reconstruction; side-channel size recovery (Wei et al. 2020); final-layer extraction assuming a public encoder (Zanella-Beguelin et al. 2021) (§2)
+  core_assumption: that production-scale models with token inputs, attention, layernorm, huge vocabularies, and limited-precision outputs are beyond high-fidelity extraction — attacks must rebuild the model bottom-up from the input layer
+  limitation: prior attacks fail on LLMs because they (1) need real-valued inputs for finite differences, (2) rely on ReLU structure, (3) cannot handle attention/layer-norm, (4) assume full precision, (5) don't scale (§2 list of five reasons)
+gap:
+  unresolved_problem: "can any precise, nontrivial information be extracted from production LLM APIs with typical access (top-K logprobs + logit bias), and at what cost? (§1)"
+  evidence_for_gap: "analytical — the low-rank structure of the last layer (Lemma 4.1: rank(Q) = h) is exploitable top-down, a direction no prior attack takes; five concrete barriers explain the prior-art gap (§2)"
+insight:
+  observation: every logit vector O(p) = W·gθ(p) lies in an h-dimensional subspace of R^l because the projection layer up-projects from h ≪ l dimensions — so after more than h queries, new logit vectors are linearly dependent on past ones (§4.1 Intuition, Lemma 4.1)
+  central_insight: read the hidden dimension off the singular-value spectrum of the query-response matrix Q (largest multiplicative gap between consecutive singular values marks the numeric-rank cutoff, Alg. 1, Fig. 1–2) — and once h is known, the SVD factorization Q = W·H recovers W up to an h×h symmetry (§4.2); the logit-bias + top-K-logprob API features are sufficient to reconstruct complete logit vectors query-efficiently (§5)
+  hypothesis: softmax's invariance to additive logit shifts is the only obstacle, and the logit bias parameter can be abused as a measurement instrument — promote arbitrary tokens into the top-K with a large bias B and difference away the known bias to read relative logits (§5.3), even with binary {−1,0} biases (§5.4) or no logprobs at all (§6)
+method:
+  conceptual_change: invert the direction of extraction — top-down from the final layer instead of bottom-up; treat API convenience parameters (logit bias, echo/top-K logprobs) not as benign product features but as an information channel
+  mechanism: (1) width attack — n > h random-prefix queries → singular values of Q → largest log-gap = h (Alg. 1); (2) layer attack — complete logit-vector recovery per prompt (reference-token differencing at cost 1/(K−1) queries per logit, §5.3; improved multi-token expansion, §5.3 end; binary logit-bias attack, §5.4; logprob-free binary search / hyperrectangle / one-of-n attacks, §6/App. F) followed by SVD alignment of Q to recover W (§4.2)
+  formulation: "fθ(p) = softmax(W·gθ(p)) (Eq. 1); Lemma 4.1 h = rank(Q); softmax-shift-invariance giving y_R − y_i^B − B = z_R − z_i (§5.3); cost metrics: token cost and query cost per recovered logit (Table 4)"
+claims:
+  - id: C1
+    claim: "the hidden dimension of black-box LLMs can be recovered exactly via SVD on ~h logit queries — \"our attack recovers the embedding size nearly exactly\" across open-source models and production models (§4.1, Table 2, Table 3)"
+    importance: central
+    evidence: "empirical — Table 2 (open models: exact recovery), Table 3 (ada 1024, babbage 2048 confirmed by OpenAI; gpt-3.5 size confirmed but withheld at OpenAI's request)"
+  - id: C2
+    claim: the entire embedding projection matrix W of production models can be extracted for under $20 (ada, babbage) with mean squared error ~10⁻⁴ up to symmetries; gpt-3.5-turbo full extraction estimated under $2,000 (abstract, §7.2, Table 3)
+    importance: central
+    evidence: empirical — Table 3 (RMS 5–7·10⁻⁴ after alignment; costs $1–$4 for ada/babbage; gpt-3.5 attacks implemented only for dimension, layer cost estimated)
+  - id: C3
+    claim: logit vectors can be reconstructed from severely restricted APIs — top-5 logprobs (23.0 bits precision at 0.25 queries/logit), even top-1 binary-bias (6.1 bits at 1.0 queries/logit), and with no logprobs at all (18.0 bits at 3.7 queries/logit, within a factor of ~2 of a theoretical bound derived in App. G) (§5, §6, Table 4)
+    importance: central
+    evidence: empirical + theoretical — Table 4 precision/cost comparison; Appendix G optimality analysis
+  - id: C4
+    claim: practical defenses exist at every level — API restrictions (no combined logit-bias+logprobs), rate limits, architectural changes (splitting/expanding the last layer, Fig. 7 deception), noise addition — though each trades off functionality (§8)
+    importance: central
+    evidence: argument + preliminary experiments — §8.1–8.2, Fig. 7, App. I; both OpenAI and Google deployed mitigations in response (§1 Responsible disclosure)
+experiments:
+  - id: E1
+    research_question: "RQ1 (validity) — does logit reconstruction achieve sufficient precision, and what does it cost?"
+    setup: six logit-estimation attacks across API strength tiers; bits of precision vs queries-per-logit (§7.1, Table 4); numerical stability comparison of theoretically stronger vs weaker attacks (App. E/G)
+    baseline: lower-bound analysis on queries per logit (App. G)
+    result: logprob-4 attack best (23.0 bits, 0.25 q/logit); logprob-free one-of-n 18.0 bits at 3.7 q/logit, within ~2× of the bound (Table 4, §7.1)
+    interpretation: stronger threat models buy precision, but the strongest theoretical attack can lose in practice to ill-conditioning
+    supported_claim: C3
+  - id: E2
+    research_question: "RQ1 (capability) — can the attacks extract real information from production models?"
+    setup: five OpenAI models (ada, babbage, babbage-002, gpt-3.5-turbo-instruct, gpt-3.5-turbo-1106); dimension extraction (SVD log-gap) and weight extraction (SVD alignment, RMS after h×h alignment transform); responsible-disclosure protocol with OpenAI (§7.2, Table 3)
+    baseline: ground-truth sizes/weights confirmed with OpenAI
+    result: "all five dimension extractions exactly correct; full-layer extraction with RMS < 7·10⁻⁴ for ada/babbage at $4–$12; gpt-3.5 layer attack estimated $2,000–$8,000 but not run \"to preserve security of the weights\" (Table 3)"
+    interpretation: first demonstration that any precise parameter of a deployed LLM can be stolen — and cheaply
+    supported_claim: C1, C2
+narrative:
+  introduction_roles: [Context (production-model secrecy), Tension (weights hidden, APIs exposed), 'Question (how much can an adversary learn?)', Solution preview (top-down last-layer attack), Value of the target (four reasons width matters), Results preview (costs, disclosures)]
+  introduction_move: "opens with the secrecy quotes from the GPT-4 and PaLM-2 technical reports and immediately punctures them — \"the models themselves are exposed via APIs\"; contributions are framed as an existence proof whose significance is the precedent (\"the fact that it is at all possible to steal any parameters ... is surprising\"), with responsible disclosure presented inside the intro as part of the methodology"
+  related_work_strategy: objective-first taxonomy (accuracy vs fidelity stealing) then a five-point list of exactly why prior attacks fail on LLMs — the gap is engineered into the reader by elimination
+  method_strategy: "pedagogical ladder of threat models — all-logits strawman (§4, \"Pedagogy & basis for next attacks\", Table 1) → top-K logprobs + logit bias (§5, current APIs) → binary bias (§5.4) → no logprobs (§6, future-constrained APIs); each rung reuses the previous rung's machinery"
+  experiments_strategy: cost-accounting as the core experimental language (queries/logit, tokens/logit, USD) — security-paper economics replacing accuracy tables; production results reported with disclosure caveats (withheld sizes, un-run estimated attacks)
+  conclusion_strategy: "field-maturation argument — adversarial ML \"must also adapt\" from toy ReLU networks to production models; two named open questions (hazardousness, comparison to distillation); impact statement is an ethics document in miniature (advance copies to affected parties, \"this vulnerability exists whether or not we report on it\") (§9–10)"
+reviewer_defense:
+  strengths: theory-backed (rank lemma, softmax-invariance algebra, near-optimality proof in App. G); demonstrated on actual production APIs with vendor confirmation; cost quantified in dollars; defenses seriously analyzed with deployed mitigations as validation
+  vulnerabilities: "only the last layer — \"no obvious methodology to extend it beyond just a single layer\" (conceded §9); depends on logit-bias features that providers have already removed (the paper documents its own patching); quantization-based symmetry-breaking and full gpt-3.5 extraction remain untested estimates; responsible-disclosure constraints mean some results are withheld/estimated rather than measured"
+  anticipated_attacks: "\"isn't this just known linear-algebra?\" — the contribution is recognizing the API features as an information channel and making it query-efficient (§5 cost engineering, Table 4); \"harmless since it's one layer\" — four named uses in the intro (width→parameter count, foothold for future attacks, precedent, relative model sizing) plus the finetuning-API-observation attack proposed in §9; \"responsible disclosure makes this unrepeatable\" — concurrent independent discovery (Finlayson et al. 2024) cited as evidence attackers would find it anyway (Impact Statement)"
+writing:
+  paragraph_patterns: Intuition → Formalization → Assumptions → Practical considerations → Experiments skeleton per attack (§4.1); explicit cost-definition paragraphs before any results
+  transition_patterns: threat-model ladder with each section's API description motivating the next restriction; responsible-disclosure paragraphs interleaved at results points rather than quarantined
+  terminology_patterns: "security vocabulary adopted wholesale (threat model, oracle, Sybil attacks, responsible disclosure); cost coinages (\"token cost\", \"query cost\") defined once and used as units throughout; h/l rank notation kept to two symbols"

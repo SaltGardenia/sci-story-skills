@@ -1,0 +1,233 @@
+# thesis: This paper shows that random initialization grossly underestimates long-sequence model
+# capability because training from scratch denies models the data-driven priors that pretraining
+# objectives induce, and therefore proposes self-pretraining (SPT) on task data only as the
+# methodologically required default for fair architecture comparison.
+paper:
+  venue: ICLR
+  year: 2024
+  field: long-sequence modeling / evaluation methodology
+  task: reliable comparison of sequence architectures (Transformers vs. state space models)
+  problem: >-
+    Reported gaps between architectures on long-range benchmarks (LRA) may be artifacts of
+    training practice — "random initialization leads to gross overestimation of the differences
+    between architectures" (Abstract)
+  importance: >-
+    A whole line of new architectures was motivated by Transformers' reported LRA failure
+    ("prior works citing the sub-par LRA performance of Transformers as a prime motivating factor
+    for new methods", §3.2); the finding also applies to "other scenarios where training from
+    scratch is standard", e.g. algorithmic reasoning and graphs (§3.7)
+  source: full
+  inferred:
+    - importance scope extension beyond LRA to scratch-trained benchmarks generally is the
+      authors' own extrapolation (§3.7 closing)
+paradigm:
+  existing_approach: >-
+    Train new long-sequence architectures (SSMs: S4, DLR; efficient Transformers) from random
+    initialization on benchmark tasks, with hand-crafted structural priors (HiPPO-init,
+    parameterizations) to capture long-range dependencies (§1, §3.3)
+  core_assumption: >-
+    That "apples-to-apples comparison" requires random initialization to decouple pretraining
+    data effects — the very assumption the paper dismantles (§1: "to decouple the effects of the
+    pretraining data and allow an apples-to-apples comparison")
+  limitation: >-
+    "training from a random initialization with downstream supervision alone disregards the role
+    of the pretraining objective itself, leading to a different inductive bias than that of a
+    pretrained model" (§1)
+gap:
+  unresolved_problem: >-
+    "the reasons for sub-par performance of Transformers on long sequence benchmarks, such as
+    LRA, remains unexplored" (§1); how to evaluate architectures fairly without a large external
+    pretraining corpus
+  evidence_for_gap: >-
+    Empirical tension: scratch-trained Transformers fail on LRA yet pretrained Transformers
+    (foundation models) excel at long-range tasks like summarization, code completion, protein
+    folding (§1 para 2)
+insight:
+  observation: >-
+    Pretraining on the downstream task data alone ("self pretraining", SPT) with standard
+    denoising objectives — no extra data — yields gains comparable to large-corpus pretraining
+    (El-Nouby, He, Krishna et al., cited §1)
+  central_insight: >-
+    "priors beneficial for capturing distant dependencies can be simply learned from the task
+    data via standard denoising objectives without any intrusive changes to the model" (§1) —
+    data-driven priors substitute for hand-crafted architectural biases
+  hypothesis: >-
+    If evaluation includes an SPT stage, (a) Transformers will match SSMs on LRA, (b) SSM gains
+    will shrink, and (c) manual structural priors (HiPPO init, S4 parameterization) will become
+    largely redundant (§1, §3.3)
+method:
+  conceptual_change: >-
+    Re-evaluate the evaluation protocol: the unit of comparison should be
+    (architecture + SPT), not (architecture + random init); pretraining acts as a
+    "data-driven initialization method" (§1)
+  mechanism: >-
+    Self-pretraining stage on task data with masked-token prediction (bidirectional) or next-token
+    prediction (causal), then finetune; strictly reused official configurations from Tay et al.
+    for comparability (§3.1); masked-ratio task-dependent (Text/Retrieval follow Liu et al. 2019,
+    ListOps 10%) (§2)
+  formulation: >-
+    No new objective — standard denoising pretraining; analysis section uses the SSM recurrence
+    x_n = A x_{n-1} + B u_n (Eq. 1) with S4's parameterization (Eq. 2.1–2.4) vs. Diagonal Linear
+    RNN (Eq. 3), and kernel magnitude K_max,l = max_c |K_c,l| (Eq. 4) as the long-range-dependence probe
+claims:
+  - id: C1
+    claim: >-
+      SPT with only downstream task data raises scratch-reported vanilla Transformer LRA average
+      accuracy "by more than 30%" (53.66 → ~81.3), letting Transformers match state-of-the-art
+      without architectural changes (comparative)
+    importance: central
+    evidence: comparative — Table 1 (53.66 vs 81.34/81.81 avg)
+  - id: C2
+    claim: >-
+      "vanilla Transformers to match the performance of S4 on Long Range Arena when properly
+      pretrained" — SPT Transformers surpass well-tuned S4 on 3/6 tasks (86.2 vs 86.1 avg)
+      (comparative)
+    importance: central
+    evidence: comparative — Table 2 (Transformers + Rotary + Masked SPT vs S4)
+  - id: C3
+    claim: >-
+      SPT improves S4's best-reported PathX-256 accuracy by 20 absolute points (67 → 87.11),
+      improving over the prior best 63.1% that used extra data (comparative)
+    importance: central
+    evidence: comparative — Table 2, §3.2 (prior best by Dao et al. 2022 with extra Pathfinder-64 data)
+  - id: C4
+    claim: >-
+      With SPT, hand-crafted SSM priors become "mostly redundant": scratch DLR lags S4 (77 vs 83)
+      but SPT DLR beats scratch S4 (83.4 vs 82.8) and nearly matches SPT S4 (83.4 vs 84.5)
+      (comparative/mechanistic)
+    importance: central
+    evidence: comparative — Fig. 2, Table 7 (2x2 of model class x init x SPT)
+  - id: C5
+    claim: >-
+      SPT gains grow as data becomes scarce — relative gains reach ~30% at small data scales
+      (generalization)
+    importance: supporting
+    evidence: empirical — Fig. 3 (data-scale study on Image/Text)
+  - id: C6
+    claim: >-
+      Learned kernels adapt decay to the task (local for Text, 2D-structure-aligned peaks for
+      PathX) unlike fixed data-agnostic HiPPO decay (mechanistic)
+    importance: supporting
+    evidence: empirical/interpretive — Fig. 4 kernel analysis across tasks and layers
+experiments:
+  - id: E1
+    research_question: >-
+      RQ1 methodology test — does random initialization misrepresent Transformer capability? (§3.1)
+    setup: >-
+      Repeat Tay et al. (2020a) Transformer LRA experiments with identical configurations,
+      adding masked or causal SPT on task data before finetuning
+    baseline: scratch-trained results from the original LRA paper
+    result: avg 53.66 → 81.34 (masked) / 81.81 (causal); gains on every task incl. ListOps where
+      tokens are hardly inferable (Table 1)
+    interpretation: >-
+      "the difference in performances can be attributed to the priors learned during
+      SPT, clearly demonstrating its importance for a reliable performance evaluation" (§3.1)
+    supported_claim: C1
+  - id: E2
+    research_question: Do the conclusions hold at modern scale and against tuned SSMs? (§3.2)
+    setup: larger models, rotary embeddings, bidirectional Transformers vs S4, SPADE, MEGA (Table 2)
+    baseline: S4 (86.09 avg), scratch Transformers + Rotary (74.28)
+    result: SPT Transformers 86.21 avg; S4 + SPT 86.75 avg; PathX-256 87.11 vs prior best 63.1
+    interpretation: >-
+      "most of the priors essential to high performance can already be learned from
+      data directly" (§3.2)
+    supported_claim: C2, C3
+  - id: E3
+    research_question: Are manual SSM priors still needed under SPT? (§3.3)
+    setup: 2x2 factorial — {S4, DLR} x {random init, structured init} x {scratch, SPT} on
+      ListOps/Text/Image/PathX (Fig. 2, Table 7)
+    baseline: structured-init S4 from scratch
+    result: SPT DLR (83.4) > scratch S4 (82.8); gap to SPT S4 (84.5) small
+    interpretation: >-
+      "data-driven priors learned through pretraining are almost as effective as the
+      manual biases incorporated in S4" (§3.3)
+    supported_claim: C4
+  - id: E4
+    research_question: How do SPT gains depend on dataset size? (§3.4)
+    setup: subsample Image/Text training sets at multiple ratios; fixed pretraining steps; finetune
+      to convergence (Fig. 3)
+    baseline: S4 from scratch at each scale
+    result: relative gains grow to ~30% at smallest scales
+    interpretation: pretraining matters most exactly where scratch training is weakest — scarce data
+    supported_claim: C5
+  - id: E5
+    research_question: >-
+      Is large-corpus pretraining an alternative? (§3.5)
+    setup: Pythia 70M (Pile-pretrained) finetuned to LRA with char/pixel tokenization vs its
+      random-init twin (Table 2)
+    baseline: Pythia 70M (Rand Init), scratch Transformers
+    result: Pythia 68.04 vs RandInit 62.76 — better but below task-matched SPT
+    interpretation: pretraining helps across modalities, but SPT "allows the model to specifically
+      learn and adapt to the structure and modality of the given task data" (§3.5)
+    supported_claim: C1 (indirect)
+  - id: E6
+    research_question: What priors does SPT actually learn in SSM kernels? (§3.6)
+    setup: compare K_max decay profiles of SPT S4 kernels vs HiPPO baseline kernels across tasks
+      and layers (Fig. 4)
+    baseline: HiPPO-initialized S4 kernels
+    result: variable, task-adapted decay rates; Text kernels more local; PathX peaks aligned to
+      image structure
+    interpretation: data-agnostic fixed-decay inits cannot adapt to local or global task structure
+    supported_claim: C6
+  - id: E7
+    research_question: Does the effect generalize to other modalities/tasks? (§3.7)
+    setup: Speech Commands (16K waveforms), sCIFAR, BIDMC regression (Table 3)
+    baseline: scratch S4 and Transformers
+    result: +5% SC and +11% sCIFAR for SPT Transformers (nearly matching S4); no headroom on BIDMC
+    interpretation: >-
+      "similar under-estimation of model performances might also be prevalent in
+      other scenarios where training from scratch is standard" (§3.7)
+    supported_claim: C1, C2 (generality)
+narrative:
+  introduction_roles: [Context, Inconsistency (scratch benchmarks vs foundation models), Gap, Insight preview (SPT), Evidence program, Contribution list]
+  introduction_move: >-
+    Measurement-critique intro: open on the standard practice (pretraining everywhere EXCEPT
+    architecture evaluation), expose the contradiction between scratch-benchmark results and
+    foundation-model reality, then state the thesis as an evaluation-methodology fix; contributions
+    are framed as corrections to a community-wide practice, not as a new model (§1)
+  related_work_strategy: >-
+    Inline and adversarial: prior work is characterized by its evaluation practice rather than by
+    topic; no dedicated Related Work section; the SSM design lineage (S4 → DLR → normalization
+    tricks) is introduced only in §3.3 where it becomes evidence
+  method_strategy: >-
+    Protocol-first: §2 is a full "Experimental Setup" section establishing comparability rules
+    (official configs, masking ratios, blockwise attention for 16K lengths) before any claim;
+    the "method" is a training protocol, presented as such
+  experiments_strategy: >-
+    Onion structure: reproduce the canonical benchmark first (§3.1), then scale (§3.2), then
+    factorial ablation of the priors (§3.3), then dose-response curves in data (§3.4) and
+    alternatives (§3.5), then mechanism probing (§3.6), then external validity (§3.7) — each
+    section answers the objection the previous one raises
+  conclusion_strategy: >-
+    No separate conclusion — the paper ends on external validity; §3.7's final paragraph
+    generalizes the critique to other scratch-trained fields (algorithmic reasoning, graphs)
+reviewer_defense:
+  strengths: >-
+    Strict reuse of official configurations isolates the SPT variable (§3.1); converged
+    scratch baselines guard against the "just train longer" attack; a compute-tied comparison is
+    provided in Appendix D (Table 8: "SPT leads to significant gains, even in the setting where
+    the same amount of compute is used", §3.2); multi-scale and multi-modality replication
+  vulnerabilities: >-
+    (1) Full attention at 16K+ requires blockwise attention — a deviation from vanilla Transformers
+    (§2); (2) Pythia comparison is confounded by forced tokenizer change (conceded, §3.5); (3)
+    BIDMC shows no headroom — SPT not universally useful (Table 3); (4) no theory of why denoising
+    priors help long-range dependencies; (5) benchmark conclusions drawn on one benchmark family
+    (LRA + 3 small datasets)
+  anticipated_attacks: >-
+    "SPT just adds compute" — preempted by validation-convergence checks (§3.2) and the
+    compute-tied appendix (App. D, Table 8); "pretraining on external corpora would do better" —
+    tested directly with Pythia and found task-mismatched (§3.5); "masked vs causal objective
+    matters?" — shown nearly equivalent across all tasks (§3.1, Table 1)
+writing:
+  paragraph_patterns: >-
+    Claim-then-implication paragraphs: each results paragraph opens with the finding and closes
+    with its methodological meaning ("clearly demonstrating its importance for a reliable
+    performance evaluation", §3.1)
+  transition_patterns: >-
+    Objection-driven sequencing: "An important aspect of SPT is the use of additional compute...
+    it is natural to investigate..." (§3.2) — every potential reviewer objection is converted
+    into the next subsection
+  terminology_patterns: >-
+    A stable coinage ("self pretraining", "SPT") defined once (§1) and used consistently;
+    careful hedging of scope ("might also be prevalent", §3.7); first-person priority claims
+    ("we are the first to...", §1, §3.2, §3.3) tied to specific results

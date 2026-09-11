@@ -1,0 +1,224 @@
+# thesis: This paper shows that lightweight vision tasks need far fewer measurements than a
+# traditional camera provides because square pixels are "almost guaranteed to be the wrong
+# choice" for task-relevant information capture, and therefore proposes freeform pixels —
+# task-learned optical masks treated as the first layer of a trainable network — yielding 8-pixel
+# cameras that match cameras with orders of magnitude more pixels while preserving privacy and
+# enabling self-powering.
+paper:
+  venue: ECCV
+  year: 2024
+  field: computational imaging / deep optics
+  task: designing task-specific minimalist cameras with freeform pixels
+  problem: >-
+    For "lightweight vision" (monitoring occupancy, lighting, traffic), "traditional cameras...
+    capture far more information than needed to solve a lightweight task" (§1); two questions:
+    "(a) Given a task, what is the smallest number of visual measurements needed to achieve a
+    desired performance? (b) How do we construct a camera that produces these measurements?" (§1)
+  importance: >-
+    Privacy: capturing the fewest measurements "tends to preserve privacy" where camera
+    deployment "has made the widespread deployment of cameras highly controversial" (§1);
+    sustainability: power scales linearly with pixel count, so few pixels enable "completely
+    self-sustaining" cameras deployable without infrastructure (§1)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Square-pixel cameras feeding inference networks; handcrafted minimalist masks (Pooj et al.);
+    deep optics that designs optical elements to enhance image quality; single-pixel/compressive
+    cameras that reconstruct images; privacy via low resolution, blur, or task-preserving optics
+    (§2)
+  core_assumption: >-
+    That the pixel — the basic sensing element — is fixed as a square on a regular grid: "square
+    pixels have persisted as the standard sensing element" (§3)
+  limitation: >-
+    Square pixels are the wrong primitive for lightweight tasks: "if the pixel is small, there is a
+    good chance that it will measure information that is not relevant to the task. If the pixel is
+    large, its measurement may include information germane to the task, but it may also be
+    corrupted by unrelated information" (§3)
+gap:
+  unresolved_problem: >-
+    Automatically designing task-optimal pixel shapes (rather than handcrafting masks as prior
+    minimalist cameras did) and fabricating them into deployable, self-powered hardware (§2)
+  evidence_for_gap: >-
+    Prior-art contrast: Pooj et al.'s masks are handcrafted per simple task; deep optics optimizes
+    for image quality, not measurement minimization; single-pixel cameras reconstruct images
+    rather than "circumvent[ing] image reconstruction" (§2)
+insight:
+  observation: >-
+    A masked photodetector integrates scene radiance against the mask transmittance: p =
+    ∬ I(x,y)M(x,y)dxdy (Eq. 1) — "each freeform pixel performs a linear projection of the scene"
+    (§3)
+  central_insight: >-
+    A set of freeform pixels is therefore exactly a fully-connected network layer without bias:
+    the camera hardware "can be modeled as the first layer of a neural network" — training the
+    network on task data simultaneously designs the camera and the inference engine (§3.1)
+  hypothesis: >-
+    With a faithful physical sensor model (optics, noise, saturation) inside training, learned
+    masks should solve real lightweight tasks with orders-of-magnitude fewer measurements than
+    baseline cameras of matching accuracy (§3.2, §4)
+method:
+  conceptual_change: >-
+    Stop capturing images and start capturing task statistics: the camera is co-designed with the
+    classifier; the pixel shape is a learned parameter rather than a fixed convention (§3, §3.1)
+  mechanism: >-
+    (1) Model the full sensor: mask M = σ(Mt) for [0,1] transmittance; directional response d(x,y);
+    active-area blur b(x,y) (Eq. 2); gain, read noise, quantization noise (Eq. 3); leaky
+    saturation to avoid vanishing gradients (Eq. 4); (2) train the joint network on video from an
+    auxiliary camera with task labels; (3) print first-layer weights as masks on transparency
+    film; photodiodes + amplifier + MCU + BLE for readout; solar panels + supercapacitor for
+    power (§5)
+  formulation: >-
+    Eq. 1: p = ∬ I(x,y)M(x,y)dxdy (linear projection); Eq. 2: p_d = ∬ (I*b)·M·d dxdy; Eq. 3:
+    p_n = G·p_d + n_r + n_q; Eq. 4: leaky clip at p_max with slope α (§3.2)
+claims:
+  - id: C1
+    claim: >-
+      Freeform pixels achieve task performance on par with traditional cameras with orders of
+      magnitude more pixels: 4 pixels ≈ 32×32 baseline on synthetic counting (256× reduction);
+      2 pixels ≈ 64×64 on people counting (2048× reduction); 16 pixels ≈ 12×12 on lighting
+      estimation; 16 pixels ≈ 8×14 on traffic speed (comparative)
+    importance: central
+    evidence: comparative — Fig. 4 (toy example), Fig. 7b, Fig. 8d, Fig. 9b (performance-vs-pixel-count curves)
+  - id: C2
+    claim: >-
+      Real fabricated prototypes perform the tasks: 8 pixels for workspace monitoring (people
+      count, zone occupancy, door state), 8 pixels with 94.0% accuracy for 5-light state
+      estimation, 8 pixels with 2.30 MPH RMSE for bidirectional traffic speed (practical)
+    importance: central
+    evidence: empirical/hardware — Fig. 7d (prototype task table), §6.2 (94.0%), §6.3 (RMSE 2.30)
+  - id: C3
+    claim: >-
+      The physical sensor model is necessary: "when the above sensor model is not incorporated
+      into the network during the training process, we obtain freeform pixels that perform poorly"
+      (causal, ablation in supplement)
+    importance: central
+    evidence: ablation — §3.2 statement + supplemental material
+  - id: C4
+    claim: >-
+      Minimalist cameras "tend to preserve privacy": 16 counting-optimized freeform pixels retrained
+      for face recognition on CelebA achieve only 2.0% recognition vs >98% for state-of-the-art on
+      traditional images (practical/causal)
+    importance: central
+    evidence: simulation — §6.1 privacy experiment (2751 images, 100 individuals)
+  - id: C5
+    claim: >-
+      The prototype is fully self-powered: harvests enough indoor light (~600 lux) "to read out and
+      wirelessly transmit the measurements made by 24 freeform pixels at 30 frames per second
+      without the use of an external power supply or a battery" (practical)
+    importance: central
+    evidence: hardware demonstration — Fig. 6, §5
+experiments:
+  - id: E1
+    research_question: >-
+      Controlled validation of the concept — how many pixels does a lightweight counting task need?
+      (toy example, §4)
+    setup: >-
+      1,000,000 synthetic images of 0-10 overlapping patches with illumination variation; mincams
+      from 1 to 128 pixels (powers of 2) vs baseline cameras at decreasing resolution; identical
+      inference networks; cross-entropy loss (Fig. 4)
+    baseline: traditional camera (square box masks) + same inference network
+    result: 4 freeform pixels achieve 0.71 RMSE ≈ 32×32 baseline (256× fewer pixels)
+    interpretation: learned non-square projections dominate square integration for counting
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      Does the concept survive real hardware on an indoor monitoring task? (§6.1)
+    setup: >-
+      One-hour labeled video (40/10/10 train/val/test min); train camera+inference for people
+      count (0-8), zone occupancy, door state; 8 freeform pixels fabricated and evaluated (Fig. 7)
+    baseline: baseline cameras of decreasing resolution
+    result: 2 pixels ≈ 64×64 baseline (0.68 RMSE, 2048× reduction); prototype outputs shown
+      overlaid on scene
+    interpretation: co-designed masks transfer from simulation to printed-transparency hardware
+    supported_claim: C1, C2
+  - id: E3
+    research_question: >-
+      Does minimalist vision actually protect privacy? (§6.1 privacy experiment)
+    setup: >-
+      Retrain inference network on 16 counting masks to identify 100 CelebA individuals (2751
+      images), faces scaled to full field of view, with noise/gain augmentation
+    baseline: state-of-the-art face recognition (>98%) on traditional images
+    result: 2.0% recognition rate
+    interpretation: >-
+      "it strongly supports our conjecture that a person's identity cannot be
+      reliably recovered" — privacy by insufficient information, not by obfuscation
+    supported_claim: C4
+  - id: E4
+    research_question: >-
+      Can a few pixels infer unobservable environmental state? (§6.2 room lighting)
+    setup: >-
+      30-minute labeled video; 5 light states via fisheye ground truth; 8-pixel prototype;
+      cross-entropy per light (Fig. 8)
+    baseline: baseline cameras at decreasing resolution (Fig. 8d)
+    result: 16 pixels ≈ 12×12 baseline; 8-pixel prototype 94.0% accuracy
+    interpretation: shading-mediated inference works even when the target objects are not directly visible
+    supported_claim: C1, C2
+  - id: E5
+    research_question: >-
+      Does the approach extend to outdoor, temporal tasks? (§6.3 traffic)
+    setup: >-
+      Full-day video; ground truth from off-the-shelf detector tracking; temporal history of 1
+      second of measurements; MSE loss; 8-pixel prototype (Fig. 9)
+    baseline: >-
+      baseline cameras (Fig. 9b: 16 pixels ≈ 8×14 baseline)
+    result: 2.30 MPH RMSE for both directions
+    interpretation: freeform pixels + temporal context cover dynamic-scene lightweight tasks
+    supported_claim: C1, C2
+narrative:
+  introduction_roles: [Context (two classes of vision tasks), Claim (lightweight tasks need few rich measurements), Definition (minimalist vision), Benefits (privacy, self-sustainability), Insight (freeform pixel = linear projection = first layer), Results preview, Prototype proof]
+  introduction_move: >-
+    Manifesto-style intro: carve out the "lightweight vision" category, define minimalism by
+    analogy to art ("pare down... to its essential elements"), pose the two driving questions,
+    argue the two benefits before any method, then reveal the key insight (pixels as network
+    layer) and close the intro with fabricated-hardware evidence — an argument that runs
+    concept → benefit → mechanism → artifact (§1)
+  related_work_strategy: >-
+    Five contrast-anchored clusters (§2): the direct inspiration (Pooj et al.) stated first with
+    the delta (handcrafted → learned); then deep optics, optical-network computation, single-pixel
+    imaging, privacy optics, and self-powered cameras — each closed by "our goal is different"
+    positioning on measurement minimization
+  method_strategy: >-
+    Physics-first modeling: §3 derives the linear-projection identity before proposing the network
+    analogy; §3.2 is an unusually detailed physical sensor model whose necessity is explicitly
+    claimed (C3) — the hardware realism is the method's credibility anchor
+  experiments_strategy: >-
+    Funnel structure: synthetic toy example with exhaustive pixel-count sweeps → three real tasks
+    each pairing simulated sweeps (Figs. 7b, 8d, 9b) with fabricated-prototype numbers; privacy
+    handled as an adversarial experiment (retrain for the forbidden task) rather than a claim
+  conclusion_strategy: >-
+    Discussion-style outlook rather than summary: SLM-reconfigurable masks, convolutional
+    freeform pixels via added lenses, and target application domains; privacy and
+    self-sustainability framed as guaranteed-by-design going forward (§7)
+reviewer_defense:
+  strengths: >-
+    Full-stack validation — simulation, learned masks, fabricated hardware, wireless readout,
+    and energy harvesting; quantitative baseline comparisons at matched task performance;
+    privacy evaluated adversarially (trying to break it) instead of asserted
+  vulnerabilities: >-
+    (1) Claims rest on three bespoke scenes with in-house videos; no public-benchmark or
+    cross-scene generalization test; (2) baseline comparisons use identical small inference
+    networks — no tuning of baseline pipelines; (3) face-recognition probe is one configuration
+    (conceded: "this does not prove that a minimalist camera guarantees privacy", §6.1);
+    (4) task labels for traffic come from an off-the-shelf detector (label noise unquantified);
+    (5) scaling to harder tasks conceded — "for fine-grained tasks... the number of freeform
+    pixels needed can be expected to approach that of a traditional camera" (§3.1); (6) sensor
+    model ablation relegated to supplement
+  anticipated_attacks: >-
+    "A trained attacker could still extract private information" — pre-empted by hedged language
+    throughout ("tends to preserve privacy", "we cannot guarantee", §1/§6.1) plus the adversarial
+    retraining experiment; "handcrafted masks already did this" — the Pooj et al. delta (learned,
+    task-general masks) is the paper's stated contribution (§2); "sensor model is overhead" —
+    C3 and the supplemental ablation answer it directly
+writing:
+  paragraph_patterns: >-
+    Claim-evidence pairing with explicit magnitudes ("This translates to a 256× reduction in pixel
+    count", §4); enumerated question/benefit lists early (§1) that the paper then answers in order
+  transition_patterns: >-
+    Section titles carry the argument (Why Minimalist Vision? → Freeform Pixels → A Toy Example →
+    Camera Architecture → Lightweight Vision: Experiments → Discussion); consistent task →
+    simulated sweep → prototype result rhythm inside each application subsection
+  terminology_patterns: >-
+    Memorable coinages used verbatim throughout: "freeform pixel", "minimalist camera", "mincam",
+    "lightweight vision"; physical quantities named precisely (transmittance function M(x,y),
+    directional response d(x,y), leaky saturation); results quantified in pixel-count reduction
+    factors (256×, 2048×) as the recurring currency of evidence

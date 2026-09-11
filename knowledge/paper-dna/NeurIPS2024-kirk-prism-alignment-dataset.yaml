@@ -1,0 +1,95 @@
+# thesis: This paper shows that alignment outcomes depend heavily on who provides feedback,
+# what they discuss, and how raters are sampled — because preferences are relational and
+# heterogeneous across people and cultures — and therefore proposes PRISM, a two-stage dataset
+# linking detailed profiles of 1,500 participants from 75 countries to 8,011 live conversations
+# with 21 LLMs, with census-representative UK/US subsamples.
+paper:
+  venue: NeurIPS
+  year: 2024
+  field: LLM alignment / human feedback data (Datasets & Benchmarks track)
+  task: collecting and analyzing participatory, representative, individualised human feedback on LLMs
+  problem: '"open questions remain about methods (how), domains (where), people (who) and objectives (to what end) of feedback processes" (abstract, §1)'
+  importance: '"Relying on ''generic'' human data teaches behaviours which are reductionist because values are relational and non-separable from the person... and non-generalisable because the indiscriminate aggregation of data subsumes hidden annotator contexts as universalities" (§1)'
+  source: full
+
+paradigm:
+  existing_approach: RLHF-style preference datasets — binary A/B comparisons from narrow crowdwork samples with limited annotator metadata (§1)
+  core_assumption: that a "generic human" preference signal exists and can be aggregated indiscriminately
+  limitation: four dataset gaps — "(i) over-reliance on binary A/B comparisons... (ii) small or biased samples... (iii) limited sample information (annotator IDs or sociodemographics)... (iv) scarce documentation for how values are operationalised" (§1)
+
+gap:
+  unresolved_problem: a feedback dataset that supports empirical study of who-provides-what-feedback, permits personalisation and attribution of sample artefacts, and targets cross-cultural value-laden controversy where disagreement is rife
+  evidence_for_gap: dataset audit (the four gaps, §1) plus normative argument — value-monism and cultural homogenisation risks in current feedback ("avoid value-monism and cultural homogenisation in the opinions that LLMs represent", §1); PRISM is "the first human feedback dataset to target cross-cultural controversies and value-laden prompts" (§1)
+
+insight:
+  observation: stated vs contextual preferences diverge — most participants rate objective attributes (factuality, fluency, helpfulness) highly (μ∈[86,89]) while "responses for whether value alignment itself is important follow an almost normal distribution (μ=54, σ=26)" (§2.1)
+  central_insight: pair the "ask" and "observe" principles of social science — map detailed survey profiles onto live conversations so that each rating is attributable to a person, enabling both personalised and collective alignment analyses (§1, §2)
+  hypothesis: with such linked data, one can demonstrate that discussion topics, model rankings, and downstream welfare all shift with sample composition — i.e., alignment conclusions are sample-sensitive (§1 case studies 1–3)
+
+method:
+  conceptual_change: treat feedback collection as a social-science sampling design problem (participatory / representative / individualised axes) rather than a scale-annotation task
+  mechanism: 'two stages — (1) Survey: LLM familiarity, self-written "constitution" (system string), structured stated-preference ratings on a visual analog scale, self-described values, demographics; (2) Conversations: 8,011 multi-turn live conversations with 21 LLMs (12 commercial, 9 open) under three dialogue conditions (unguided 38.9%, controversy-guided 30.4%, values-guided 30.7%), cardinal ratings + fine-grained attribute feedback, 68,371 utterances; £9/hour, ethics approval (§2, Fig. 1–2)'
+  formulation: Case Study II aggregation via Pairwise Rank Centrality (PageRank-style random walk over pairwise battle wins, regularisation 1, tie threshold 5); Case Study III welfare defined as MEAN RATING and MEAN CHOICE, compared across seven "seat of power" sampling schemes with First-Order Stochastic Dominance tests (§3.2–3.3, footnote 9)
+
+claims:
+  - id: C1
+    claim: PRISM contributes wider geographic/demographic participation, census-representative UK/US samples, and individualised ratings linked to detailed profiles — descriptive (dataset contribution)
+    importance: central
+    evidence: abstract; §2, Fig. 1 (1,500 participants, 75 birth countries, 8,011 conversations, 27,172 interactions)
+  - id: C2
+    claim: identity factors partially predict which topics people bring to LLMs — "11% of coefficients are significant (α=99%)", e.g., women and non-binary people discuss gender/LGBTQ+ issues more; all regions ask about abortion less than US participants — comparative
+    importance: supporting
+    evidence: §3.1, Fig. 3; OLS with individual-level clustered SEs
+  - id: C3
+    claim: model rankings are sensitive to idiosyncratic, conversational, and group-wise variance — samples of 100 people already produce "a fairly even distribution of collective preference among the top 10 models"; regional ranks shift (mistral-7b +7 places in Africa, llama-7b −7 in Asia); PRISM ranks diverge from Chatbot Arena (gpt models fare significantly worse) — comparative
+    importance: central
+    evidence: §3.2, Fig. 4; 95% CI over 1,000 bootstraps (App. T.9); style/refusal regressions (R²=0.06)
+  - id: C4
+    claim: sampling decisions causally affect welfare — smaller and demographically restricted "seat of power" samples are FOSD by large representative samples, and in-group sampling reduces out-group welfare; "average measures can conceal the welfare of minority groups" — causal (simulation over sampling schemes)
+    importance: central
+    evidence: §3.3, Fig. 5 (US males' picks FOSD by full US sample; 100 white raters hurt non-white welfare)
+  - id: C5
+    claim: no single LLM satisfies a population — the welfare-maximising model reaches only 45% MEAN CHOICE in the US — descriptive
+    importance: supporting
+    evidence: §3.3, Fig. 5
+
+experiments:
+  - id: E1
+    research_question: RQ1-analogue (Case Study I) — do different people initiate different discussions with LLMs?
+    setup: embed 8,011 opening prompts (all-mpnet-base-v2), UMAP→20D, HDBScan clustering (22 named clusters), over-representation factors and OLS per topic with identity covariates; hierarchical clustering of embedding neighbourhoods for intersectional entropy (§3.1, Fig. 3, App. R/S)
+    baseline: expected prevalence under random sampling; unguided condition
+    result: priming works (controversy↔Gender & LGBTQ+/Israel–Palestine/Abortion); 11% of identity coefficients significant; 84% of local prompt neighbourhoods meet or exceed random-sampling intersectional entropy; semantically-identical prompts ("Does God exist?") attract diverse raters whose preferences still differ
+    interpretation: diverse people occupy shared discussion spaces — enabling controlled preference comparison across identities
+    supported_claim: C2
+  - id: E2
+    research_question: RQ4-analogue (Case Study II) — do different people prefer differently-aligned models?
+    setup: Pairwise Rank Centrality over balanced subset (n=1,246 participants, 6,669 conversations); bootstrapped 100-person samples; rank shifts by dialogue type and region; Chatbot Arena re-aggregation with the same function; OLS on style/refusal features (§3.2, Fig. 4)
+    baseline: overall rank; Chatbot Arena rankings
+    result: ranking noise at N=100; context- and region-dependent rank shifts; gpt significantly worse than in Arena, zephyr-7b better; formatting/refusals partially explain scores (R²=0.06)
+    interpretation: leaderboard conclusions are artefacts of rater pools and domains
+    supported_claim: C3
+  - id: E3
+    research_question: RQ4 (Case Study III) — how do sampling decisions affect welfare outcomes?
+    setup: 7 sampling schemes (N∈{10,20,50,100} representative; 100 male/white/45+); welfare of four stakeholder populations measured by MEAN RATING and MEAN CHOICE; 1,000 draws; UK and US samples (§3.3, Fig. 5, App. U)
+    baseline: full representative sample of 100
+    result: smaller/restricted samples FOSD by Rep(100); male-only picks reduce non-male welfare; white-only picks reduce non-white welfare despite better population-average; max MEAN CHOICE 45%
+    interpretation: who sits "in the seat of power" of alignment data is a first-order welfare question
+    supported_claim: C4, C5
+
+narrative:
+  introduction_roles: [Context (human feedback central to alignment), Four open questions (how/where/who/to what end), Failure mode (four dataset gaps; generic-human critique), Insight (ask + observe pairing), Solution (PRISM with three named properties), Program preview (three case studies as questions)]
+  introduction_move: organizes the entire paper around four interrogatives in the first paragraph, then converts each dataset deficiency into a design property (binary comparisons→fine-grained ratings; narrow samples→75 countries+census reps; missing IDs→individualised profiles); the case studies are announced as literal questions, making the dataset's value falsifiable rather than rhetorical
+  related_work_strategy: two long thematic essays — participation/representation across science & technology (WEIRD critique), then learning-from-human-feedback technical lineage — positioning PRISM as the bridge (§4)
+  method_strategy: dataset-specification-first with an unusually complete apparatus (data statement, data clause, per-variable codebooks in App. V); case studies framed as demonstrations of analytical affordances, not headline results
+  experiments_strategy: three question-titled case studies escalating from topic choice → preference → welfare (individual → collective stakes); each states methods then results, with robustness (bootstraps, imputation) pushed to appendices
+  conclusion_strategy: merged Limitations/Discussion/Conclusion — concedes English-speaking crowdworker bias and statistical-power trade-offs, then raises three normative discussion points (limits of "legitimate" feedback; unit of alignment; participation as justice), ending by echoing Bai et al.'s "alignment data as a public good" (§5)
+
+reviewer_defense:
+  strengths: scale and design rigor (ethics approval, representative samples, linked profiles); the case studies turn a data release into evidence; transparency of the entire apparatus (codebooks, data statements); welfare analysis with formal FOSD criteria
+  vulnerabilities: English-speaking crowdworkers only, with task incentives (conceded §5); cardinal scale has "less interpersonal comparability than ordinal preferences" (flagged §2.2); free topic choice complicates controlled comparison (conceded); style/content confounds only weakly explained (R²=0.06, authors call for better methods); low toxicity (0.06%) may limit usefulness for safety research
+  anticipated_attacks: '"preferences are noisy/contradictory" — embraced: interpersonal disagreement is the object of study, with disagreement-preservation recommended before aggregation (§5); "rankings contradict other leaderboards" — treated as a finding with hypothesis testing rather than an error (§3.2); "welfare experiments oversimplify" — multiple welfare measures, both countries, imputation robustness (App. U)'
+
+writing:
+  paragraph_patterns: 'named-property paragraphs ("Participatory: ... Representative: ... Individualised: ...") that later become figure-panel and section organizers; methods paragraphs state the estimator then its interpretation ("The coefficients of interest are...")'
+  transition_patterns: 'question-titled case studies create a Q&A spine; key-results captions under each figure summarize findings in bold-like statements ("Key results (§3.2): Rankings are sensitive to...")'
+  terminology_patterns: careful vocabulary discipline — "Contextual Preference" chosen over economists' "Revealed Preference" (footnote 2); "stated vs contextual", "seat of power", "welfare pop" as recurring coined terms; small-caps model names throughout

@@ -1,0 +1,237 @@
+# thesis: This paper shows that current safety alignment is easily jailbroken because it is shallow
+# — it changes the generative distribution only over the first few output tokens, exploiting an
+# optimization shortcut where refusal prefixes alone induce safe-looking behavior — and therefore
+# proposes deepening alignment via safety-recovery data augmentation and a token-wise constrained
+# fine-tuning objective that protects initial tokens.
+paper:
+  venue: ICLR
+  year: 2025
+  field: LLM safety / adversarial robustness of alignment
+  task: diagnosing and mitigating jailbreak vulnerability of safety alignment
+  problem: >-
+    "The safety alignment of current Large Language Models (LLMs) is vulnerable. Relatively simple
+    attacks, or even benign fine-tuning, can jailbreak aligned models" (Abstract); the paper
+    identifies the shared cause: "safety alignment can take shortcuts, wherein the alignment adapts
+    a model's generative distribution primarily over only its very first few output tokens"
+    ("shallow safety alignment", Abstract)
+  importance: >-
+    "Given the pivotal role that alignment plays in LLM safety, and its widespread adoption, it is
+    imperative to understand why current safety alignment is so vulnerable to these exploits and to
+    identify actionable approaches to mitigate them" (§1)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Safety alignment via SFT + preference optimization (RLHF/DPO) teaching models to refuse
+    harmful inputs; refusal-prefix behavior is the de facto safety mechanism (§1, §2.2)
+  core_assumption: >-
+    That making πθ(h|x) small — e.g., by suppressing the first token of harmful responses — is
+    equivalent to making the model safe, though "this does not control the harmful behaviors
+    encoded just one token deeper by πθ(h>1|x, h1) = 1" (§3.1)
+  limitation: >-
+    Shallow alignment leaves the distribution of later harmful tokens nearly unchanged from the
+    base model (Fig. 1), so anything that bypasses the refusal prefix unlocks harmful continuations
+    (§2.3)
+gap:
+  unresolved_problem: >-
+    Why multiple seemingly unrelated exploits (adversarial suffixes, prefilling, decoding
+    parameters, fine-tuning attacks) all succeed, and whether alignment could be made robust at
+    greater depth ("we consolidate the notion of 'shallow safety alignment'", §2)
+  evidence_for_gap: >-
+    Empirical: per-token KL between aligned and base models concentrates on the first few tokens
+    (Fig. 1); prefilling unaligned models with refusal prefixes makes them as "safe" as aligned
+    ones (Table 1); ASR after 6 fine-tuning gradient steps jumps 1.5% → 87.9% (Fig. 3)
+insight:
+  observation: >-
+    Rigid refusal prefixes ("I cannot", "I apologize", "I am unable") start 96.1–96.7% of aligned
+    models' safety responses (§2.2); alignment's KL "budget" is spent almost entirely on the first
+    few token positions (Fig. 1)
+  central_insight: >-
+    Safety alignment has found a reward-hacking shortcut: suppressing π(h1|x) ≈ 0 suffices to make
+    π(h|x) ≈ 0, so nothing deeper is learned — and every exploit class works precisely by
+    re-launching the trajectory past the first few tokens (§2.2–2.3)
+  hypothesis: >-
+    If shallowness is the cause, then (a) training the model to recover to refusal after a harmful
+    prefix ("safety recovery examples") should deepen alignment and improve robustness against all
+    inference-stage exploits (§3), and (b) constraining initial-token drift during fine-tuning
+    should defeat fine-tuning attacks (§4)
+method:
+  conceptual_change: >-
+    Evaluate alignment per-token-position, not per-response; treat "depth" of alignment — how far
+    into the output the distribution is changed — as the safety-relevant variable
+  mechanism: >-
+    (1) Diagnosis: prefill experiments (Table 1), per-token KL alignment-budget analysis (Fig. 1),
+    per-token loss/gradient/KL decomposition of fine-tuning attacks (Fig. 3, Eq. 1);
+    (2) Mitigation A — data augmentation with (x, h, r) triplets training πθ(r|x, h≤k),
+    k ~ Uniform[1,C] (Eq. 2), with Alpaca-distilled utility anchor DB, α = 0.2;
+    (3) Mitigation B — token-wise constrained fine-tuning objective (Eq. 3) with βt large
+    (0.5–2) for t ≤ 5 and small (0.1) beyond, interpretable as adaptive per-token gradient weight
+    wt = 2σ(βt Δt) (Eq. 5) or token-wise KL-regularized RL (App. D.3)
+  formulation: >-
+    Eq. 2: mix of E[−log πθ(r|x, h≤k)] over prefill depths and utility anchor loss;
+    Eq. 3: min_θ E[−Σ_t (2/βt) log σ(βt log(πθ(yt|x,y<t)/π_aligned(yt|x,y<t)))]; limiting
+    behaviors: small βt → cross-entropy, large βt → hinge-like deviation penalty (Eq. 4, App. D.1)
+claims:
+  - id: C1
+    claim: >-
+      Unaligned base models become as safe as aligned ones when a refusal prefix is prefilled —
+      harmfulness 68.6/85.4% → 2.1–16.4/1.0–8.7% (Llama-2/Gemma base) (descriptive/causal)
+    importance: central
+    evidence: empirical — Table 1 (prefilled refusal prefixes vs no prefix)
+  - id: C2
+    claim: >-
+      "The KL divergence is significantly higher in the first few tokens than for later tokens" —
+      current alignment spends its KL budget on initial tokens (descriptive/mechanistic)
+    importance: central
+    evidence: empirical — Fig. 1 (per-token KL, aligned vs base on Harmful HEx-PHI)
+  - id: C3
+    claim: >-
+      Shallow alignment explains inference-stage exploits: prefilling attacks push ASR from ~0 to
+      over 50% with increasing prefilled harmful tokens; adversarial-suffix surrogate objectives
+      and decoding-parameter exploits work "by exactly exploiting shallow safety alignment"
+      (mechanistic/interpretive)
+    importance: central
+    evidence: empirical + interpretive — Fig. 2 (ASR vs prefilled tokens), §2.3.1 analysis of GCG and decoding exploits
+  - id: C4
+    claim: >-
+      Fine-tuning attacks perturb the first few tokens most (highest loss/gradient/KL at early
+      positions), explaining why few gradient steps jailbreak: ASR 1.5% → 87.9% after 6 steps
+      (mechanistic)
+    importance: central
+    evidence: empirical — Fig. 3a–c per-token decomposition
+  - id: C5
+    claim: >-
+      Deepened alignment (safety-recovery augmentation) substantially improves robustness against
+      prefilling, GCG, and decoding exploits (e.g., prefill-40 ASR 57.0% → 4.5%; GCG AdvBench
+      65.6% → 19.0%) with utility nearly preserved (AlpacaEval 51.8% → 49.5%) (causal/comparative)
+    importance: central
+    evidence: comparative — Table 2 (ASR initial vs augmented), Fig. 4 (KL depth), §3.1 utility check
+  - id: C6
+    claim: >-
+      Constraining initial-token drift during fine-tuning mitigates fine-tuning attacks while
+      preserving benign-task utility (Harmful Examples ASR 88.9% → 4.6%; utility comparable to
+      standard SFT) (causal/practical)
+    importance: central
+    evidence: comparative — Table 3 (Standard SFT vs Constrained SFT on 3 attacks + 3 benign tasks, both Llama-2 and Gemma)
+experiments:
+  - id: E1
+    research_question: >-
+      Is there an optimization shortcut to apparent safety? (§2.2, Table 1)
+    setup: prefill HEx-PHI harmful instructions with refusal prefixes on base vs aligned
+      Llama-2-7B and Gemma-7B; measure harmfulness rate (GPT-4 judge)
+    baseline: no-prefix decoding
+    result: base models' harmfulness collapses to near-aligned levels under any refusal prefix
+    interpretation: refusal-prefix continuation is a pretrained language pattern alignment can hack
+    supported_claim: C1
+  - id: E2
+    research_question: >-
+      Do current aligned models exploit the shortcut? (§2.2, Fig. 1)
+    setup: per-token KL divergence D_KL(π_aligned(·|x,y<k) || π_base(·|x,y<k)) on Harmful
+      HEx-PHI (330 jailbroken-GPT-3.5 answers)
+    baseline: uniform KL across tokens (implicit)
+    result: KL concentrated on first few tokens for both Llama-2 and Gemma
+    interpretation: alignment is shallow; also explains why SFT/RLHF pipelines induce it (no
+      training signal on post-harmful-prefix continuations, §2.2)
+    supported_claim: C2
+  - id: E3
+    research_question: >-
+      Does shallowness predict inference-stage attack success? (§2.3.1, Fig. 2)
+    setup: prefill increasing numbers k of harmful tokens from Harmful HEx-PHI answers; ASR vs k
+    baseline: unattacked models (ASR ~0–2.1%)
+    result: ASR rises quickly from near zero to over 50% with more prefilled tokens
+    interpretation: only the refusal-prefix block protects the model; also unifies GCG surrogate
+      objectives and decoding-parameter exploits
+    supported_claim: C3
+  - id: E4
+    research_question: >-
+      Where do fine-tuning attacks act in token space? (§2.3.2, Fig. 3)
+    setup: fine-tune Llama-2-7B-Chat on 100 harmful pairs (lr 2e-5, batch 64); track per-token
+      loss, gradient norm, and per-token KL to the aligned model; ASR checkpoints at steps 0/2/4/6
+    baseline: initially aligned model (ASR 1.5%)
+    result: early-token losses/grads dominate; KL shift concentrated early; ASR 22.4% → 76.4% →
+      87.9% at 2/4/6 steps
+    interpretation: undoing alignment = undoing the initial-token distribution change
+    supported_claim: C4
+  - id: E5
+    research_question: >-
+      RQ-intervention — does deepening alignment improve robustness? (§3, Table 2)
+    setup: fine-tune Llama-2-7B-Chat on 256 (x,h,r) recovery triplets + Alpaca utility anchor
+      (Eq. 2); evaluate prefilling (5/10/20/40 tokens), GCG (HEx-PHI + AdvBench), decoding
+      exploit (HEx-PHI + MaliciousInstruct); AlpacaEval for utility
+    baseline: initial Llama-2-7B-Chat
+    result: >-
+      large ASR reductions on all three attack types (e.g., prefill-40: 57.0 → 4.5%); win
+      rate 49.5% vs 51.8% initial; improved but not complete fine-tuning durability (App. C)
+    interpretation: the counterfactual "deeper alignment" is realizable and protective
+    supported_claim: C5
+  - id: E6
+    research_question: >-
+      RQ-intervention — does protecting initial tokens defeat fine-tuning attacks? (§4.2, Table 3)
+    setup: constrained objective (β1=0.5, βt=2 for t≤5, βt=0.1 after) on Llama-2-7B-Chat and
+      Gemma-1.1-7B-IT; three attacks (Harmful Examples, Identity Shifting, Backdoor Poisoning) +
+      three benign datasets (Samsum, SQL Create Context, GSM8k) with ROUGE-1/accuracy utility
+    baseline: standard SFT on same data
+    result: constrained SFT keeps ASR near initial (4.6%/8.1%/10.9% vs 88.9%/79.5%/90.9% on
+      Llama-2) with comparable utility
+    interpretation: safety persists because the decisive early-token distribution cannot drift;
+      βt ablations in App. C confirm the mechanism
+    supported_claim: C6
+narrative:
+  introduction_roles: [Context (alignment's role), Failure inventory (known exploits), Diagnosis (shallow alignment), Explanation preview (three contributions), Advocacy (call to deepen alignment)]
+  introduction_move: >-
+    Diagnosis-driven position paper: open with the vulnerability landscape, immediately name the
+    unifying concept (shallow vs deep alignment) with the "Sure, here's a detailed guide" example,
+    then preview three contributions in order (characterize, deepen via augmentation, protect via
+    constraint); the intro explicitly frames the paper as advocacy for a research direction, not
+    just a method (§1)
+  related_work_strategy: >-
+    Six short thematic clusters (§5), the most load-bearing being "Superficial Alignment Hypothesis
+    and per-token effects" — the paper explicitly claims depth over prior observations: "we go
+    much deeper into investigating the safety-specific effects... and tie it to multiple downstream
+    attacks and training-based mitigations" (§5)
+  method_strategy: >-
+    Diagnosis-first counterfactual structure: Section 3 and 4 are framed as questions ("What if
+    the safety alignment were deeper?"), with the math (Eq. 2, Eq. 3–5) introduced only after the
+    conceptual mechanism is argued in prose
+  experiments_strategy: >-
+    Mirror-structure evidence: §2 diagnoses with the exact measurements (Table 1, Figs. 1–3) that
+    §3–4 then move (KL depth in Fig. 4 mirrors Fig. 1; Table 3 attacks mirror §2.3.2 taxonomy);
+    every attack family introduced in diagnosis reappears as an evaluation axis for the fix
+  conclusion_strategy: >-
+    Restate the shortcut finding, summarize the two mitigations, concede imperfection ("may not be
+    a perfect defense and may be subject to some future adaptive attacks", §6), and end on the
+    advocacy claim restated as the title thesis
+reviewer_defense:
+  strengths: >-
+    One explanatory construct unifies four attack literatures; every claim is backed by a
+    dedicated measurement (prefill curves, per-token KL, per-token gradients); mitigations are
+    tested against the full attack taxonomy plus utility regression; code released
+  vulnerabilities: >-
+    (1) Mitigations are post-hoc fine-tuning of already-aligned models since "we don't have access
+    to the data and pipeline for aligning Llama-2 models" (App. Limitations) — the alignment
+    pipeline itself is not retrained; (2) GCG robustness improves but remains substantial (19.0%
+    AdvBench); augmented model still vulnerable to adversarial fine-tuning (conceded, §3.2);
+    (3) evaluation on two 7B open models judged by GPT-4; (4) safety recovery data is synthetic
+    and incoherent by design — a distribution-shifted training signal whose long-term side effects
+    are unexamined; (5) "depth" is token-index-based; the authors themselves note depth may be
+    multi-dimensional (§5)
+  anticipated_attacks: >-
+    "Isn't this the Superficial Alignment Hypothesis?" — addressed head-on in §5: prior work noted
+    token-wise effects outside safety or proposed ICL alternatives; this paper ties them to
+    concrete attacks and defenses; "the augmentation data is unnatural" — embraced: "these
+    augmented examples essentially cover outlier cases" useful for encoding deeper alignment (§3.1
+    + fn. 4 linking to exploration in RL); "will adaptive attacks break the constraint?" —
+    conceded in §6 as future risk while arguing the diagnostic value stands
+writing:
+  paragraph_patterns: >-
+    Bolded mini-claims as paragraph openers ("The 'Safety Mode' Shortcut: Unaligned Models Only
+    Need A Refusal Prefix to Appear 'Safe'.", "Current Safety-aligned Models Exploit This
+    Shortcut.") that state then prove each finding
+  transition_patterns: >-
+    Question-titled sections create a counterfactual dialogue: "What If The Safety Alignment Were
+    Deeper?" → "What If The Initial Tokens Were Protected...?"; "Remark. As a counterfactual,
+    in Section 3, we show..." explicitly stitches diagnosis to remedy (§2.3.1)
+  terminology_patterns: >-
+    Two coinages ("shallow safety alignment", "deep safety alignment") defined formally in §2 and
+    reused verbatim thereafter; "safety mode" as the memorable shortcut name; consistent
+    token-subscript notation (y≤k, h>k) across prose, equations, and figures

@@ -1,0 +1,96 @@
+# thesis: This paper shows that power-law neural scaling with dataset size can be beaten — even
+# reduced to exponential scaling — if training examples are pruned with a high-quality difficulty
+# metric and a Pareto-optimal keep-fraction, because abundant data makes easy examples redundant
+# while hard examples carry the remaining information (proved via statistical mechanics of the
+# perceptron), and therefore proposes the pruning-strategy theory plus a simple self-supervised
+# prototypicality metric that discards 20% of ImageNet without sacrificing performance.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: data-centric deep learning / neural scaling laws
+  task: data pruning — selecting training subsets that beat power-law error scaling with dataset size
+  problem: '"power law scaling is extremely weak and unsustainable" — e.g. a 3%→2% error drop "might require an order of magnitude more data, compute, or energy" (§1); can "we achieve exponential scaling instead, with a good strategy for selecting training examples?" (§1)'
+  importance: scaling laws "have motivated significant societal investments in data collection, compute, and associated energy consumption"; better-than-power-law scaling "would mean that we could go from 3% to 2% error by only adding a few carefully chosen training examples" (§1); "the discovery of good data-pruning metrics may provide a viable path forward to substantially improved neural scaling laws, thereby reducing the resource costs of modern deep learning" (Abstract)
+  source: full
+paradigm:
+  existing_approach: train on ever-larger datasets per neural scaling laws; existing pruning works use difficulty/importance metrics to keep the hardest examples [9,10,11] (§1, §2.1)
+  core_assumption: error necessarily follows a power law in dataset size; all training examples are roughly interchangeable
+  limitation: 'prior pruning work "leave[s] open fundamental theoretical and empirical questions: When and why is successful data pruning possible? What are good metrics and strategies? Can such strategies beat power law scaling? Can they scale to ImageNet? Can we leverage large unlabeled datasets?" (§1)'
+gap:
+  unresolved_problem: a theory of when/why pruning works, validated beyond toy settings, plus a pruning metric that is accurate, cheap, label-free, and scalable to ImageNet (§1, §6)
+  evidence_for_gap: enumerated open questions in §1; empirical finding in §5 that most existing metrics fail to transfer to ImageNet ("most existing high performing metrics scale poorly to ImageNet, while the best are computationally intensive and require labels", Abstract)
+insight:
+  observation: power-law error-vs-data scaling implies "many training examples are highly redundant"; in the perceptron teacher-student setting, easy examples carry coarse-grained information and hard examples fine-grained information about the target function (§1, §3)
+  central_insight: the optimal pruning strategy flips with data abundance — "with abundant (scarce) initial data, one should retain only hard (easy) examples" — and a Pareto-optimal increasing keep-fraction f over initial dataset size traces an exponential error-scaling envelope (§3, Fig. 1)
+  hypothesis: predictions (1) keep-hard helps only when data is abundant, (2) fixed-f keep-hard yields power-law scaling with random-pruning's exponent, (3) optimizing over (initial size, f) yields better-than-power-law scaling — should all hold for deep networks on SVHN/CIFAR-10/ImageNet (§4)
+method:
+  conceptual_change: treat dataset size not as a fixed input to scaling laws but as a design variable coupled to a pruning metric's quality; error becomes a function of three quantities (initial data α_tot, kept fraction f, metric fidelity θ) rather than of dataset size alone
+  mechanism: analytic theory — replica-method solution of student-teacher perceptron learning where examples are pruned by probe-student margins m_μ = J_probe·(y_μ x_μ) (θ = angle between probe and teacher measures metric quality); empirically — benchmark of 10 pruning metrics on ImageNet; new metric — k-means in self-supervised (SWaV) embedding space, difficulty = cosine distance to nearest cluster prototype (§3, §5, §6)
+  formulation: α_tot = P/N, α_prune = f·α_tot; analytic test error ε(α_tot, f, θ) asymptotically exact in the high-dimensional limit (App. A); Pareto frontier of ε over (α_tot, f) at fixed α_prune (Fig. 1A red curve)
+claims:
+  - id: C1
+    claim: in theory, keeping hard examples beats keeping easy ones only when initial data is abundant, and vice versa when scarce (theoretical)
+    importance: central
+    evidence: §3, Fig. 1A–C (replica analysis; "It turns out keeping the easiest ... is a better pruning strategy when α_tot is small")
+  - id: C2
+    claim: '"Exponential scaling is possible with respect to pruned dataset size provided one chooses an increasing Pareto optimal pruning fraction as a function of initial dataset size" (theoretical)'
+    importance: central
+    evidence: §3, Fig. 1A Pareto frontier; contribution list item 1(b)
+  - id: C3
+    claim: all three theory predictions hold empirically for ResNets on SVHN, CIFAR-10, and ImageNet — better-than-power-law scaling at large initial dataset sizes and aggressive pruning (comparative/empirical)
+    importance: central
+    evidence: §4, Fig. 3A–D ("We verified all three of these predictions")
+  - id: C4
+    claim: most existing supervised pruning metrics scale poorly to ImageNet; the best (memorization) is computationally intensive and label-dependent (empirical/comparative)
+    importance: central
+    evidence: §5, Fig. 5A–B (first large-scale benchmark of 10 metrics on ImageNet)
+  - id: C5
+    claim: a simple self-supervised prototype metric (distance to nearest SWaV cluster centroid) "matches or exceeds the performance of the best supervised metric, memorization, until only 70–80% of the data is kept", without labels and cheaply (comparative)
+    importance: central
+    evidence: §6, Fig. 5C; robustness to cluster count k over an order of magnitude (App. F)
+  - id: C6
+    claim: data pruning helps transfer learning — fine-tuning a ViT on 10% of CIFAR-10 matches full-data fine-tuning, and pre-training ResNet50 on 50% of ImageNet matches full pre-training for CIFAR-10 transfer (empirical)
+    importance: supporting
+    evidence: §4 "Data pruning improves transfer learning", Fig. 4A–B
+experiments:
+  - id: E1
+    research_question: RQ4-flavored (theory→practice transfer) — do the perceptron predictions (strategy flip, fixed-f power law, Pareto exponential envelope) hold for deep nets?
+    setup: ResNet18/50 on SVHN, CIFAR-10, ImageNet across grid of initial dataset sizes and keep fractions f using EL2N/margin-style metrics (§4, Fig. 3)
+    baseline: random pruning (f=1 / random subsampling) and power-law fits
+    result: keep-hard hurts at small data and helps at large; fixed-f tracks power law; Pareto envelope beats power law
+    interpretation: theory captures real deep-learning behavior
+    supported_claim: C3
+  - id: E2
+    research_question: RQ6-flavored (metric benchmark) — which pruning metrics work at ImageNet scale?
+    setup: Spearman rank-correlation cluster map of 10 metrics + top-5 accuracy when training on metric-ranked subsets of ImageNet (§5, Fig. 5A–B)
+    result: most metrics cluster by type and degrade; memorization best but expensive/label-hungry
+    interpretation: motivates the self-supervised metric
+    supported_claim: C4
+  - id: E3
+    research_question: RQ1-flavored — can a cheap label-free metric match supervised pruning?
+    setup: k-means in SWaV space; train on (100−x)% hardest-by-prototype subsets incl. 80% of ImageNet; also supervised per-class prototypes as baseline (§6, Fig. 5C)
+    baseline: memorization (best supervised), supervised prototypes
+    result: self-supervised prototypes match/exceed memorization down to 70–80% kept; 20% of ImageNet discardable without loss
+    interpretation: scalable self-supervised pruning is viable
+    supported_claim: C5
+  - id: E4
+    research_question: RQ4 — does pruning survive transfer (fine-tuning and pre-training phases)?
+    setup: ViT (ImageNet21K-pretrained) fine-tuned on pruned CIFAR-10; ResNet50 pretrained on pruned ImageNet1K then fine-tuned on full CIFAR-10 (§4, Fig. 4)
+    result: 10% fine-tuning data and 50% pre-training data match full-data performance
+    interpretation: pruning gains compound across the transfer pipeline
+    supported_claim: C6
+narrative:
+  introduction_roles: '[Context (scaling laws drive investment), Cost of the paradigm (power law is weak), Question (exponential instead?), Redundancy observation → pruning idea, Open questions list (5), Contributions (theory + practice + metric), Roadmap]'
+  introduction_move: quantify the pain of power-law scaling with concrete numbers (3%→2% error = 10× data) before proposing the alternative; the five open questions function as a contract the paper signs and later settles section by section; theory predictions are explicitly labeled "striking" to advertise falsifiability
+  related_work_strategy: 'three-thread map — pruning metrics (§2.1: not all examples equal), scaling laws and their inefficiency (§2.2), statistical mechanics of perceptrons (§2.3) — each positioned as a necessary ingredient the paper combines'
+  method_strategy: theory-first with explicit predictions — the analytic section ends by listing numbered testable predictions, which the experiments section then mirrors item by item; the metric development follows as the practical payoff of the benchmark's negative results
+  experiments_strategy: prediction-verification loop (§4 mirrors §3's numbered predictions), then instrument development (§5 benchmark → §6 new metric); transfer results added as generalization breadth; limitations given their own honest subsection (§7)
+  conclusion_strategy: 'summary + limitations (metric quality is the bottleneck; epochs-vs-time tradeoff; class-balancing essential) + "Outlook: Towards foundation datasets" — scaling the idea to foundation-model data volumes as the closing vision'
+reviewer_defense:
+  strengths: quantitative theory that matches simulations "excellently" (Fig. 1A) and transfers to deep networks; three independent empirical settings; first ImageNet-scale pruning-metric benchmark; practical label-free metric; released fairness/OOD analyses
+  vulnerabilities: authors concede exponential scaling "requires a high quality data pruning metric" — the bottleneck is deferred to future work (§7); the theory is perceptron-only (teacher-student, Gaussian inputs); pruned-training performance gains partly rely on extra epochs at equal iterations, diluting compute savings (App. J tradeoff); class-balancing is essential and its selection is unsolved (App. H); ImageNet pruning shown only down to 70–80% kept
+  anticipated_attacks: '"isn''t keeping-hard already known?" — §1 concedes prior works prune by keeping hard examples but stresses the unexplored when/why questions and the strategy-flip prediction; "pruning just saves training time by smaller data" — App. J epoch-matched analysis addressed head-on; "fairness harms from pruning?" — App. I per-class analysis finding "no substantial differential effects"'
+writing:
+  paragraph_patterns: numbered-prediction architecture (predictions 1/2/3 in theory, re-verified in order in practice); intuition paragraphs translating math into language ("coarse-grained vs fine-grained information")
+  transition_patterns: theory→practice hinge ("We verified all three of these predictions ..."); sections titled as claims ("Data pruning can beat power law scaling in practice")
+  terminology_patterns: physics vocabulary retained (replica method, Pareto frontier, α ratios, prototypicality); consistent α_tot/α_prune/f/θ notation; "foundation datasets" coined in the outlook

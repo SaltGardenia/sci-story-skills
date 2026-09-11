@@ -1,0 +1,79 @@
+# thesis: This paper shows that improving prediction is a "first and last-mile effort" for
+# identifying the worst-off, because in a Gaussian screening model the marginal value of better
+# predictions diverges only at R^2→0 or R^2→1 (with α=β) while access expansion dominates in
+# the middle regime where real systems operate, and therefore proposes the prediction-access
+# ratio (PAR) as a decision tool validated on German long-term-unemployment profiling.
+paper:
+  venue: ICML
+  year: 2025
+  field: ML for public policy / resource allocation
+  task: evaluating when to invest in prediction vs screening capacity for equity-driven targeting
+  problem: '"due to the absence of an overarching framework that allows the systematic assessment of the relative impacts of different design decisions, efforts to improve predictive accuracy are rarely studied in concert with other policy levers such as expanding screening capacity" (§1)'
+  importance: equity-driven programs (social housing, poverty targeting, unemployment assistance) prioritize the worst-off; the value of a predictor "cannot be assessed without reference to the broader social context" and must be compared to bureaucratic alternatives like teacher training or facilities (§1)
+  source: full
+paradigm:
+  existing_approach: agencies incrementally improve prediction pipelines starting from current rule-based/profiling baselines (Desiere et al. 2019; Körtner & Bonoli 2023); learning-in-allocation theory (Perdomo 2024) studies heterogeneous allocation effects, not worst-off identification (§1, §1.2)
+  core_assumption: predictive accuracy is the primary lever for improving identification of at-risk individuals
+  limitation: '"implementing more complex profiling systems at scale comes with operational costs... which need to be contextualized by the cost-benefit ratio of expanding access" — accuracy gains are evaluated in isolation from capacity and cost (§1)'
+gap:
+  unresolved_problem: when does improving prediction yield a higher marginal benefit than expanding screening capacity, and when is a prediction system "good enough" for deployment?
+  evidence_for_gap: absence of framework (§1); counternarrative framing — current empirical public-policy efforts focus on incremental prediction improvements (§1)
+insight:
+  observation: in the Gaussian model the policy value V(α, f; β) — fraction of the at-risk population identified — is governed only by R^2 = corr(Y,Ŷ)^2, screening capacity α, and target quantile β (§1.1, §2)
+  central_insight: 'the local prediction-access ratio is sharply non-monotone in R^2: prediction improvements diverge in value exactly at the extremes (R^2→1 with α=β, and R^2→0, Theorem 3.2), whereas for realistic R^2∈[0.15,0.85] access expansion wins (PAR ≥ 1, Theorem 1.2/Proposition 3)'
+  hypothesis: despite idealized Gaussian assumptions, the PAR's shape should transfer to a real administrative profiling task where "none of these assumptions hold"
+method:
+  conceptual_change: treat prediction quality as one policy lever priced against its competitors (capacity expansion), rather than as an end to be maximized
+  mechanism: screening policy π(x) = 1{f(x) ≤ t(α)}; value V(α,f;β) = Pr[f(x) ≤ t(α) | Y ≤ t(β)]; PAR = marginal value of ∆α access over marginal value of ∆R^2 prediction (Eq. 3); decision rule "expand access whenever C_Access/C_Pred < PAR" (§1.1)
+  formulation: policy value in Gaussian setting V(π*) = (1/β)Φ₂(Φ⁻¹(α), Φ⁻¹(β); ρ) with ρ = √R² (Proposition 2); Theorem 3.1 gives PAR ≥ (Δα/ΔR²)·[√(R²(1−R²))·5.1·α·Φ⁻¹(1−α)^(1/(1−R²))]⁻¹ − 1 + o(1) for small α
+claims:
+  - id: C1
+    claim: prediction is a first- and last-mile effort — local prediction improvements are most impactful only as R^2→1 (with α=β) or R^2→0, where PAR→0 favors prediction; otherwise access dominates (theoretical)
+    importance: central
+    evidence: Theorem 3.2 + Theorem 1.1 (informal) + Fig. 2 numerical PAR simulation
+  - id: C2
+    claim: in the regime of current systems (R^2 ≈ 0.2, α ≈ β), the local PAR is at least 1, i.e., expanding access beats improving prediction (theoretical)
+    importance: central
+    evidence: Theorem 1.2 (informal, Ω(α^(−1/(1−R²))) lower bound) + Proposition 3 conservative bounds
+  - id: C3
+    claim: for very limited screening capacity α ≪ β, PAR grows polynomially in 1/α — capacity expansion overwhelmingly dominates (theoretical)
+    importance: supporting
+    evidence: Theorem 3.1 with asymptotic Φ⁻¹(1−α) ~ √(log(1/α))
+  - id: C4
+    claim: the theory's structure (PAR rise at small α, PAR < 1 at mid R^2, divergence at extremes) is reproduced on real German labor-administration data (empirical generalization)
+    importance: central
+    evidence: §5.1, Fig. 6 (PAR for three regimes R^2 = 0, 0.15, 1−∆), Fig. 5 policy-value curves
+  - id: C5
+    claim: to screen 75%+ of high-risk jobseekers, an overhead of ∆α ≈ 0.25 additional capacity is consistently needed across β — imperfect prediction has a quantifiable capacity price (descriptive/practical)
+    importance: supporting
+    evidence: §5.1, Fig. 5 discussion
+experiments:
+  - id: E1
+    research_question: does the Gaussian-model PAR structure hold in a real profiling task? (paper's framing §5)
+    setup: German administrative records, 274,515 jobseekers / 553,980 unemployment spells (2010–2015), CatBoost predicting unemployment duration, test R^2 = 0.15; PAR evaluated at ∆R² = ∆α = 0.1 in three regimes (R^2 = 0, 0.15, 1−∆) (§5, §5.1)
+    baseline: random allocation (R^2=0), near-perfect prediction (R^2→1), literature values of Bach et al. 2023
+    result: PAR rises for small α (matching Thm 3.1); stays below 1 for α ≥ 0.1 at R^2=0; policy value 0.28/0.56 at α≈0.1/0.25 vs literature 0.29/0.58 — close replication
+    interpretation: theory "exactly match[es] up in our real-world case study, where, of course, none of these assumptions hold" (§1)
+    supported_claim: C4
+  - id: E2
+    research_question: what capacity overhead does imperfect prediction impose? (planner's question)
+    setup: policy value V(α, β) sweeps at β ∈ {0.05, 0.15, 0.25} (Fig. 5)
+    baseline: α = β ideal
+    result: ∆α ≈ 0.25 needed for 75% coverage across β; marginal access gains flatten at higher α
+    interpretation: gives agencies a concrete "how much is enough" number for deployment decisions
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (bureaucracies adopt risk prediction for equity), Gap (no framework comparing prediction vs other levers), Insight preview (first/last-mile), Counternarrative (agencies over-invest in prediction), Contribution (framework + decision rule + case study)]
+  introduction_move: opens with a named real program (Wisconsin 2012) to fix the stakes, then immediately poses the comparative question ("how much better is the predictor than existing policies?") — the paper's identity is comparative decision analysis, not model building; the counternarrative sentence explicitly positions the result against current practice
+  related_work_strategy: field-bridging — sits between learning-in-resource-allocation theory (Perdomo 2024, whose PAR it extends to a new setting) and applied profiling literature it critiques (§1.2)
+  method_strategy: toy-model-first — the Gaussian model is defended in advance ("extremely simple, ... surprisingly precise numerical insights that exactly match up in our real-world case study"), converting an obvious weakness into the paper's rhetorical spine
+  experiments_strategy: single deep case study instead of a benchmark suite — external validation comes from matching prior published policy values (0.28 vs 0.29 etc.), and PAR is evaluated in three contrived regimes chosen to test each theorem
+  conclusion_strategy: modest scope statement ("prediction is not always the most important piece of the puzzle") + future-work list on cost structures and uneven error reduction
+reviewer_defense:
+  strengths: closed-form theorems with informal statements up front; real administrative data at scale; external validation against independent published results; costs deliberately separated so domain experts can plug in their own
+  vulnerabilities: Gaussian + independence assumptions (admitted); single-country single-task case study; ∆α=∆R²=0.1 is far from the local limit used in theory (paper notes this discrepancy itself, §5.1); R^2 simulated by scaling residuals — an idealized improvement pathway
+  anticipated_attacks: '"real outcomes aren''t Gaussian" — addressed by the case-study transfer result; "PAR depends on arbitrary ∆" — Proposition 3 gives conservative bounds over ranges and Fig. 2 sweeps the grid; "policy value may miss harm of false positives" — stated upfront that false positives carry no harm in these domains (§1.1)'
+writing:
+  paragraph_patterns: informal theorem statements (Thm 1.1/1.2) before formal ones (3.1/3.2) — accessibility ladder; each theorem followed by "What this means" style interpretation paragraphs
+  transition_patterns: results section organized as questions addressed to a planner ("How much does the screening capacity need to increase...?", "What is the impact of improving screening capacity versus prediction errors?") (§5.1)
+  terminology_patterns: consistent economics vocabulary (policy value, marginal, capacity, access, worst-off); PAR kept symbolically stable (Eq. 3) across theory, simulation, and case study

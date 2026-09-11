@@ -1,0 +1,91 @@
+# thesis: This paper shows that diffusion models can finally rival autoregressive models
+# on discrete data because the reverse process can be parameterized directly by the ratios
+# p^t(y)/p^t(x) of the data distribution, learnable through a novel score entropy loss that
+# is positive-preserving and scalable, and therefore proposes SEDD (Score Entropy Discrete
+# Diffusion), which beats prior language diffusion by 25–75% perplexity and GPT-2 on
+# zero-shot perplexity while enabling compute-quality trade-offs and infilling.
+paper:
+  venue: ICML
+  year: 2024
+  field: generative models / discrete diffusion for language
+  task: language modeling (likelihood) and text generation with non-autoregressive diffusion
+  problem: "\"diffusion models have fallen short on discrete data domains such as natural language\"; no discrete diffusion approach rivals autoregressive modeling on likelihoods, sampling speed, or un-annealed sample quality (abstract, §1)"
+  importance: "autoregressive modeling has \"remained the only competitive method for decades\" for discrete data but is slow, hard to control, and degrades without annealing — a principled alternative unlocks parallel generation and infilling (§1)"
+  source: full
+paradigm:
+  existing_approach: autoregressive transformers (chain rule); discrete diffusion trained by mean prediction of p_{0|t} (D3PM, Campbell et al.), ratio matching, or concrete score matching with an ℓ2 loss (§2.2)
+  core_assumption: that the reverse discrete process is best learned through the density p_{0|t} (mean prediction), the direct analogue of Ho et al. (2020)'s ε/mean prediction in continuous diffusion
+  limitation: "learning p_{0|t} \"is inherently harder since it is a density\"; the objective breaks down in continuous time; concrete score matching's ℓ2 loss \"is incompatible with the fact that p_t(y)/p_t(x) must be positive\", under-penalizing negative values and diverging; implicit/ratio variants are intractable or high-variance at scale (§2.2, §3.1)"
+gap:
+  unresolved_problem: a discrete analogue of score matching that (i) recovers the true concrete score, (ii) respects positivity of ratios, (iii) is tractable (denoising form) at vocabulary scale, and (iv) supports likelihood-based training/evaluation (§3)
+  evidence_for_gap: "analytical — each prior objective is shown to fail one desideratum, with mixed empirical results across the literature \"spur[ring] the need for a reexamination\" (§2.2)"
+insight:
+  observation: "the discrete reverse process is fully determined by the ratios p_t(y)/p_t(x) (Kelly/Sun time reversal, Eq. 3), and a Bregman divergence with F = −log yields a loss that is \"non-negative, symmetric, and convex\" and \"generalizes standard cross entropy to general positive values\" (Def. 3.1, Remark after it)"
+  central_insight: "replace the ℓ2 penalty of concrete score matching with an entropy-like (log-barrier) loss on the ratio estimates — the gradient of score entropy is the concrete-score-matching gradient rescaled by 1/s_θ, which \"forms a natural log-barrier which keeps our s_θ ≥ 0\" (Prop. 3.2 remark); combined with the denoising trick, this makes ratio-based discrete diffusion trainable at scale"
+  hypothesis: if s_θ approximates the true concrete score, then (i) score entropy is consistent (Prop. 3.2), (ii) it yields an ELBO for likelihood training/evaluation (Thm 3.6), and (iii) a Tweedie-style τ-leaping update built from the ratios is KL-optimal among τ-leaping samplers (Thm 4.2)
+method:
+  conceptual_change: parameterize the reverse *ratios* (concrete score) directly rather than the posterior mean/reverse density — ratios, like scores, are quantities a network can represent without normalizing
+  mechanism: score entropy loss L_SE = E_x Σ_{y≠x} w_xy [s_θ(x)_y − (p(y)/p(x)) log s_θ(x)_y + K] (Def. 3.1); denoising form L_DSE replaces unknown ratios by known forward transition ratios p(y|x0)/p(x|x0) (Thm 3.4); factorized token-level Q^tok with uniform or absorbing (MASK) structures keeps everything O(vocab) (Eq. 11–16); sampling via Tweedie τ-leaping (Thm 4.1/4.2, Eq. 19) and conditional scores via exact Bayes factorization for arbitrary prompt positions Ω (Eq. 21–22)
+  formulation: reverse matrix Q̄^θ_t(y,x) = s_θ(x,t)_y Q_t(x,y) for x≠y (Def. 3.5); likelihood bound −log p^θ_0(x0) ≤ L_DWDSE(x0) + KL(p_{T|0}||p_base) (Thm 3.6, Eq. 10)
+claims:
+  - id: C1
+    claim: "score entropy \"naturally extends score matching to discrete spaces\" — consistent (recovers the true concrete score), non-negative/symmetric/convex, with positivity-enforcing gradients (abstract; Prop. 3.2, Def. 3.1)"
+    importance: central
+    evidence: theoretical — Prop. 3.2, Prop. 3.3, gradient-rescaling argument (§3.1)
+  - id: C2
+    claim: SEDD supports likelihood-based training and evaluation via an ELBO (Thm 3.6), enabling perplexity comparisons
+    importance: central
+    evidence: theoretical — Theorem 3.6 / Eq. 9–10
+  - id: C3
+    claim: "\"For comparable model sizes, SEDD beats existing language diffusion paradigms (reducing perplexity by 25-75%) and is competitive with autoregressive models, in particular outperforming GPT-2\" (abstract)"
+    importance: central
+    evidence: "comparative — Table 1 (zero-shot perplexities, SEDD Absorb beats GPT-2 on a majority of tasks/sizes), Table 2 (text8 BPC 1.39 best non-AR), Table 3 (1BW within 1 perplexity of AR; \"first time ... a non-autoregressive language model has matched a modern ... autoregressive model for perplexities\", §5.2.2)"
+  - id: C4
+    claim: "\"SEDD generates faithful text without requiring distribution annealing ... (around 6-8× better generative perplexity than un-annealed GPT-2), can trade compute and quality (similar quality with 32× fewer network evaluations)\" (abstract)"
+    importance: central
+    evidence: comparative — Fig. 1 (generative perplexity vs sampling steps; log-log linear Pareto frontier)
+  - id: C5
+    claim: "SEDD \"enables controllable infilling (matching nucleus sampling quality while enabling other strategies besides left to right prompting)\" without annealing (abstract; §4.2)"
+    importance: supporting
+    evidence: comparative — Table 5 (MAUVE 0.957/0.942 un-annealed vs GPT-2 nucleus 0.955 / SSD-LM 0.919), Table 4 (arbitrary-position prompting samples)
+  - id: C6
+    claim: the Tweedie τ-leaping sampler is KL-optimal among τ-leaping strategies when the score is learned perfectly (Thm 4.2)
+    importance: supporting
+    evidence: theoretical — Theorems 4.1, 4.2
+experiments:
+  - id: E1
+    research_question: RQ1 — does SEDD close the likelihood gap with autoregressive models?
+    setup: text8 (character-level, D3PM hyperparameters; Table 2), One Billion Words (He et al. setup, GPT-2-small scale; Table 3), GPT-2 zero-shot suite LAMBADA/WikiText2/PTB/WikiText103/1BW trained on OpenWebText at small/medium sizes (Table 1); diffusion transformer backbone with time conditioning; ≤-marked values are ELBO upper bounds (§5.1–5.2)
+    baseline: GPT-2 (small/medium), D3PM, PLAID, DiffusionBert, SSD-LM, AR transformer on 1BW
+    result: SEDD Absorb ≤1.39 BPC on text8 (best non-AR); 1BW ≤32.79 vs AR 31.98; beats GPT-2 on a majority of zero-shot tasks; 50–75% lower perplexity than prior diffusion models (§5.2)
+    interpretation: the loss choice, not the diffusion framework, was the bottleneck for discrete diffusion likelihoods
+    supported_claim: C3
+  - id: E2
+    research_question: RQ5 — is un-annealed sample quality competitive, and how does compute trade against quality?
+    setup: analytic sampling with 32–2048 network evaluations, sequences of length 1024; generative perplexity measured by GPT-2-large, explicitly without temperature scaling (§5.3.1, Fig. 1)
+    baseline: GPT-2 analytic sampling
+    result: matches GPT-2 with 32× fewer evaluations; 6–8× better generative perplexity at full steps; log-log linear Pareto frontier (Fig. 1)
+    interpretation: parallel discrete generation is now quality-competitive, with a tunable compute dial GPT-2 lacks
+    supported_claim: C4
+  - id: E3
+    research_question: does ratio parameterization enable conditional control (infilling) without retraining?
+    setup: conditional generation on WebText prompts via Bayes-rule conditional scores (Eq. 22); standard prompting and infilling; MAUVE vs annealed and un-annealed GPT-2 and SSD-LM (§5.3.2, Tables 4–5)
+    baseline: GPT-2 with nucleus-0.95; SSD-LM with logit thresholding
+    result: SEDD Standard 0.957 / SEDD Infill 0.942 MAUVE with no annealing — beating both annealed baselines; arbitrary-position prompts generate coherent text (Table 4)
+    interpretation: "\"the additional information ... from s_θ being an approximate ratio\" turns into control for free (§4.2)"
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (generative modeling success), Failure mode (diffusion on discrete data; AR limits), Challenge (chain-rule dominance), Solution (SEDD in one line), Contributions (numbered 1–3)]
+  introduction_move: "opens by conceding autoregressive models' decades of dominance and its specific costs (slow, uncontrollable, annealing-dependent), then presents score entropy as the missing \"crucial ingredient\" — score matching — that continuous diffusion has and discrete diffusion lacked; contributions are stated as three empirical benefits before the preliminaries"
+  related_work_strategy: "two-branch map (continuous diffusion for text; discrete diffusion lineage) ending in the claim that prior objectives are either intractable implicit score entropy or flawed alternatives — SEDD \"fills in shortcomings found in previous works\" (§6)"
+  method_strategy: "numbered-properties exposition — each subsection is \"First/Second/Third/Fourth/Fifth\" property of score entropy (consistency, log-barrier, tractability, ELBO, scalability), so the loss is validated before the model is assembled"
+  experiments_strategy: likelihood first (the core LM metric), then generation quality with the annealing confound explicitly controlled (analytic sampling), then control/infilling as the payoff unique to ratios
+  conclusion_strategy: brief recap positioning SEDD as the score-matching completion of discrete diffusion theory (§7)
+reviewer_defense:
+  strengths: theory grid (consistency, ELBO, optimal sampler) each with a named theorem; matched architectures/tokenizers/splits to prior work (§5.1); un-annealed comparisons remove the classic generation-metric hack
+  vulnerabilities: "likelihoods are ELBO upper bounds (≤), so \"beats GPT-2\" is partly bound-vs-estimate; models ~5–10% more parameters than matched baselines; noise schedules and loss weightings \"did not systematically explore\" (§5.1 concession); SEDD Uniform notably weaker than Absorb on perplexities"
+  anticipated_attacks: "\"just D3PM with a new loss\" — owned explicitly: \"SEDD substantially improves upon D3PM ... despite both being built from the same discrete diffusion principles\" (§5.2.1), with the difference traced to the objective; \"generative perplexity is hackable\" — annealing-free analytic sampling is the answer (§5.3.1); \"concrete score matching already did ratios\" — ℓ2 divergence analysis plus empirical divergence (§2.2, App. D)"
+writing:
+  paragraph_patterns: "\"First... Second... Third...\" property enumeration as method skeleton; remark paragraphs translating theory into practice (log-barrier, 20GB memory problem §3.3)"
+  transition_patterns: "preliminaries that quietly set up failure modes of rivals, each later theorem resolving one named failure; \"Crucially, this result allows us to...\" bridge sentences"
+  terminology_patterns: dense coined vocabulary kept exact — concrete score, score entropy, denoising score entropy, DWDSE, Tweedie τ-leaping; consistent ≤ notation advertising ELBO honesty in every table

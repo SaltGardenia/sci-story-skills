@@ -1,0 +1,102 @@
+# thesis: This paper shows that differential privacy can be audited from a single training run
+# because independently including/excluding many canary examples in one run exploits the same
+# parallelism that multiple runs would (analyzed via the DP-generalization connection, avoiding
+# group privacy), and therefore proposes a one-run auditing procedure giving empirical lower
+# bounds on (ε, δ).
+paper:
+  venue: NeurIPS
+  year: 2023
+  field: differential privacy / privacy auditing
+  task: empirical lower-bounding of the privacy parameters of DP machine learning systems
+  problem: '"Can we perform privacy auditing using a single run of the algorithm M?" (§1)'
+  importance: audits check tightness of DP proofs and "detect errors in the analysis or in the algorithm's implementation" (§1); standard audits require hundreds of training runs, and "expecting any individual or entity to shoulder the burden of training such models thousands of times... is both unrealistic and economically infeasible" (§6.1)
+  source: full
+
+paradigm:
+  existing_approach: construct a pair of neighbouring datasets x, x' and outcome set S, estimate P[M(x)∈S] and P[M(x')∈S] by running the algorithm hundreds of times (§1); recent audits (Nasr et al.) still require many runs
+  core_assumption: auditing one (ε,δ) guarantee requires many independent executions of M, because the DP definition compares two fixed inputs
+  limitation: computational cost — "estimating these probabilities requires running the algorithm M hundreds of times" (§1); naive multi-example analysis via group privacy would waste the independence structure (§1.1)
+
+gap:
+  unresolved_problem: obtain a meaningful empirical lower bound on (ε,δ) from one end-to-end training run, with minimal assumptions about the algorithm, black-box or white-box
+  evidence_for_gap: logical — the DP definition quantifies over input pairs, so single-run auditing seems to lack replicates; the gap is closed theoretically by exploiting that each of m canaries is independently included/excluded (§1.1, §5)
+
+insight:
+  observation: one run with m independently coin-flipped canaries provides m independent inclusion/exclusion "experiments" in parallel — "including or excluding m data points independently for one run is essentially as good as having m independent runs (as long as δ is small)" (§1.1)
+  central_insight: 'DP''s guarantee against multiple independent data contributions can be analyzed through the connection between DP and statistical generalization rather than group privacy, yielding a nearly tight high-probability bound: correct guesses W are stochastically dominated by Binomial(r, e^ε/(e^ε+1)) (Theorem 2.1/5.2)'
+  hypothesis: an auditor that guesses inclusion for the k+ highest-scored canaries and exclusion for the k− lowest, then counts correct guesses W, converts observed W into a 95%-confidence lower bound on ε competitive with multi-run audits (§2, Thm 2.1)
+
+method:
+  conceptual_change: replace "many runs of one neighbouring pair" with "one run of many independent canaries" — the audit unit moves from the run to the example
+  mechanism: 'Algorithm 1 — flip m unbiased coins S_i∈{−1,+1}, run A on the selected dataset, score each canary (white-box: gradient dot products; black-box: per-example loss), guess +1 for the k+ largest scores and −1 for the k− smallest, abstain on the rest; W = Σ max{0, T_i·S_i} yields the lower bound via Theorem 5.2 / Corollary 5.4 (§2, §6)'
+  formulation: DP implies P[W ≥ v] ≤ P[B̌inomial(r, e^ε/(e^ε+1)) ≥ v] + O(δ) (Theorem 2.1, Eq. 2); the binomial is exactly randomized-response guessing, proving tightness at δ=0; concentration via binomial tail (Eq. 3)
+
+claims:
+  - id: C1
+    claim: one training run suffices for meaningful privacy auditing — "Such results were previously unattainable in the setting where only one model could be trained" — practical
+    importance: central
+    evidence: DP-SGD/CIFAR-10 audits, ε ≥ 1.8 vs theoretical ε ≤ 4 white-box (§1.1, §6.1, Fig. 7)
+  - id: C2
+    claim: DP implies the number of correct guesses is stochastically dominated by Binomial(r, e^ε/(e^ε+1)) + O(δ) — i.e., the analysis is nearly tight (randomized response is the worst case at δ=0) — theoretical
+    importance: central
+    evidence: Theorem 2.1 (§2), Theorem 5.2 and pure-DP analysis (§5.1), approximate-DP analysis (§5.2)
+  - id: C3
+    claim: the approach requires minimal assumptions and works black-box or white-box — practical
+    importance: supporting
+    evidence: Algorithm 1 scoring abstraction; gradient-space (§6.1) and input-space (§6.2) attacks
+  - id: C4
+    claim: adding m canaries does not significantly hurt model utility (<5% accuracy decrease; 76% vs 78% on CIFAR-10) — comparative
+    importance: supporting
+    evidence: §1.1, §6.1 ("76% accuracy for ε = 8... compared to 78% when not auditing")
+  - id: C5
+    claim: while winning on compute, the method loses on tightness — under Gaussian-noise-style algorithms the ε lower bound is δ-sensitive (a 393× gap in δ) — and the cause is a mismatch between realistic and "pathological" DP algorithms — descriptive, self-critical
+    importance: supporting
+    evidence: Discussion idealized settings, ε ≥ 2.675 vs upper bound 4.38 (§7, Figs. 10–12)
+
+experiments:
+  - id: E1
+    research_question: RQ1 — does one-run auditing produce meaningful empirical ε lower bounds on a real DP training pipeline?
+    setup: DP-SGD on WideResNet-16 / CIFAR-10, following Nasr et al.'s setup; m=5000 canaries, n=50,000; white-box gradient attacks ("Dirac canary"); 95% confidence (§6, §6.1, Algorithm 3)
+    baseline: theoretical upper bounds (ε=1,2,4,8); prior multi-run audits for tightness comparison
+    result: lower bounds 0.7, 1.2, 1.8, 3.5 for theoretical ε of 1, 2, 4, 8; 76% accuracy at ε=8 (Fig. 7)
+    interpretation: '"While our results are not as tight as the prior works, we only require a single run of training" — the compute/tightness trade is explicit (§6.1)'
+    supported_claim: C1, C4
+  - id: E2
+    research_question: RQ3-ablation — how does the number of auditing examples m and training steps affect tightness (white-box)?
+    setup: vary m ∈ {10,...,5000}; vary iterations 1/100/500/1000 with matched privacy via noise (§6.1, Figs. 4, 6)
+    baseline: m=0 / one-step configurations
+    result: tighter bounds with more canaries (diminishing returns); iterations have no significant effect — "results confirm the tightness of composition" (§6.1)
+    interpretation: parallelism scales the audit signal as theory predicts
+    supported_claim: C2
+  - id: E3
+    research_question: RQ3 — does the method survive the weakest (black-box, input-space) setting?
+    setup: insert mislabeled or in-distribution test images, score by per-example loss, black-box (§6.2, Figs. 8–9)
+    baseline: white-box results
+    result: black-box auditing "very sensitive to the number of auditing examples"; adding non-auditing examples loosens bounds in black-box (unlike white-box)
+    interpretation: practicality extends to black-box but with degraded tightness
+    supported_claim: C3
+  - id: E4
+    research_question: RQ4 — how tight can the bound be, and where does it break?
+    setup: idealized settings — randomized response (98.2% correct, varying guesses) vs Gaussian noise N(S_i, 4) with abstentions (§7, Figs. 10–12)
+    baseline: true (ε,δ) of each idealized mechanism
+    result: ε ≥ 3.87 vs 4 with 10,000 guesses (near-tight); Gaussian case ε ≥ 2.675 vs 4.38 — 393× gap in δ (§7)
+    interpretation: analysis is tight; residual gap is inherent to δ-sensitivity for non-pathological algorithms
+    supported_claim: C2, C5
+
+narrative:
+  introduction_roles: [Context (DP definition + proof vs audit), Failure mode (hundreds of runs needed), Question (boxed single-run question), Insight (parallelism of independent examples), Analysis pointer (DP-generalization connection), Results preview (ε≥1.8 vs ≤4, <5% accuracy cost)]
+  introduction_move: states the DP definition formally in paragraph one, immediately contrasts proof-style upper bounds with audit-style lower bounds, then poses the central question as a displayed one-line question — the entire paper is organized as the answer to that question; contributions are previewed as Procedure/Analysis/Results with concrete numbers already in the intro
+  related_work_strategy: brief taxonomy of auditing and DP-generalization work, positioned as "orthogonal" to attack design — the paper improves the analysis, not the attack (§3, §6 setup)
+  method_strategy: procedure-first — Algorithm 1 appears before the theory; the theorem is then introduced as the justification of the procedure, with the tightness argument (randomized-response worst case) doing double duty as a correctness argument (§2 → §5)
+  experiments_strategy: strongest setting first (white-box gradient attacks), then ablations on m and iterations, then the weakest setting (black-box input-space), then an honest Discussion dedicated to where tightness fails; multiple-hypothesis-testing on k+/k− selection is disclosed inline (§6)
+  conclusion_strategy: Discussion leads with the win (single run vs hundreds), concedes the loss ("we lose on tightness"), then diagnoses whether the limitation is inherent — an unusually symmetrical strengths/limitations structure (§7)
+
+reviewer_defense:
+  strengths: worst-case tightness theorem (δ=0) makes the core analysis hard to attack; experiments reuse an established external auditing setup rather than a self-serving one; utility cost quantified
+  vulnerabilities: lower bounds noticeably looser than multi-run audits; δ-sensitivity for realistic algorithms (393× gap conceded); reported best k+/k− chosen post hoc on the same data (acknowledged as reducing confidence, §6); experiments confined to DP-SGD on CIFAR-10
+  anticipated_attacks: '"isn''t this just group privacy?" — preempted explicitly: group privacy "does not exploit the fact that the data items were included or excluded independently" (§1.1); "abstentions/parameters cherry-picked" — answered by the abstention trade-off analysis and Corollary 5.8 for held-out parameter selection (§5, §7); "canaries change the model" — quantified at <5% accuracy (§1.1)'
+
+writing:
+  paragraph_patterns: intuition sentences marked "Intuitively, ..." consistently precede formal statements; theorems followed immediately by plain-language glosses ("In other words, the theorem says...") (§1.1, §2)
+  transition_patterns: the intro's boxed question is echoed by Discussion's "Are these limitations inherent?" — question-driven section openers throughout
+  terminology_patterns: '"canaries" / "auditing examples" introduced with both names up front and used interchangeably but defined once; notation S (true selection), T (guesses), W (correct guesses) kept stable from Algorithm 1 through the experiments'

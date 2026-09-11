@@ -1,0 +1,82 @@
+# thesis: This paper shows that LLMs trained on next-turn rewards respond passively and
+# inefficiently in multiturn collaboration, because single-turn optimization is misaligned with
+# the long-term conversation objective, and therefore proposes CollabLLM — Multiturn-aware
+# Rewards estimated by forward-sampling future conversations with a simulated user, then
+# reinforced into the model via online RL/SFT/DPO.
+paper:
+  venue: ICML
+  year: 2025
+  field: LLM training / human-LLM collaboration
+  task: multiturn-aware fine-tuning of LLMs for active collaboration (clarification, suggestion, intent discovery)
+  problem: '"Large Language Models are typically trained with next-turn rewards, limiting their ability to optimize for long-term interaction. As a result, they often respond passively to ambiguous or open-ended user requests, failing to help users reach their ultimate intents" (Abstract)'
+  importance: users routinely refine requests "post hoc through iterative corrections, which can increase frustration, hinder effective task completion, and reduce conversational efficiency" (§1); an open problem is training models that "actively guide users in clarifying and refining their intents" (§1)
+  source: full
+paradigm:
+  existing_approach: RLHF-style single-turn reward optimization (Ouyang et al. 2022); prompt engineering for proactivity; recent DPO clarification-training (§1, §3, §7)
+  core_assumption: the quality of a response can be evaluated in isolation at the turn it is produced — "the model's accumulative single-turn reward ΣR(m_j|h_j) may not imply a higher final reward R*(t_1:K|g)" (§3 Key Motivations)
+  limitation: models "prioritize direct answers, even though seeking additional context would enhance task completion and increase user satisfaction" (§1); proactive prompting is rigid and redundant (Fig. 2a, Table 3)
+gap:
+  unresolved_problem: how to evaluate and train on the *long-term contribution* of a response when future user behavior is unknown at training time?
+  evidence_for_gap: analytical — the misalignment argument (Σ turn rewards ≠ final reward, §3); empirical — non-collaborative LLM's frustration loop in Fig. 2a
+insight:
+  observation: effective multiturn collaboration "relies on forward-looking strategies" — the value of asking a clarifying question is realized turns later (§3.1, Fig. 1)
+  central_insight: 'a response''s reward is its expected causal effect on the future conversation: MR(m_j|h_j,g) = E_{t_f∼P(t_f|t_1:j)} R*(t_1:j ∪ t_f | g) (Eq. 1) — connecting response evaluation to causal effect estimation (§3.1, App. A)'
+  hypothesis: forward-sampling just a few future turns with an LLM user simulator and optimizing the expected conversation-level reward via RL should induce proactive, efficient behavior without human annotation
+method:
+  conceptual_change: replace "reward the response" with "reward the response's downstream consequences", making the reward function a simulation over possible futures rather than a static judge
+  mechanism: (i) conversation-level reward R* = R_ext (task metric S(Extract(t), y_g), Eq. 3) + R_int = −min[λ·TokenCount,1] + R_LLM (efficiency + LLM-judged interactivity, Eq. 4); (ii) forward sampling with window size w via a prompted user simulator (GPT-4o-mini) (§3.1.2); (iii) PPO / online DPO / SFT on MR-ranked data (§3.2)
+  formulation: MR (Eq. 1) with truncated forward window w; immediate rewards are the w=0 special case (§5.1); MR also generates synthetic chosen/rejected pairs for SFT/DPO (Fig. 8, App.)
+claims:
+  - id: C1
+    claim: CollabLLM significantly outperforms baselines with averages of 18.5% higher task performance and 46.3% improved interactivity (by LLM judges) on three multiturn benchmarks (comparative)
+    importance: central
+    evidence: Table 1 (BLEU/PR/#Tokens/ITR on MediumDocEdit-Chat, BigCodeBench-Chat, MATH-Chat); rel. improvements of Online DPO over Proactive Base
+  - id: C2
+    claim: in a 201-participant real user study, CollabLLM increases user satisfaction by 17.6% and reduces user spent time by 10.4% (comparative/causal — randomized assignment)
+    importance: central
+    evidence: §6, Fig. 7 (document quality, interaction rating, time spent, per-3-turn interaction trend), Table 3 qualitative feedback
+  - id: C3
+    claim: multiturn-aware rewards (w>0) outperform immediate rewards including extrinsic+intrinsic combinations (w=0) (mechanistic/ablation)
+    importance: central
+    evidence: Fig. 4 reward-mechanism ablation; "expanding the forward sampling window w within the range generally enhances performance and efficiency"
+  - id: C4
+    claim: CollabLLM generalizes zero-shot to unseen task domains (e.g., ambiguous-question handling on Abg-CoQA) (generalization)
+    importance: supporting
+    evidence: Table 2 — asks questions for ambiguous inputs and answers directly for non-ambiguous ones without additional adaptation
+experiments:
+  - id: E1
+    research_question: RQ1 — does MR-based training improve the primary objective (task success) and efficiency/interactivity in simulated multiturn tasks?
+    setup: three tasks built from public data (MediumDocEdit-Chat 100 Medium articles, BigCodeBench-Chat, MATH-Chat); GPT-4o-mini user simulator; metrics BLEU/PR, #Tokens, ITR (§4, Table 1)
+    baseline: Base (Llama-3.1-8B-Instruct), Proactive Base (prompted), SFT, PPO, Offline DPO, Online DPO variants
+    result: monotone gains from SFT→PPO→DPO; Online DPO best (e.g., ITR 92.0 vs 62.0 proactive on DocEdit)
+    interpretation: forward-looking rewards change behavior in ways prompt engineering only partially reaches
+    supported_claim: C1
+  - id: E2
+    research_question: RQ3 — which reward mechanism components matter? (ablation)
+    setup: compare immediate (Helpfulness / Extrinsic / Extrinsic+Intrinsic) vs MR with w=1,2,3 on MediumDocEdit-Chat (§5.1, Fig. 4)
+    baseline: w=0 rewards
+    result: MR consistently better across BLEU, #Tokens, ITR; w=2 balances cost and signal
+    interpretation: the long-horizon term, not merely added intrinsic metrics, drives the gains
+    supported_claim: C3
+  - id: E3
+    research_question: does the behavior transfer to real humans?
+    setup: 201 MTurk participants, anonymized assistant randomly sampled from {Base, Proactive Base, CollabLLM}, document writing task; ratings + time (§6, Fig. 7)
+    baseline: Base and Proactive Base
+    result: 91.4% rate quality "good" (vs 88.5%/39.3%); 63.8% highly engaging (vs 42.6% Base); rising per-turn interaction ratings; 10.4% time savings
+    interpretation: simulated-user optimization does not overfit the simulator — human preferences move the same direction
+    supported_claim: C2
+narrative:
+  introduction_roles: [Context (LLMs excel single-turn), Failure mode (passive responses, post-hoc correction loops), Gap (single-turn reward misalignment), Insight (forward-looking strategies / causal effect), Solution (collaborative simulation + MR + RL), Contribution (framework, benchmark, user study)]
+  introduction_move: leads with a concrete failure vignette (Fig. 2's optimism-essay example) rendered in full dialogue, so the abstract claim "passive responders" is dramatized before the formal problem; the method is previewed as a numbered 4-part pipeline figure (Fig. 1)
+  related_work_strategy: capability-gap table (Table 4) scoring related work on task-agnosticism etc.; textual related work splits prompting vs training-based methods, each closed with "do not generalize to broader multiturn collaboration strategies" (§7)
+  method_strategy: equation-as-insight — MR (Eq. 1) is stated immediately after the misalignment argument, then decomposed into two named engineering problems (reward function, forward sampling) each given its own subsection
+  experiments_strategy: simulated benchmark → ablation on reward mechanism → zero-shot generalization → real human study, ordered by increasing external validity; user-study quotes (Table 3) give qualitative triangulation including weaknesses
+  conclusion_strategy: elevates to a stance ("Foundation models should act as collaborators rather than passive responders") and restates the key insight in one sentence
+reviewer_defense:
+  strengths: user simulator + real-user-study double validation; ablations isolate the forward-window contribution; three domains + zero-shot transfer task; full pipeline reproducible from public data
+  vulnerabilities: LLM judges score interactivity (potential judge bias, partially mitigated by human study); user simulator may not capture adversarial/drifting users; rewards depend on extractable ground-truth solutions y_g — less clear for open-ended goals; cost of forward sampling at training time
+  anticipated_attacks: '"just ask clarifying questions via prompting" — Proactive Base baseline shows partial but inferior gains and redundancy complaints (Table 3); "window w is a shortcut that truncates long-term effects" — w-sweep ablation shows the tradeoff explicitly (Fig. 4)'
+writing:
+  paragraph_patterns: figure-first argumentation — Fig. 2's paired (a)/(b) dialogues make the before/after contrast legible without reading the text
+  transition_patterns: section transitions restate the open engineering problem ("computing Equation 1 remains challenging as it requires the following components...", §3.1)
+  terminology_patterns: coined terms capitalized and used rigidly (Multiturn-aware Reward (MR), collaborative simulation, forward sampling, Proactive Base); window size w consistently annotated on every variant

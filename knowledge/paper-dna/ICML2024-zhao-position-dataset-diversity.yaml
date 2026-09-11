@@ -1,0 +1,80 @@
+# thesis: This paper argues (position) that value-laden dataset claims like "diversity" are
+# unverifiable because curators rarely define, operationalize, or validate them — supported
+# by a measurement-theory audit of 135 image/text datasets — and therefore proposes
+# measurement theory (conceptualization → operationalization → reliability/validity
+# evaluation) as the scaffolding for constructing and reviewing diverse datasets.
+paper:
+  venue: ICML
+  year: 2024
+  field: datasets & benchmarks / responsible ML (Position paper)
+  task: "bringing measurement-theoretic rigor to \"diversity\" claims in ML dataset construction"
+  problem: "dataset curators \"frequently employ value-laden terms such as diversity, bias, and quality to characterize datasets. Despite their prevalence, these terms lack clear definitions and validation\" (abstract)"
+  importance: "treating value-laden constructs as self-evident \"perpetuates the fallacious belief that datasets are inherently neutral\"; unvalidated claims hinder assessment, cross-dataset comparison, and reproducibility (§1, §10)"
+  source: full
+  inferred: "[]  # the position's commitments are the paper's own stated recommendations"
+paradigm:
+  existing_approach: "datasets claimed as \"more diverse\" via vague invocation (diversity dimensions range from \"dressing styles\" to \"verbs\" to \"annotator psychological personality\", §1); scale-thinking (larger ⇒ more diverse); downstream model performance as proxy evaluation (48.5% of surveyed datasets, §7.1); datasheets/dataset documentation as the main transparency tool"
+  core_assumption: that diversity is an obvious, self-explanatory property needing no definition — and that scale or downstream accuracy certifies it
+  limitation: "\"only 52.9% of datasets explicitly justify the need for diverse data\" (§4.1); no consensus on what diversity means; validation, when attempted, \"may often center around incorrect constructs\" (§7.1)"
+gap:
+  unresolved_problem: a structured, community-usable framework for defining, operationalizing, and evaluating diversity (and value-laden properties generally) in ML datasets — plus reviewer-facing tools to audit claims (§1, §2)
+  evidence_for_gap: empirical corpus analysis — systematic literature review of 135 image/text datasets from CV/NLP/fairness/ML venues with diversity keywords (§3, Fig. 2), revealing inconsistent definitions and absent validation
+insight:
+  observation: the social sciences solved this class of problem decades ago — measurement theory provides a pipeline from latent abstract constructs to observable indicators with reliability and validity evaluation (§2)
+  central_insight: the *data collection process itself* is the measurement to be validated — dataset construction should be treated as operationalizing an abstract construct, so diversity claims become testable hypotheses about indicators (§2, contrasting Blodgett et al. 2021's benchmark-validity focus)
+  hypothesis: "if curators conceptualize (define), operationalize (collect with explicit indicators), and evaluate (reliability: inter-annotator agreement, test-retest; validity: convergent, discriminant), then diversity claims become falsifiable and cross-dataset comparisons meaningful (§4–7, Fig. 1)"
+method:
+  conceptual_change: "reclassify \"diversity\" from a marketing adjective to a latent construct requiring the full measurement pipeline; view datasets as \"tools wielded by curators to quantify abstract social constructs\" (§1)"
+  mechanism: "three-phase framework (Fig. 1) — Conceptualization: concrete, contextualized definitions that disentangle diversity from scale and bias (§4); Operationalization: explicit indicators per collection methodology across five dataset types (derivatives, \"real-world\" sampled, web-scraped, prompted/synthetic, third-party, §5, Table 2); Evaluation: reliability via inter-annotator agreement (with the caution that majority-vote aggregation can erase minority perspectives, §6) and test-retest, validity via convergent (cross-dataset generalization, Vendi Score across multiple embedding spaces) and discriminant checks (§7)"
+  formulation: no equations; the formal objects are the measurement-theoretic constructs — conceptualization/operationalization/reliability/validity — instantiated as a codebook applied to 135 datasets (App. A, Tables 6–8)
+claims:
+  - id: C1
+    claim: diversity definitions in ML datasets are inconsistent and rarely justified — only 52.9% of surveyed datasets explicitly justify the need for diverse data, and dimensions range wildly across papers (§1, §4.1)
+    importance: central
+    evidence: descriptive — systematic corpus of 135 datasets, Tables 1/4/5 (taxonomy of definitions)
+  - id: C2
+    claim: "scale does not automatically produce diversity — \"diversity ... is not an automatic byproduct of scale\" and conflating the two can even increase offensive content (§4.1, §9 \"Measurement and scale\")"
+    importance: central
+    evidence: argument + cited evidence — Birhane et al. 2023, Bender et al. 2021; Sindagi et al. 2019 as the target claim; Byrne et al. 2021 as counter-evidence
+  - id: C3
+    claim: current validation practices are inadequate — evaluation, when present, often targets the wrong construct (metadata statistics not aligned with claimed diversity) and 48.5% of datasets rely on downstream model performance, which can reward shortcuts rather than diversity (§7.1)
+    importance: central
+    evidence: descriptive — corpus statistics (§7.1); shortcut-learning argument (Geirhos et al. 2020)
+  - id: C4
+    claim: measurement theory's reliability and validity subtypes can be concretely repurposed for datasets — inter-annotator agreement (with the diversity-aggregation tension), test-retest for e.g. web scraping, convergent validity via cross-dataset generalization and multi-embedding diversity metrics, discriminant validity via unrelated-construct checks (§6–7)
+    importance: central
+    evidence: methodological demonstration — framework applied throughout, culminating in the SA-1B case study (§8)
+  - id: C5
+    claim: "the framework has teeth: applied to SA-1B it confirms strong convergent validity for object-size/count diversity, exposes missing geographic-diversity validation, and surfaces opacity issues (undisclosed photographer instructions; NER-based country inference errors; country-level aggregation masking intra-national variation) (§8)"
+    importance: central
+    evidence: case study — Segment Anything dataset analysis (§8)
+experiments:
+  - id: E1
+    research_question: position paper — the empirical substrate is the systematic literature review
+    setup: "135 image/text datasets identified via \"divers*\" + \"dataset/annotation\" keyword search across ICCV/ECCV/CVPR, *CL, FAccT/AIES, NeurIPS(+D&B) through September 2022; codebook covering motivation → collection → release → maintenance (§3, Fig. 2, App. A)"
+    baseline: prior survey work (Scheuerman et al. 2021, Paullada et al. 2021) — extended here with a measurement-theory lens
+    result: quantified shortfalls — 52.9% with explicit diversity justification; 48.5% relying on downstream evaluation; taxonomy of definitions (Tables 4–5) and collection methods (Table 2)
+    interpretation: the vague-claim problem is systemic, not anecdotal — motivating the framework
+    supported_claim: C1, C3
+  - id: E2
+    research_question: "does the framework yield actionable findings on a modern, well-documented dataset?"
+    setup: case study of SA-1B (11M images, 1.1B masks) auditing its conceptualization, operationalization, and evaluation against the framework (§8)
+    baseline: "SA-1B's own datasheet claims (\"11M diverse, high-resolution, licensed, and privacy protecting images\")"
+    result: convergent validity supported for mask-size/count vs COCO/OpenImages; geographic diversity claimed but not validated; operationalization limits identified (NER ambiguity, country-level aggregation)
+    interpretation: even best-practice documentation fails the framework's evaluation bar — validating the position's call
+    supported_claim: C4, C5
+narrative:
+  introduction_roles: [Context (datasets as political artifacts), Failure mode (value-laden terms without definitions), 'Framing questions (how defined/operationalized/validated?)', Solution (measurement theory), Contribution preview (135-dataset audit + recommendations)]
+  introduction_move: "opens sociotechnically (\"Cloaked under the guise of objectivity...\") to establish stakes, then pivots to a methodological import story — measurement theory from social sciences as the missing scaffolding; the position is presented as constructive (a framework), not merely critical, with Figure 1 as a one-page map"
+  related_work_strategy: lineage-from-social-science (measurement modeling applied to fairness/bias/intelligence, §2) plus dataset-documentation standards (datasheets etc.); explicitly differentiated from Blodgett et al. 2021 (benchmarks vs collection process)
+  method_strategy: framework-first — Sections 4–7 are the framework (considerations → recommendations pairs per phase), with the corpus audit running underneath as evidence and the SA-1B case study as the capstone demonstration
+  experiments_strategy: corpus statistics embedded in the argument (percentages deployed as ammunition inside considerations paragraphs); case study mirrors the framework's three phases exactly
+  conclusion_strategy: Discussion tackles anticipated objections head-on as named tensions (measurement vs scale; documentation burden/debt; constructs changing over time) before a Conclusion that ties the framework to the reproducibility crisis (§9–10)
+reviewer_defense:
+  strengths: framework is imported from an established discipline with textbook grounding; grounded in a sizable coded corpus (135 datasets); the SA-1B case study shows the framework applies to current flagship datasets and produces specific, actionable critiques; balanced discussion of costs (documentation burden, reliability–diversity tension)
+  vulnerabilities: "normative — \"diversity\" remains undefined by the paper itself (deliberately, as an inductive taxonomy rather than prescription); corpus limited to image/text and English-centric venues through Sept 2022; framework adoption depends on incentives the paper cannot enforce; reliability–diversity tension means some recommendations are conditional"
+  anticipated_attacks: "\"isn't this just datasheets again?\" — datasheets document, measurement theory validates; the paper specifies *evaluation* methods (reliability/validity), which documentation lacks (§1, §7); \"documentation burden is unrealistic\" — conceded in §9 with the documentation-debt framing and institutional remedies (venues, D&B track); \"definitions change over time\" — conceded and reframed: datasets are temporally situated, robustness to shift is the answer (§9)"
+writing:
+  paragraph_patterns: "mirrored Considerations/Recommendations subsection pairs per phase; corpus statistics inserted as quantitative ledes (\"only 52.9% of datasets...\")"
+  transition_patterns: framework phases as section spine with Figure 1 as the map; case study sections labeled with the same phase names as the framework, demonstrating the scaffold
+  terminology_patterns: "social-science vocabulary imported intact (construct, conceptualization, operationalization, convergent/discriminant validity, test-retest); coined framing terms (\"scale thinking\", \"documentation debt\") quoted from and to the literature"

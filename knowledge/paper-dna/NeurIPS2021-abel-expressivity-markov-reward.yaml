@@ -1,0 +1,79 @@
+# thesis: This paper shows that Markov reward functions cannot express all tasks a designer might
+# want (for sets of acceptable policies, policy orderings, and trajectory orderings there exist
+# environment-task pairs no Markov reward can realize), because value functions of similar policies
+# are necessarily correlated in an MDP, and therefore proposes polynomial-time algorithms that decide
+# expressibility for a given environment-task pair and construct a realizing reward when one exists.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: reinforcement learning theory / reward design
+  task: characterizing which tasks Markov reward functions can express in finite MDPs
+  problem: '"the expressivity of reward is taken as a backdrop assumption that frames RL, sometimes called the reward hypothesis" — the paper asks whether scalar Markov reward can actually capture the tasks we want agents to perform (§1, quoting Sutton''s reward hypothesis)'
+  importance: '"A rigorous analysis of which tasks [Markov reward functions] can and cannot convey may provide guidance into when it is necessary to draw on alternative formulations of a problem" (§1 step 2); first steps "toward a systematic study of the reward hypothesis" (§1)'
+  source: full
+  inferred: [importance partially inferred — the paper argues necessity of alternative formulations, but the practical payoff is stated as future guidance]
+paradigm:
+  existing_approach: reward treated as a fully general task-specification channel — tasks specified as goal states, optimal policies, reward functions, or (R, γ) pairs; reward shaping results (Ng et al.) characterize equivalence via induced optimal policies (§3.1)
+  core_assumption: the reward hypothesis — "all of what we mean by goals and purposes can be well thought of as maximization of the expected value of the cumulative sum of a received scalar signal" (§1, quoting [53, 29, 6])
+  limitation: coarse task notions (choice of π* or goal) "fail to capture these distinctions" between, e.g., driving into fire vs staying put; no theory says which rich tasks reward can realize (§3.1, §1)
+gap:
+  unresolved_problem: for richer task types — sets of acceptable policies (SOAPs), partial orderings over policies (POs), partial orderings over trajectories (TOs) — is there always a Markov reward realizing them, and can we decide this efficiently? (§1 step 3, §3.2)
+  evidence_for_gap: logical/conceptual — the gridworld argument that optimal-policy-style task notions conflate distinct undesirable behaviors (§3.1); the reward hypothesis asserted rather than proven in prior literature
+insight:
+  observation: '"inexpressible tasks involve policies or trajectories that must be correlated in value in an MDP" — e.g. the "always move the same direction" SOAP is unrealizable because near-identical policies have correlated values (§4.1)'
+  central_insight: 'reward''s expressivity is a property of the environment-task pair: a task is realizable iff the start-state value function induced by some reward can satisfy the task''s constraints (Table 1), and the induced constraints (entailments from policy structure) can be checked constructively (§3.2 Def. 3.2, §4.1)'
+  hypothesis: realizability can be decided, and a realizing reward constructed, in polynomial time for SOAPs, POs, and TOs — via linear-programming-style feasibility over value constraints (Theorem 4.3)
+method:
+  conceptual_change: separate "what the task is" (TASK Q) from "how the designer incentivizes it" (EXPRESSION Q) via the Alice–Bob thought experiment; measure reward's expressivity against the task's induced value constraints rather than optimal-policy equivalence (§1, Fig. 1, Table 1)
+  mechanism: formalize three task types (SOAP ΠG ⊆ Π; PO LΠ over policies; TO Lτ,N over trajectories, Table 1), derive per-type realizability constraints on start-state values, then give polynomial-time algorithms deciding realizability and returning a realizing reward (Theorem 4.3)
+  formulation: '"A reward function is said to realize a task T in an environment E just when the start-state value (or return) induced by the reward function exactly adheres to the constraints of T" (Def. 3.2); SOAP constraints: V^πg(s0) = V^πg''(s0) > V^πb(s0) for equal-realization (Table 1)'
+claims:
+  - id: C1
+    claim: '"for each of SOAP, PO, and TO, there exist (E, T) pairs for which no Markov reward function realizes T in E" (theoretical, impossibility)'
+    importance: central
+    evidence: Theorem 4.1; examples of inexpressible SOAPs in Fig. 2 (e.g. policies differing only in an unreachable state)
+  - id: C2
+    claim: there are polynomial-time algorithms that decide whether any given task of the three types is realizable in a given environment, and output a realizing reward function when one exists (theoretical, constructive)
+    importance: central
+    evidence: Theorem 4.3 (and Theorem 4.2 for variants), algorithms in §4.1
+  - id: C3
+    claim: restricting rewards to finitely many outputs makes efficient reward design NP-hard (theoretical)
+    importance: supporting
+    evidence: Theorem 4.5, Appendix B
+  - id: C4
+    claim: a single reward can be constructed in polynomial time to realize a task across a finite set of CMPs with shared state–action space, but realization is not closed under such sets — a task realizable in each environment separately may be unrealizable jointly, so "Alice must know precisely which environment Bob will inhabit" (theoretical)
+    importance: supporting
+    evidence: Proposition 4.6 and Theorem 4.7, §4.3
+  - id: C5
+    claim: inexpressibility is not a corner case — sampled SOAPs in small CMPs are inexpressible in nearly all configurations, expressivity is "a spectrum" that decreases as SOAPs become more spread out (empirical)
+    importance: supporting
+    evidence: §5, Fig. 3a–f (200 random SOAPs per point, 95% CIs)
+experiments:
+  - id: E1
+    research_question: RQ3-flavored (empirical corroboration of theory) — how common are expressible SOAPs as environment/task parameters vary?
+    setup: sample 200 random SOAPs per data point in 4-state, 3-action CMPs with random transitions; run the realizability algorithm (Alg. 1 of Theorem 4.3) for equal- and range-realization while varying #actions, #states, γ, SOAP size, transition entropy, SOAP spread (§5, Fig. 3)
+    baseline: theoretical prediction (expressivity < 1; range-SOAP ⊇ equal-SOAP expressivity per Proposition 3.1)
+    result: expressivity strictly below 1 in nearly all cases; clear separation of range vs equal realization; expressivity decreases with SOAP spread
+    interpretation: '"inexpressible tasks are not only found in manufactured corner cases"; trends flagged as possibly CMP-specific'
+    supported_claim: C5
+  - id: E2
+    research_question: RQ1-flavored demonstration — do SOAP-designed rewards help in learning?
+    setup: '"use one algorithm from Theorem 4.3 to design a reward function, and contrast learning curves under a SOAP-designed reward function compared to standard rewards" (§5, details Appendix C)'
+    result: (empirical corroboration; details in appendix)
+    interpretation: constructive reward design has practical bite
+    supported_claim: C2
+narrative:
+  introduction_roles: '[Context (reward hypothesis as backdrop), Question (what is a task?), Thought experiment (Alice/Bob), Three task definitions, Impossibility result preview, Constructive algorithms, Experiments, Contribution summary]'
+  introduction_move: open by quoting the reward hypothesis to make the paper an explicit stress test of a foundational assumption; the Alice–Bob thought experiment (Fig. 1) converts a philosophical question into an analyzable interface; numbered steps (1. Account of Task, 2. Expressivity, 3. Main Results) structure the intro like a theorem-to-be
+  related_work_strategy: integrated into task-motivation — LTL, reward shaping, IRL cited where each notion of task fails or succeeds (§3.1); defense of the Markov-reward focus gives three independent reasons (other disciplines' usage, curse of dimensionality of history-based rewards, RL standard) (§1)
+  method_strategy: definition-first — Table 1 compresses all three task types and their realizability constraints into one view before any theorem; results stated as named theorems with intuition paragraphs ("Intuitively, inexpressible tasks involve policies or trajectories that must be correlated in value")
+  experiments_strategy: theory corroboration, not benchmark competition — Monte-Carlo estimation of expressible fractions with confidence intervals; explicit caveat that trends may be CMP-specific
+  conclusion_strategy: recap in three sentences, then a roadmap of relaxations (non-finite CMPs, unknown environment, history-based reward, learning dynamics, reward-is-enough hypothesis) — ends by widening, not narrowing
+reviewer_defense:
+  strengths: clean formal contribution (impossibility + constructive decidability); definitions (SOAP/PO/TO) are reusable abstractions; impossibility examples are interpretable (unreachable states, correlated values); empirical study connects theory to prevalence
+  vulnerabilities: 'realizability is defined via start-state value constraints only (conceded in conclusion: "a critical direction incorporates how reward impacts Bob''s learning dynamics rather than start-state value"); finite CMPs with shared state-action spaces; NP-hardness for finite reward outputs limits the algorithm''s practical scope; experiments small-scale (4 states, 3 actions)'
+  anticipated_attacks: '"why restrict to Markov rewards?" — three-reason defense in §1 step 2; "maybe these task types are arbitrary?" — motivated via gridworld conflation argument (§3.1) and generalization relationships (Table 1 column 3); "does this matter in practice?" — §5 experiment 2 and the §6 roadmap'
+writing:
+  paragraph_patterns: small caps task names (SOAP, PO, TO, TASK Q, EXPRESSION Q) functioning as recurring signposts; definitions immediately followed by "We note..." interpretive paragraphs
+  transition_patterns: '"With our definitions and objectives in place, we now present our main results" — explicit stage-setting transitions; "A natural follow up question ... asks whether ... Our next result answers this question in the negative" (§4.3)'
+  terminology_patterns: invented but disciplined vocabulary (SOAP, TASK Q / EXPRESSION Q, "realize"); theorem numbering kept sparse (4.1, 4.2/4.3, 4.5, 4.6, 4.7) with one headline theorem

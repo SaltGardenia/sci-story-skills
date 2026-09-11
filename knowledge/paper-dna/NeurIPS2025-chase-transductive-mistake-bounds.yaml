@@ -1,0 +1,95 @@
+# thesis: This paper shows that advance access to unlabeled test instances helps online learning
+# by at most a quadratic factor — the transductive mistake bound is Ω(√d)–O(√d) versus the
+# Littlestone dimension d — because an ε-balance adversary argument forces Ω(√d) mistakes in any
+# transductive game while a probabilistically-sparsified hypothesis class with danger-zone
+# minimization and splitting experts is learnable with O(√d), resolving the 30-year-old gap.
+paper:
+  venue: NeurIPS
+  year: 2025
+  field: learning theory / online learning
+  task: optimal mistake bounds for transductive online learning
+  problem: '"Quantitatively, how much (if at all) is learning in the transductive online learning setting easier than learning in the standard online learning setting? Specifically, how much is the optimal number of mistakes in the transductive setting smaller than in the standard setting?" (Question 2, §1)'
+  importance: transductive learning formalizes "the value of unlabeled data" (Question 1); the standard-vs-transductive contrast "highlights the benefit of advance access to the unlabeled instance sequence" and contrasts with PAC where unlabeled data gives no acceleration (abstract, §1)
+  source: full
+
+paradigm:
+  existing_approach: standard online learning with optimal mistakes M_std(H) = LD(H) (Littlestone 1987); transductive online bounds known only as Ω(log d) lower (Hanneke–Moran–Shafer 2023, improving Ω(√log d), Ω(log log d)) and (2/3)·d upper (Ben-David et al. 1997) (§1.2, §1.3)
+  core_assumption: implicit in the open problem — that the transductive gap could be anywhere between logarithmic and linear in d
+  limitation: '"an exponential gap between the best known lower and upper bounds on M_tr, namely Ω(log d) versus (2/3)·d" (§1.2)'
+
+gap:
+  unresolved_problem: locate the optimal transductive mistake bound within [Ω(log d), (2/3)d] — closed here at Θ(√d) (Theorem 1.1)
+  evidence_for_gap: 30-year citation chain (Ben-David et al. 1995/1997 → Hanneke et al. 2023) with monotone but exponentially separated bounds (§1.3)
+
+insight:
+  observation: the adversary's greedy dilemma — forcing a mistake when the version space is unbalanced (e.g., a single dissenting h) collapses the version space and forfeits all future mistakes; "just because you can, doesn't mean you should" (§2.2)
+  central_insight: two-sided construction — (lower bound) an adversary that forces mistakes only when the version-space ratio r_t ∈ [ε, 1−ε], on a sequence engineered so the final version space is a singleton, yields 1 ≥ ε^M(1−ε)^n·2^d, forcing M = Ω(√d) with n = 2^Θ(√d); (upper bound) sparse encodings are easy to guess — a randomly biased (one-hot-like) class "smears" the information about the true labeling function across off-path labels, unlike the 'minimal' class where information concentrates on the path (§2.2–2.3, Eqs. 1–2, §2.3.1)
+  hypothesis: a learner combining danger-zone minimization (Halving on a domain subset instead of the version space), splitting experts (multiplicative weights over on/off-path assumptions), and transition-to-Halving (once sparse encoding information accumulates) should achieve O(√d) mistakes on the constructed class (§2.3.3–2.3.6)
+
+method:
+  conceptual_change: treat the transductive advantage as an information-localization question — where in the labeled sequence does the identity of the true hypothesis get encoded (concentrated on-path vs smeared off-path)
+  mechanism: (lower bound, §6) adversary simulation over execution paths constructing a sequence with Properties I (n = 2^Θ(√d)) and II (labels consistent with some h containing path(h)); ε = 2^−Θ(√d). (upper bound, §8) hypothesis class of functions on a Littlestone tree with on-path values fixed by b ∈ {0,1}^d and off-path values i.i.d. biased coins (Lemma 8.2 combinatorial properties); learner = danger-zone minimization + splitting experts + transition to Halving (Algorithm in §8.3)
+  formulation: 'M_std(H) = sup_n inf_L sup_A M(H,n,L,A) (Game 1); M_tr defined by Game 2 (sequence fixed in advance); ratio r_t = |{h ∈ H_t : h(x_t)=1}|/|H_t| (§2.2); version-space product bound ε^M(1−ε)^n|H| (Eq. 1); ETF-free combinatorial Lemma 8.2 (≤ 2^O(√d) functions agreeing with any t_max = 2^Ω(√d) labels)'
+
+claims:
+  - id: C1
+    claim: '"For every hypothesis class H ⊆ {0,1}^X, M_tr(H) = Ω(√d), where d = M_std(H)" — theoretical (lower bound)'
+    importance: central
+    evidence: Theorem 1.1; Theorem 6.1 with adversary analysis (§6.1–6.3); ε-balance argument (§2.2, Eqs. 1–2)
+  - id: C2
+    claim: '"for every d there exists a hypothesis class H with M_std(H) = d and M_tr(H) = O(√d)" — theoretical (upper bound); improves (2/3)·d of Ben-David et al.'
+    importance: central
+    evidence: Theorem 1.1; Theorem 8.1; construction §2.3.2, algorithm §8.3, analysis §8.4
+  - id: C3
+    claim: together these "establish a quadratic gap between transductive and standard online learning" and resolve the 30-year-old open problem — the exponential prior gap is closed — theoretical
+    importance: central
+    evidence: abstract; §1.2
+  - id: C4
+    claim: the intermediate setting (adversary commits to the sequence but hides it from the learner) is essentially no easier than standard online learning — the benefit comes jointly from weaker adversary and better-informed learner — theoretical (footnote argument)
+    importance: supporting
+    evidence: footnote 6, §1.2 (intermediate-transductive adversary simulates the standard game, forcing d mistakes)
+  - id: C5
+    claim: the sequence length matters and n = 2^Θ(√d) is essentially optimal for the separation (Section 7, rigid adversaries, essential indices) — theoretical
+    importance: supporting
+    evidence: §7 (Table of contents; Section 7.1–7.3 "Sequence Length")
+
+experiments:
+  - id: E1
+    research_question: RQ-theory (lower bound) — can any transductive learner achieve fewer than Ω(√d) mistakes on some class of Littlestone dimension d?
+    setup: adversary strategy with ratio threshold ε, sequence constructed by simulating all execution paths satisfying Properties I–II; counting argument on the version space (§2.2, §6)
+    baseline: previous lower bounds Ω(log d), Ω(√log d), Ω(log log d)
+    result: M = Ω(√d) forced for every learner (Theorem 6.1)
+    interpretation: unlabeled-data advantage is at most quadratic — exponential improvement over prior lower bounds
+    supported_claim: C1, C3
+  - id: E2
+    research_question: RQ-theory (upper bound) — is there a class realizing the quadratic gap?
+    setup: biased-coin off-path class on a shattered Littlestone tree; learner with danger-zone minimization (≥1/3 shrinkage ⇒ O(log t_max) = O(√d) on-path mistakes), splitting experts (multiplicative weights; best expert makes O(√d)), transition to Halving on ≤ 2^O(√d) survivors (Lemma 8.2, Fact A.1) (§2.3, §8)
+    baseline: '''minimal'' class (provably forces d mistakes, footnote 12); Halving alone'
+    result: O(√d) total mistakes (Theorem 8.1)
+    interpretation: the gap is realizable — sparsity of encoding, not class size, governs transductive learnability
+    supported_claim: C2, C3
+  - id: E3
+    research_question: RQ-theory — what is the optimal sequence length for the separation?
+    setup: rigid adversary analysis and essential-indices argument (§7)
+    baseline: n arbitrary
+    result: n = 2^Θ(√d) established as the right scale for the lower-bound construction
+    interpretation: the quadratic gap requires exponentially-long instance sequences — itself a quantitative insight about unlabeled data
+    supported_claim: C5
+
+narrative:
+  introduction_roles: [Context (transductive tradition from Vapnik; value of unlabeled data), Contrast case (PAC: unlabeled data worthless), Question 1 → Question 2 refinement, Setting definitions (Games 1–2), Main result (Theorem 1.1 two bullets), Related-works genealogy]
+  introduction_move: motivates through the economics of data ("unlabeled data is often a lot easier to obtain than labeled data"), then deploys the PAC counterexample to sharpen why online learning is the interesting arena; the two game formalisms are given in full in the introduction itself, and the main theorem is stated as two symmetric bullets before any proof sketch — a pure theory-paper move where the introduction is nearly self-contained
+  related_work_strategy: chronological genealogy of lower bounds (log log d → √log d → log d) and the single upper bound, crediting each increment and situating this work as the closure (§1.3)
+  method_strategy: intuition-first — §2 "Technical Overview" narrates both proofs at working-mathematician depth (adversary dilemma, one-hot vs binary guessing analogy, three named obstacles with three named strategies) before formal sections; the 'everything everywhere all at once' codename footnote shows the construction's conceptual identity
+  experiments_strategy: n/a — theory paper; the "experiments" are the two matching constructions plus a section (§7) devoted to the auxiliary quantity (sequence length) needed to make the lower bound airtight
+  conclusion_strategy: no conclusion section; instead "Directions for Future Work" (§3) with three precise open questions (efficient algorithms, domain-size tradeoffs, exact constant in the asymptotics) — typical of theory best papers where the open-problem list is the legacy
+
+reviewer_defense:
+  strengths: matching upper and lower bounds with the same √d scale; the lower-bound argument is robust (adversary realism analyzed, randomized variants within factor 2, footnote 5); the upper-bound construction is verified by an explicit algorithm with multiplicative-weights guarantees
+  vulnerabilities: the separating class exists but is non-constructive/probabilistic and exponentially large in domain size (open question 2 concedes this); no efficient algorithm achieving O(√d) is known (open question 1); the result characterizes worst-case classes — many natural classes have M_tr = M_std
+  anticipated_attacks: '"maybe the learner could beat √d with a smarter strategy on your class" — the lower bound applies to every class of dimension d, so no; "is the intermediate setting the real model of unlabeled data?" — preempted in footnote 6 with the d-mistakes argument distinguishing it from true transductive access; "sequence length inflates the bound" — §7 proves the length is necessary for the construction'
+
+writing:
+  paragraph_patterns: 'proof-idea sections narrate strategy then name the obstacle ("However, making this general strategy work requires overcoming some very substantial obstacles: 1... 2... 3...") with the resolution deferred to a named subsection — a roadmap-of-obstacles architecture'
+  transition_patterns: numbered Questions (1, 2) refined in sequence; footnotes carry significant technical content (intermediate-setting argument, codename, randomized-variant equivalence) keeping the main text clean
+  terminology_patterns: playful but precise coinages — "danger zone minimization", "splitting experts", "transition to Halving", "rigid adversary", "essential indices"; consistent game-theoretic notation (M_std, M_tr, H_t version space) from introduction onward

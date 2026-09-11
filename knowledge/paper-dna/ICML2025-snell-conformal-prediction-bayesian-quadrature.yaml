@@ -1,0 +1,82 @@
+# thesis: This paper shows that conformal prediction and conformal risk control are special
+# cases of Bayesian quadrature over an unknown loss-distribution quantile function, because
+# quantile spacings of i.i.d. data are Dirichlet-distributed so the posterior risk is upper-bounded
+# by a spacings-weighted sum of observed losses without any prior, and therefore proposes a
+# Bayesian quadrature framework yielding full posterior distributions over deployment risk.
+paper:
+  venue: ICML
+  year: 2025
+  field: uncertainty quantification / conformal prediction
+  task: posterior characterization of black-box model deployment risk from calibration data
+  problem: distribution-free UQ (split conformal prediction, conformal risk control) "are based on frequentist probability, which unduly limits their applicability" — hard to incorporate prior knowledge, and they "focus on controlling the expected loss averaged over many unobserved datasets rather than focusing on the actual set of observations" (Abstract)
+  importance: deployment of black-box models in "high-stakes settings, such as medical diagnosis or financial applications" needs flexible, reliable performance guarantees without assumptions about training (§1)
+  source: full
+paradigm:
+  existing_approach: split conformal prediction (coverage guarantee Pr(Y∉C) ≤ α, Eq. 1) and conformal risk control (monotone-loss threshold λ̂, Eq. 4), both frequentist and marginal (§2.1)
+  core_assumption: guarantees must be distribution-free in the frequentist sense — averaged over hypothetical repeated calibration sets, with no mechanism for observed-data-specific uncertainty or side information (§1, Abstract)
+  limitation: marginal guarantees can "overly-optimistic[ally]" hide per-deployment risk; no way to exploit known properties (monotonicity, distributional knowledge) of the specific setting (§1, §8)
+gap:
+  unresolved_problem: a Bayesian framework for distribution-free performance guarantees that (a) recovers existing methods as special cases, (b) gives a full distribution of possible outcomes rather than a point bound, and (c) admits prior knowledge when available
+  evidence_for_gap: 'conceptual — CRC''s own guarantee holds only marginally; empirically demonstrated post hoc: 21.20% of individual CRC calibration trials exceed the target risk (§6, Table 5.1)'
+insight:
+  observation: Bayesian quadrature evaluates integrals by placing a prior over the integrand (§2.2); the expected loss is the integral of the loss distribution's quantile function J[K] = ∫K(t)dt (Eq. 23)
+  central_insight: the unknown evaluation sites t_1:n of the quadrature are quantile levels whose spacings have a distribution-free Dirichlet law (Lemma 4.2, Aitchison & Dunsmore), so integrating out t_1:n yields a prior-free random variable L+ = Σ U_i ℓ_(i), U~Dir(1,...,1) that stochastically dominates the posterior risk (Theorems 4.1, 4.3)
+  hypothesis: 'decision rules built from the L+ distribution (e.g., HPD criterion λ = inf{λ: Pr(L+ ≤ α) ≥ β}) should give per-deployment guarantees that are stricter where needed and recover CRC/SCP when expectations are taken'
+method:
+  conceptual_change: treat the loss distribution as an unknown monotone function to be integrated under uncertainty — conformal calibration becomes a probabilistic-numerics problem rather than a hypothesis test
+  mechanism: observe losses ℓ_i at unknown quantile levels; posterior over quantile function K via Dirac-delta likelihood (Eq. 25); eliminate the prior via worst-case bound sup_π E(L|·) ≤ Σ u_i ℓ_(i) with u_i = t_(i) − t_(i−1) (Theorem 4.1); marginalize spacings via Dirichlet to get L+ (Thm 4.3); decision rules from Corollary 4.4
+  formulation: 'E(L+) = (1/(n+1))Σℓ_i + B/(n+1) (Eq. 30); CRC''s λ̂ is exactly inf{λ : E(L+) ≤ α}; SCP''s ⌈(n+1)(1−α)⌉ order statistic recovered from E(L+) ≤ α under the 0-1 loss (Eq. 31–32, §4.6)'
+claims:
+  - id: C1
+    claim: split conformal prediction and conformal risk control are recovered as special cases of the Bayesian quadrature framework (theoretical)
+    importance: central
+    evidence: §4.6, Eq. 31–32 (SCP), Eq. 30 (CRC), Propositions in §3 recovering both as α-acceptable decision rules
+  - id: C2
+    claim: L+ stochastically dominates the posterior expected loss for any prior consistent with the calibration data, giving distribution-free upper confidence bounds at any confidence level β (theoretical)
+    importance: central
+    evidence: Theorems 4.1 and 4.3, Corollary 4.4
+  - id: C3
+    claim: 'marginal conformal guarantees can conceal substantial per-deployment risk: 21.20% of CRC trials on synthetic binomial data exceed the target, vs 0.03% under the HPD rule (comparative)'
+    importance: central
+    evidence: §5.1 Table 5.1, §6 Discussion, Fig. 3 histograms of chosen λ
+  - id: C4
+    claim: on heteroskedastic and real (MS-COCO) data, the Bayesian rule sits between CRC (anti-conservative) and RCPS (over-conservative) in failure rate while keeping prediction sets closer to CRC's size (comparative)
+    importance: central
+    evidence: Table 2 (CRC 46.19%/size 7.99, RCPS 0.0%/14.29, ours 3.42%/9.50), Table 3 (CRC 45.05%/2.92, RCPS 0.0%/3.57, ours 5.43%/3.04)
+experiments:
+  - id: E1
+    research_question: RQ1 — does the posterior risk distribution expose and control per-trial risk that marginal methods miss?
+    setup: synthetic scaled-binomial loss distribution, 10,000 calibration trials, measure relative frequency of exceeding target risk (§5.1, Table 5.1)
+    baseline: Conformal Risk Control; Risk-controlling Prediction Sets (RCPS, Hoeffding bound)
+    result: CRC 21.20% exceed; ours (HPD, β=0.95) 0.03%
+    interpretation: the marginal guarantee holds on average while individual deployments routinely violate α — the posterior makes this visible and controllable
+    supported_claim: C3
+  - id: E2
+    research_question: does the method handle non-i.i.d.-looking (heteroskedastic) loss and trade tightness against safety?
+    setup: synthetic heteroskedastic data, 10,000 trials, target α, measure exceedance + mean interval length (§5.2, Table 2)
+    baseline: SCP/CRC, RCPS
+    result: ours 3.42% exceedance (target 5%) with intervals 9.50 vs RCPS 14.29 and CRC 7.99 (46.19% exceed)
+    interpretation: RCPS is safe but loose; ours recovers most of the tightness CRC offers at near-target safety
+    supported_claim: C4
+  - id: E3
+    research_question: does the behavior transfer to a real model/calibration setting?
+    setup: MS-COCO (Lin et al. 2014), setup mirroring §5.2, 3,952 test examples (§5.3, Table 3)
+    baseline: CRC, RCPS
+    result: ours 5.43% exceedance, prediction set size 3.04 (vs CRC 45.05%/2.92, RCPS 0.0%/3.57)
+    interpretation: same safety-tightness frontier on real data
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (black-box deployment risk), Existing paradigm (conformal, frequentist), Failure mode (no priors, marginal-only), Prospectus (Bayesian view recovers both), Solution preview (probabilistic-numerics construction)]
+  introduction_move: reframes rather than attacks — the intro promises "we show how methods for guaranteeing model performance can be understood and extended by viewing them from a Bayesian perspective", making recovery of existing methods a stated deliverable, not an afterthought
+  related_work_strategy: lineage-based — traces distribution-free tolerance regions from Wilks (1941) through Tukey's statistically equivalent blocks to Aitchison & Dunsmore's Dirichlet spacings, positioning the paper as the missing bridge to Bayesian quadrature (§7)
+  method_strategy: derivation-laddered — decision-theoretic setup (§3) shows both methods are decision rules before §4 rebuilds them inside a Bayesian risk framework; each hard step (unknown sites, prior dependence) gets its own named lemma/theorem
+  experiments_strategy: three settings ordered by realism (known synthetic → heteroskedastic → MS-COCO), each reporting the same two numbers (exceedance frequency, set size) so the safety-tightness tradeoff is the recurring axis
+  conclusion_strategy: thesis-restating — "Bayesian probability can be used to extend uncertainty quantification techniques" with three payoffs (explicit assumptions, extra knowledge, intuitive guarantees), followed by an impact statement aimed at deployment decisions
+reviewer_defense:
+  strengths: prior-free construction (worst-case over priors) keeps distribution-free credentials; recovery theorems anchor novelty to established methods; Clopper-Pearson CIs on all frequencies
+  vulnerabilities: i.i.d. calibration-vs-deployment and loss upper bound B are load-bearing assumptions, violation invalidates guarantees (§6, candidly stated); bounds conservative — actual loss "may be significantly less" (§6); Dirichlet correspondence exact only for continuous distributions (§4.4); modest experimental scale
+  anticipated_attacks: '"CRC already controls risk" — the 21.20% per-trial exceedance result is precisely the counter-demonstration (§5.1, Fig. 3); "why not just use RCPS?" — the interval-length columns show RCPS pays ~50% wider sets for its conservatism (Tables 2–3)'
+writing:
+  paragraph_patterns: every theorem is followed by an interpretation sentence naming its operational consequence ("Putting these results together, we have recovered standard conformal prediction techniques but have the additional flexibility...", §4.6)
+  transition_patterns: subsections are staged as obstacle→resolution ("Elimination of the Prior Distribution", "Random Quantile Spacings") — the method narrative reads as a sequence of solved difficulties
+  terminology_patterns: tight notation discipline (K quantile function, L+ dominating variable, λ_hpd rule) with symbols suppressed "for notational convenience" only where unambiguous (§4.2)

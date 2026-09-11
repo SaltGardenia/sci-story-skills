@@ -1,0 +1,87 @@
+# thesis: This paper shows that hard minimal problems with many spurious solutions can be
+# solved in microseconds without computing all solutions, because a learned classifier picks
+# an anchor problem-solution pair from which single-path real homotopy continuation usually
+# tracks directly to the target solution, and therefore proposes a "pick & solve" RANSAC
+# solver (MLP start-problem selection + optimized real HC).
+paper:
+  venue: CVPR
+  year: 2022
+  field: geometric optimization / multi-view geometry
+  task: solving hard minimal problems (relative pose, 3 calibrated cameras from 4 points per view; 5pt) inside RANSAC
+  problem: "\"avoid computing large numbers of spurious solutions\" when a relaxed minimal problem has many spurious solutions (Abstract)"
+  importance: "minimal problems underpin 3D reconstruction, image matching, visual odometry and localization (§1 first sentence); recent results show many multiview minimal problems have many spurious solutions \"which the state-of-the-art polynomial solvers cannot solve efficiently\" (§1.1 end)"
+  source: full
+  inferred: "[field]  # categorization mine; paper frames itself as geometric optimization in RANSAC"
+paradigm:
+  existing_approach: "RANSAC inner loop with \"solve & pick\" — symbolic-numeric solvers (Gröbner bases + eigendecomposition) compute ALL complex solutions of the minimal problem, then filter to the supported one (§1.1, §1.3)"
+  core_assumption: "a solver must find all solutions of the polynomial system (or all complex ones) before picking the meaningful one; nonlinear algebra \"has no ability to bypass finding (or incurring the cost of finding) all solutions\" (§1.1 para 1)"
+  limitation: "both symbolic steps (Gauss-Jordan elimination, eigenvectors of n×n with n = number of complex solutions) are \"prohibitive for generic polynomial systems with many spurious solutions\" (§1.3); off-the-shelf global HC is 10³–10⁵× slower (§1.3)"
+gap:
+  unresolved_problem: "a practical (µs-scale) solver for minimal problems with many spurious solutions, e.g. the \"Scranton\" problem, for which \"no such efficient solver has been known\" (§1.2)"
+  evidence_for_gap: citation of [15,16] cataloguing many-solution minimal problems + prior best of ~660 ms for related hard problems ([20], §1.3) and ~1 ms for a numerical-search approximation of 4pt ([50], §1.2)
+insight:
+  observation: "only ONE real, well-supported solution per data sample is ever needed in RANSAC's inner loop; and on realistic 3D data, a small set of anchor problems covers most problems reachable by HC (Fig. 1 caption; Table 1: 70 anchors cover 90% of 5pt pairs)"
+  central_insight: "invert the solve order — \"pick & solve\": learn a picking function σ that, given a data sample, selects a promising starting problem-solution pair (anchor) from which homotopy continuation reaches a meaningful solution, making RANSAC cost \"effectively independent from the number of spurious solutions\" (§1.1, Fig. 1)"
+  hypothesis: a small greedy-selected anchor set + a fast MLP classifier trained on automatically generated (problem, solution, anchor-label) data yields per-sample solve times under 70 µs with success rates high enough for RANSAC (§1.2, §5)
+method:
+  conceptual_change: "stop treating the minimal-problem solver as distribution-agnostic algebra; couple it to the real data distribution of the SfM pipeline (\"our method is coupled with the rest of SfM pipeline, i.e., it uses the real data distribution\", §1.2 last para) — the start system is data-tailored"
+  mechanism: offline — sample problem-solution pairs from ETH 3D models (§3); greedy dominating-set proxy selects anchors A (§4); track each training problem from all anchors to auto-label it (§5.1); online — MLP σ(p) selects one anchor (or TRASH), then linear-segment real HC (RK4 predictor + Newton corrector) tracks one path (§5, §6)
+  formulation: "problem-solution manifold M with projection π: M → P (§2.1); homotopy H(s,t)=f(p(t),s) with p(t)=(1−t)p0+tp; depth-based polynomial formulation |λk,i vk,i − λm,i vm,i|₂ = |λk,j vk,j − λm,j vm,j|₂ chosen for low degree and sparsity (§7, Fig. 3); effective time εt = µt/ρ as the optimization target (§5)"
+claims:
+  - id: C1
+    claim: "\"We can solve a single problem in under 70 µs\" for three-view relative pose from four points per view (Scranton) (practical)"
+    importance: central
+    evidence: "Abstract; Table 4 (Scranton MLPT A90: 26.3% success in 16.2 µs)"
+  - id: C2
+    claim: "In RANSAC, \"about 4 samples suffice on average to obtain a valid candidate of camera geometry in 61.6µs\" — a >10× speedup over the previous best ~1 ms solver for a 4pt approximation [50] (comparative)"
+    importance: central
+    evidence: §1.2; Table 4; Fig. 4
+  - id: C3
+    claim: The approach is general — it applies to other minimal problems (5pt benchmarked) and even where spurious solutions are not finite (generalization)
+    importance: central
+    evidence: "§1.2 paras 4–5; Table 4 (5pt: 29.0% in 7.6 µs)"
+  - id: C4
+    claim: The learned MLP classifier beats distance-based start selection and beats per-anchor cost of tracking from all anchors on effective time (comparative)
+    importance: supporting
+    evidence: Table 4 (MLP/MLPT vs B1 oracle, B2 Euclidean, B3 Mahalanobis)
+  - id: C5
+    claim: "The lower success rate of single-path real HC can be compensated by more RANSAC samples (\"about 4 times more samples than the Nistér solver\") (comparative)"
+    importance: supporting
+    evidence: §9; Fig. 4
+experiments:
+  - id: E1
+    research_question: How many anchors are needed to cover the problem distribution, and do they generalize across scenes? (RQ4/data-side validation)
+    setup: 40k sampled p-s pairs from ETH 3D office+terrains; greedy dominating-set proxy; tested on delivery area & facade (§4, Tables 1–3)
+    baseline: coverage across anchor-set sizes; different anchor sources
+    result: 70 anchors cover 90% of 5pt, 134 for Scranton; office+terrains anchors cover 86–92% of unseen scenes
+    interpretation: anchors transfer across scenes, justifying offline selection
+    supported_claim: C3
+  - id: E2
+    research_question: Does learned start selection beat baselines on effective time εt = µt/ρ? (RQ1)
+    setup: Table 4 — success rate ρ, mean time µt, effective time εt on held-out ETH 3D scenes, both problems (§5.2)
+    baseline: B1 (all anchors = oracle, slow), B2 Euclidean nearest, B3 Mahalanobis nearest
+    result: "MLPT dominates: e.g. 5pt A90 36.8%/10.8 µs/29.3 µs vs B2 8.4%/12.1 µs/144.5 µs"
+    interpretation: the classifier is the key to making one-path HC practical
+    supported_claim: C4
+  - id: E3
+    research_question: Does the solver work inside full RANSAC on noisy, mismatched real benchmarks? (RQ4/generalization)
+    setup: CVPR 2020 RANSAC Tutorial dataset, 11 test scenes × 4950 camera pairs; rotation/translation error < 10°; sample budgets 25–3200 (§9, Fig. 4)
+    baseline: Nistér 5pt solver (~100% success rate)
+    result: ~25% success on this data; ~4× more RANSAC samples restores parity
+    interpretation: speed per sample trades against samples needed — the intended regime
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (minimal problems in 3D vision), Failure mode (solve & pick pays for all spurious solutions), Gap (no practical solver for many-solution problems), Insight (pick & solve via learned starting pair), Solution (Scranton solver + speedups), Generality claim (5pt benchmark; distribution-coupled design)]
+  introduction_move: "a dedicated \"Motivation\" subsection (§1.1) contrasts solve & pick vs pick & solve via a flowchart (Fig. 1) before any method detail; the contribution list (§1.2) leads with the mechanism then stacks quantitative wins (26.3%, 16.3 µs, 4 samples, 10× speedup) to establish practicality claim-by-claim"
+  related_work_strategy: capability-threshold ladder — symbolic-numeric solvers work up to ~64 solutions, off-the-shelf HC is 10³–10⁵× slower, closest prior work 660 ms — each rung quantified to place the gap precisely (§1.3)
+  method_strategy: formulation-first (problem-solution manifold as the mathematical object, §2), then pipeline-first (offline sampling/anchors/learning vs online tracking); engineering speedups (real arithmetic 14×, sparse linear algebra 5×) reported openly as implementation contributions (§6.1)
+  experiments_strategy: component validation in the paper (anchor coverage, classifier vs baselines), end-to-end RANSAC benchmark last; hyperparameter/engineering ablations deferred to supplementary (SM §18)
+  conclusion_strategy: "one-paragraph claim restatement plus an explicit, numbered Limitations paragraph inside the conclusion (conceded: lower success rate vs complex HC; model tied to training distribution)"
+reviewer_defense:
+  strengths: oracle-bounded evaluation (B1 gives the theoretical best for an anchor set, and Table 3 reports the oracle coverage); novel problem (Scranton) where no prior solver exists, so comparison is against order-of-magnitude prior art; open-sourced code
+  vulnerabilities: "success rate is deliberately low (26–39%); performance depends on training data distribution (ETH 3D scenes) — the authors concede the MLP \"represents only what it is trained for\" (§10 Limitations); heavy reliance on problem-specific engineering"
+  anticipated_attacks: "\"failure-prone solver is useless in RANSAC\" — preempted by showing the 4×-sample compensation on the RANSAC Tutorial benchmark (§9, Fig. 4); \"just an engineering speedup\" — preempted by framing the data-distribution coupling as a conceptual contribution (§1.2 last para)"
+writing:
+  paragraph_patterns: "numbered Example paragraphs (Example 1, Example 2) used to ground abstract manifold theory in a tiny cubic equation before the real problem; claim sentences carry their numbers inline (\"solves about 26.3% of inputs in 16.3µs, Tab. 4\")"
+  transition_patterns: "section hand-offs state the role of the next stage (\"The offline stages of our solvers begin by...\", §3; \"We now describe how the starting p-s pairs are obtained\", §4)"
+  terminology_patterns: "branded dichotomy \"solve & pick\" vs \"pick & solve\" repeated from Fig. 1 through abstract; TRASH label as named class; εt defined once (§5) and used as the single currency of comparison everywhere"

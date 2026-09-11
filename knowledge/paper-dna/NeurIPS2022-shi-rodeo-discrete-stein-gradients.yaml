@@ -1,0 +1,85 @@
+# thesis: This paper shows that REINFORCE gradient estimation for discrete distributions can be
+# substantially de-varianced by adding control variates generated from discrete Stein operators
+# (mean-zero functions built from Markov chains with stationary distribution q), because the Stein
+# operator structure permits flexible neural-network surrogates that exploit neighboring states
+# without extra target-function evaluations, and therefore proposes RODEO — an adaptive, online,
+# leave-one-out-compatible estimator with substantially lower variance than DisARM/ARMS/Double CV/RELAX.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: gradient estimation / variational inference
+  task: low-variance Monte Carlo gradient estimation for expectations over discrete distributions
+  problem: '"when the distribution is discrete, most common gradient estimators suffer from excessive variance" (Abstract); REINFORCE estimators are general-purpose but high-variance while pathwise estimators apply only to continuous distributions (§1)'
+  importance: gradient estimation underlies "variational inference for training latent variable models, policy gradient algorithms in reinforcement learning, and combinatorial optimization" (§1 para 1); better estimators directly improve training of discrete-latent models like Bernoulli VAEs (§6)
+  source: full
+paradigm:
+  existing_approach: REINFORCE/score-function estimators with baselines and control variates; recent SotA discrete estimators DisARM, ARMS, Double CV, RELAX (§1, §6)
+  core_assumption: variance reduction must come from hand-designed CVs (baselines, reparameterization tricks) specific to each estimator family
+  limitation: REINFORCE's excessive variance; prior discrete Stein CVs restricted to linear input functions (Stein et al.; Dellaportas & Kontoyiannis); many operators (difference, MPF) use unbounded probability ratios causing "large variance and numerical instability" (§3.1)
+gap:
+  unresolved_problem: flexible, adaptive CVs for discrete REINFORCE (and its leave-one-out variant) that (a) can be parameterized by neural networks, (b) exploit distribution structure, and (c) require no extra evaluations of the expensive target function f (§1, §4)
+  evidence_for_gap: prior discrete Stein CV literature is limited to linear h (§3); existing SotA estimators either need extra function evaluations (RELAX) or have higher variance at matched budgets (§6 empirical)
+insight:
+  observation: '"for any integrable h, the function (P − I)h is a valid CV as it has known mean under q" — where P is the transition matrix of any Markov chain with stationary distribution q (§3, Eq. 1); and the optimal variance-zero CV solves a Poisson equation (Eq. 10)'
+  central_insight: parameterize the Stein CV as h̃(x) = h(x)∇η log qη(x) with h a learned scalar surrogate for f — informed by cheap quantities (f and ∇f at the other K−1 sample points) — so the CV correlates strongly with the REINFORCE term at near-zero cost (§4, Eqs. 11–14)
+  hypothesis: augmenting REINFORCE leave-one-out with these adaptive Stein CVs will dominate SotA discrete estimators in variance and ELBO at equal numbers of function evaluations (§6)
+method:
+  conceptual_change: view control-variate design as operator design — any Markov chain with stationary q yields a Stein operator, so the choice of chain (Gibbs, Zanella/Barker, birth-death) becomes a tunable axis trading stability, sparsity, and variance (§3.1)
+  mechanism: 'RODEO (Algorithm 1): sample K points; compute f, ∇f, ∇θf by autodiff; build sample-specific surrogates h_k(y) = (1/(K−1)) Σ_{j≠k} H(f(x^(j)), ∇f(x^(j))ᵀ(y−x^(j))) with H a small neural network (Eqs. 13–14); form estimator E_q[f∇log q + (Ah̃)(x)] (Eq. 9/12); learn H and CV parameters γ online by minimizing the squared gradient norm ‖g_γ‖² (a standard unbiased CV-adaptation objective)'
+  formulation: 'Stein operator family (Table 1): Gibbs (Eq. 4), Zanella/MPF/Barker (Eqs. 5–6), birth-death/difference (Eqs. 7–8); recommendation — numerically stable Gibbs for binary/small-cardinality, Barker for large cardinality with sparse neighborhoods (§3.1)'
+claims:
+  - id: C1
+    claim: a general recipe identifies practical discrete Stein operators from Markov chains with stationary distribution q, generalizing prior literature (theoretical/structural)
+    importance: central
+    evidence: §3, Table 1 (Gibbs, Zanella, Barker, birth-death, difference operators); recovers Bresler–Nagaraj/Reinert–Ross and Yang et al. as special cases
+  - id: C2
+    claim: RODEO — REINFORCE augmented with Stein-operator CVs and learned surrogates — "achieves substantially lower variance than state-of-the-art estimators with the same number of function evaluations" (comparative)
+    importance: central
+    evidence: §6.1, Fig. 2 (gradient variance and ELBO vs DisARM, ARMS, Double CV, RELAX on Bernoulli VAEs)
+  - id: C3
+    claim: RODEO CVs "can be adapted online to minimize variance and do not require extra evaluations of the target function" (practical)
+    importance: central
+    evidence: Abstract; §4 Algorithm 1 (γ updated by gradient of ‖g_γ‖²); surrogates use only f/∇f at existing sample points
+  - id: C4
+    claim: when h equals f exactly, the CV adjustment amounts to Rao-Blackwellization, yielding guaranteed variance reduction (theoretical)
+    importance: supporting
+    evidence: §4, after Eq. 11 ("This yields a guaranteed variance reduction")
+  - id: C5
+    claim: the Gibbs Stein operator is the recommended default for numerical stability, as difference/MPF operators suffer instability from unbounded ratios q(y)/q(x) (practical/design guidance)
+    importance: supporting
+    evidence: §3.1 "Choosing a Stein operator", §6.3 ablation
+experiments:
+  - id: E1
+    research_question: RQ1-flavored (estimator quality) — does RODEO train Bernoulli VAEs with lower gradient variance and better ELBO than SotA at matched evaluation budgets?
+    setup: Bernoulli VAEs, d=200 latent dimensions, MNIST/Fashion-MNIST/Omniglot, binary and continuous outputs, K=2–3 samples; compare gradient variance and training ELBO vs DisARM, ARMS, Double CV, RELAX (§6.1, Figs. 2)
+    baseline: DisARM, ARMS, Double CV, RELAX
+    result: '"In most cases and with the same number of function evaluations, RODEO delivers lower variance and better training objectives" (§1; Fig. 2)'
+    interpretation: Stein CVs dominate at matched budgets
+    supported_claim: C2, C3
+  - id: E2
+    research_question: RQ4 — does RODEO generalize to deeper latent-variable models (hierarchical VAEs)?
+    setup: hierarchical Bernoulli VAEs with 200 Bernoulli variables per layer, K=2, vs DisARM and Double CV (§6.2)
+    result: RODEO performs favorably (per §6.2)
+    interpretation: benefits extend beyond single-stochastic-layer models
+    supported_claim: C2
+  - id: E3
+    research_question: RQ2/RQ3-flavored — how does the choice of Stein operator and surrogate affect performance?
+    setup: ablation over Stein operators (Gibbs vs Barker vs difference) and surrogate design choices (§6.3)
+    result: stability and variance behave as §3.1's analysis predicts (per §6.3)
+    interpretation: operator choice is a real design axis with the recommended defaults validated
+    supported_claim: C1, C5
+narrative:
+  introduction_roles: [Context (gradient estimation central), Failure mode (discrete = high variance), Two estimator families and their limits, Insight (Stein operators → CVs), Framework (RODEO) + extension (leave-one-out), Evaluation preview]
+  introduction_move: frame the paper as a variance-reduction technique first and a specific estimator second; the "twofold benefits" paragraph (flexible functional forms + neighborhood information) pre-states exactly why the method should win before any experiment
+  related_work_strategy: §5 separates Stein-method literature (operators for distances/divergences) from gradient-estimation literature (DisARM/ARMS/Double CV/RELAX); the paper claims to be the bridge
+  method_strategy: operator-catalog-first — Table 1 presents the operator menu before the estimator; the Poisson-equation optimality argument justifies the surrogate functional form; implementation given as clean pseudocode (Algorithm 1)
+  experiments_strategy: benchmark-led — the claims are variance comparisons at matched evaluation budgets across many tasks (15 benchmark tasks); ablation relegated to §6.3; the conclusions section doubles as a limitations section with explicit cost analysis and proposed speed fixes
+  conclusion_strategy: recap the three properties (no continuous reparameterization, no extra evaluations, online adaptation), then candid cost accounting (K−1 surrogate evaluations) and two named speed improvements (neighbor subsampling, Barker operator) plus the differentiable-f restriction
+reviewer_defense:
+  strengths: principled construction (any Markov chain → valid CV); guaranteed-variance-reduction special case (Rao-Blackwellization); matched-budget comparisons against four SotA estimators over 15 tasks; released code
+  vulnerabilities: surrogate H must be evaluated at K−1 locations — cost unfavorable for large K (conceded, with a constant-cost alternative proposed); restricted to differentiable f (conceded); Gibbs operator evaluates d neighbors, costing linear in dimension; variance claims are empirical rather than backed by theory
+  anticipated_attacks: '"unstable probability ratios" — preempted by the operator-choice guidance (§3.1) favoring Gibbs/Barker; "RELAX already adapts CVs online" — RODEO requires no extra f evaluations (abstract-level differentiation, §6 comparisons); "only Bernoulli VAEs?" — 15 benchmark tasks including hierarchical VAEs and policy-gradient-style tasks cited in §6'
+writing:
+  paragraph_patterns: equation → interpretation → design-implication rhythm; each operator introduced with its Markov chain pedigree and its special-case recovery of prior work
+  transition_patterns: '"We next present several examples ... that can serve as practical defaults"; the conclusions section explicitly merges conclusions, limitations, and future work under one heading'
+  terminology_patterns: operator names capitalized and attributed (Gibbs, Zanella, Barker, birth-death, difference Stein operator); RODEO as the single branded artifact; consistent A, h, q_η notation from Table 1 onward

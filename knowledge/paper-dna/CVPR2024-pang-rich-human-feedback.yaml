@@ -1,0 +1,95 @@
+# thesis: This paper shows that a single scalar human score is an impoverished feedback
+# signal for text-to-image generation because image flaws are localized (artifact regions,
+# misaligned regions, misaligned words), and therefore proposes RichHF-18K — the first rich
+# human feedback dataset (heatmaps + keywords + four scores) — with the RAHF multimodal
+# transformer that predicts this feedback and uses it to improve generation, including on
+# models it was not collected from.
+paper:
+  venue: CVPR
+  year: 2024
+  field: text-to-image generation / reward models
+  task: fine-grained automatic evaluation of generated images and using that feedback to improve T2I models
+  problem: "generated images \"still suffer from issues such as artifacts/implausibility, misalignment with text descriptions, and low aesthetic quality\" while existing metrics \"summarize the quality of one image into a single numeric score\" and \"do not localize the regions of misalignment\" (Abstract, §1)"
+  importance: "T2I models \"are rapidly becoming a key to content creation\"; human evaluation finds \"only ∼10% of the generated images in [Pick-a-Pic] are free of artifacts and implausibility\" (§1 para 1)"
+  source: full
+  inferred: "[field]  # categorization mine"
+paradigm:
+  existing_approach: RLHF-inspired reward models for T2I — ImageReward/ReFL, PickScore, HPS — trained on human scores or preference pairs; CLIP-Score and QA-pipelines for alignment (§1, §2)
+  core_assumption: the quality of a generated image is adequately captured by one scalar (or one preference comparison) per image
+  limitation: "single scores are not interpretable or attributable — \"still summarize the quality of one image into a single numeric score ... do not localize the regions of misalignment in the image\" (§1 para 2)"
+gap:
+  unresolved_problem: "an automatic, explainable pipeline that predicts WHERE an image is implausible or misaligned and WHICH prompt words are misrepresented, alongside fine-grained scores — \"the first rich feedback dataset and model for state-of-the-art text-to-image generation models\" (§1 contribution 1)"
+  evidence_for_gap: "capability comparison against IS/FID (distribution-level), CLIP-Score/QA pipelines (non-localizing), and prior artifact-region work [Kirstain et al./\"trained a segmentation-based model to predict artifact regions\"] which \"focus[es] on artifact region only\" (§2 end, §3)"
+insight:
+  observation: "annotators naturally give multi-modal feedback when asked — points on the image with an \"effective radius\" (1/20 of image height), labeled misaligned keywords, and four 5-point Likert scores; ~85% of samples have good annotator agreement (maxdiff ≤ 0.25 standardized, §3.3–3.4, Fig. 4)"
+  central_insight: rich feedback (heatmaps + keyword marks + multi-aspect scores) is collectable at 18K scale, predictable by one multimodal transformer, and — unlike a scalar — is directly actionable (mask for inpainting, filter for finetuning, guidance signal) (§1 contributions, §5)
+  hypothesis: "predicted rich feedback transfers across generator families, improving even Muse, a masked-transformer model \"different from the Stable Diffusion model variants in our RichHF-18K dataset\" (§5 intro)"
+method:
+  conceptual_change: treat evaluation output as a structured, spatial prediction task (heatmaps, sequences, scores from one fused vision-language model) rather than a regression to one number
+  mechanism: "data — 18K annotated Pick-a-Pic image-prompt pairs via a purpose-built UI, points with effective radius, 4 Likert scores, misaligned keywords marked with a '0' suffix (§3, Fig. 1); model — ViT + T5X (Spotlight-inspired) with self-attention fusion of image and text tokens; three heads: deconv heatmaps, conv+linear scores, T5X decoder emitting the prompt with '0'-suffixed misaligned tokens (§4.1, Fig. 3); use — score-thresholded finetuning data selection (\"a simplified version of Direct Preference Optimization\", §5), heatmap-thresholded Muse region inpainting with RAHF-score reranking, aesthetic-score classifier guidance (§5, Figs. 8–9)"
+  formulation: standardized scores (s−smin)/(smax−smin) ∈ [0,1] (§3.4); no new loss math — the formal object is the multi-head prediction of heatmaps H_impl, H_mis, scores, and edited prompt sequence
+claims:
+  - id: C1
+    claim: "RAHF's score predictions are \"highly correlated with the human annotations on a test set\", significantly outperforming ResNet-50 and off-the-shelf PickScore/CLIP (comparative)"
+    importance: central
+    evidence: Table 1 (e.g. plausibility PLCC 0.693 vs ResNet-50 0.495; PickScore ~0.01–0.35)
+  - id: C2
+    claim: RAHF predicts implausibility and misalignment heatmaps usefully — the augmented-prompt variant outperforms ResNet-50 on implausibility heatmaps and CLIP-gradient baselines on misalignment heatmaps (comparative)
+    importance: central
+    evidence: Tables 2–3 (augmented prompt MSE 0.00920/0.00304; AUC-Judd 0.913/0.841)
+  - id: C3
+    claim: "Predicted rich feedback improves generation — finetuning Muse with score-filtered data and inpainting predicted artifact regions both \"obtain better images than with the original model\" (causal/practical)"
+    importance: central
+    evidence: §5; Fig. 8; Table 5 (61.8% of side-by-side human comparisons favor finetuned Muse vs 16.8% against)
+  - id: C4
+    claim: "\"The improvement on the Muse model, which differs from the models that generated the images in our training set, shows the good generalization capacity\" (generalization)"
+    importance: central
+    evidence: "§5 intro; Fig. 9 caption (\"this shows that our RAHF generalizes well to images from a generative model very different from the ones whose images are used to train RAHF\")"
+  - id: C5
+    claim: Rich feedback is reliably collectable from humans — score distributions usable for reward training and ~85% good annotator agreement (descriptive)
+    importance: supporting
+    evidence: §3.4; Fig. 2; Fig. 4
+experiments:
+  - id: E1
+    research_question: RQ1 — does RAHF predict the four fine-grained scores accurately vs baselines?
+    setup: 1K test set from Pick-a-Pic test prompts; PLCC/SRCC per score (Table 1)
+    baseline: ResNet-50, off-the-shelf PickScore and CLIP, fine-tuned CLIP; multi-head vs augmented-prompt variants
+    result: multi-head/augmented best on all four scores (PLCC 0.474–0.693)
+    interpretation: joint multimodal training beats repurposed contrastive models on fine-grained ratings
+    supported_claim: C1
+  - id: E2
+    research_question: RQ1 — can the model localize flaws spatially?
+    setup: heatmap MSE on all data / GT=0 / GT>0, saliency metrics (CC, KLD, SIM, NSS, AUC-Judd) vs ResNet-50 and CLIP gradient (Tables 2–3)
+    baseline: ResNet-50 (implausibility), CLIP gradient maps (misalignment)
+    result: "augmented-prompt RAHF wins on both; multi-head variant underperforms on implausibility heatmaps — authors attribute to task trade-off without prompt augmentation (\"It might not be easy to find a good tradeoff among these tasks\", §4.2.2)"
+    interpretation: spatial localization is harder than scalar rating but achievable; misalignment localization noisier than artifact localization (conceded)
+    supported_claim: C2
+  - id: E3
+    research_question: RQ4 — does predicted feedback improve a generator out-of-family?
+    setup: finetune Muse on 12,564 PaLM-2-generated prompts filtered by RAHF plausibility threshold 0.8; 100 new prompts; 6-annotator side-by-side plausibility survey (§5, Table 5)
+    baseline: original Muse
+    result: ≫+> = 51.8% vs ≪+< = 16.8%
+    interpretation: predicted scores are a usable training signal; gains transfer across architectures
+    supported_claim: C3, C4
+  - id: E4
+    research_question: RQ4 — do predicted heatmaps enable targeted image repair?
+    setup: threshold+dilate predicted implausibility heatmaps → Muse region inpainting → rerank candidates by predicted plausibility (§5, Fig. 9)
+    baseline: original Muse images
+    result: "qualitative \"more plausible images with fewer artifacts\" on Muse generations"
+    interpretation: heatmaps are directly actionable as masks
+    supported_claim: C3, C4
+narrative:
+  introduction_roles: [Context (T2I progress), Failure mode (artifacts, misalignment, low aesthetics; 10% clean statistic), Existing metrics and their shared deficiency (single scalar, no localization), Gap (first rich feedback dataset/model), Solution (RichHF-18K + RAHF), Use cases preview, Contributions 1–4]
+  introduction_move: "metric-critique-driven — the intro is organized as an escalation through existing evaluation options (IS/FID → preference scores → CLIP-Score → QA pipelines), each dismissed for the same missing property (localization/attributability), which sets up \"rich\" as the missing axis; contributions are enumerated data-first (dataset, model, uses, generalization)"
+  related_work_strategy: "two-arc survey (T2I architectures GAN→VAE→diffusion; evaluation/reward models) where the second arc ends in the exact sentence the paper's contributions answer (\"most existing works only use binary human ratings or preference rankings\", §2)"
+  method_strategy: data-section-first (§3 precedes §4) — the dataset is the contribution, so collection protocol, UI, and annotator-agreement statistics come before the model; model architecture described as three predictor heads over one fused backbone
+  experiments_strategy: "fidelity-to-human first (Tables 1–4), usefulness second (§5) — mirroring the claim structure \"predict well, then improve generation\"; honest discussion of the multi-head vs augmented-prompt discrepancy inside §4.2.2"
+  conclusion_strategy: restates contributions then a candid limitations paragraph (noisier misalignment labels, single-generator annotation source, many unexplored uses)
+reviewer_defense:
+  strengths: dataset released (GitHub); annotator agreement quantified; generalization tested by deliberate architecture mismatch (Stable Diffusion annotations → Muse improvement); baselines include off-the-shelf and fine-tuned variants
+  vulnerabilities: "misalignment heatmap prediction admittedly weaker (\"possibly due to the noise in the misalignment heatmap ... ambiguous how to label some misalignment cases\", §6); 3,000 rater-hours/18K images is small relative to preference datasets (500K Pick-a-Pic); human study has 6 annotators and 100 prompts; finetuning method is \"a simplified version of DPO\" (§5) — thin novelty on the improvement side"
+  anticipated_attacks: "\"why not just use PickScore?\" — preempted by Table 1 (PickScore near-zero PLCC on plausibility) plus the localization argument; \"heatmaps are too noisy to use\" — preempted by the inpainting pipeline's reranking step and qualitative gains (Fig. 9); \"results only on Stable Diffusion images\" — preempted by the Muse generalization claim and Fig. 9"
+writing:
+  paragraph_patterns: "numbered contribution list with explicit cross-references; paired experiment-then-interpretation paragraphs (\"Yet, in Tab. 2 ... The main reason might be...\", §4.2.2)"
+  transition_patterns: "section 5 opens by restating the purpose (\"we investigate whether the predicted rich human feedback ... can be used to improve image generation\") linking evaluation fidelity to downstream utility"
+  terminology_patterns: "branded compound names (RichHF-18K, RAHF) defined once and reused; \"rich feedback\" as the recurring differentiating adjective against \"single score\"; task names kept verbatim between intro, tables, and conclusion (plausibility/alignment/aesthetics/overall)"

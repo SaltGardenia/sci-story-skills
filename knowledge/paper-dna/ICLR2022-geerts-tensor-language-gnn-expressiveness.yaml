@@ -1,0 +1,66 @@
+# thesis: This paper shows that the separation power of essentially any GNN can be bounded
+# by WL tests from pure syntax, because GNN layers can be written as expressions in a
+# procedural tensor language whose number of index variables and summation-nesting depth
+# exactly match k-WL and its number of rounds, and therefore proposes the TL framework and
+# k-MPNNs as a toolbox that turns architecture analysis into expression writing and counting.
+paper:
+  venue: ICLR
+  year: 2022
+  field: graph neural networks / theory of GNN expressiveness
+  task: characterizing separation power and approximation (universality) of arbitrary GNN architectures
+  problem: '"Results regarding separation power are usually geared at specific GNN architectures, and tools for understanding arbitrary GNN architectures are generally lacking" — each new architecture requires a bespoke, complex proof (Abstract, §1)'
+  importance: gives GNN designers "a toolbox with which GNN architecture designers can analyze the separation power of their GNNs, without needing to know the intricacies of the WL-tests" (Abstract), plus guidance on what boosts separation power (fewer indices, via treewidth)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: architecture-by-architecture expressiveness proofs (Xu et al. 2019, Morris et al. 2019, Maron et al. 2019b, Azizian & Lelarge 2021); MATLANG-based analysis limited to matrices and bounds up to 2-WL (Balcilar et al. 2021a) (§1, Related work)
+  core_assumption: to bound a GNN's separation power one must engage with the intricacies of CR/k-WL directly for that architecture
+  limitation: no general syntactic criterion linking arbitrary GNN layer definitions to WL hierarchy levels or to the number of layers/rounds
+gap:
+  unresolved_problem: a uniform procedure mapping any GNN definition to (a) a k-WL upper bound, (b) a rounds bound in terms of depth, and (c) universality guarantees
+  evidence_for_gap: proof complexity of existing per-architecture results (§1 para 2); MATLANG's inability to go beyond 2-WL or reason about indices/summation depth (Related work, §1)
+insight:
+  observation: GNN layers are algebraic computations that can be written index-by-index (F'_is = σ(Σ_j A_ij Σ_t W_ts F_jt)), exposing index variables and nested summations as the only structural features that matter (§3 opening example)
+  central_insight: separation power is a syntactic property of the expression — k+1 indices correspond exactly to the separation power of k-WL, and summation nesting depth t corresponds to its number of rounds (Theorems 4.1–4.3)
+  hypothesis: if this correspondence holds, all known per-architecture bounds should be recoverable by simply transcribing architectures into TL, and open problems (IGN separation) should fall out as corollaries
+method:
+  conceptual_change: stop treating GNNs as architectures to be analyzed and treat them as expressions in a formal language whose syntactic resources (indices, summation depth, guardedness) carry the expressiveness
+  mechanism: TL(Ω) grammar over predicates E, P_s with summation; k-MPNN := functions representable in TL_{k+1}(Ω); guarded fragment GTL for neighbor-only propagation; treewidth-based expression optimization to minimize indices (§3, §4.2, §5.4)
+  formulation: 'Theorem 4.1: ρ1(vwl_k^∞) = ρ1(TL_{k+1}(Ω)); Theorem 4.2: ρ1(vwl_k^t) = ρ1(TL^t_{k+1}(Ω)); Theorem 4.3: ρ1(cr^t) = ρ1(GTL^t(Ω)); universality via generalized Stone–Weierstrass (Theorem 6.1, Corollary 6.2)'
+claims:
+  - id: C1
+    claim: the separation power of (k+1)-index tensor expressions equals that of k-WL, with summation depth t pinning it to t rounds (theoretical)
+    importance: central
+    evidence: Theorems 4.1 and 4.2 (§4.2), proofs in supplementary C
+  - id: C2
+    claim: guarded TL exactly captures color refinement, recovering/extending Barceló et al. (2020) beyond first-order classifiers (theoretical)
+    importance: central
+    evidence: Theorem 4.3 (§4.2 "Guarded TL and color refinement")
+  - id: C3
+    claim: the separation power of t-layered (k+1)-IGNs is bounded by k-WL — answering open problem 1 of Maron et al. (2019a) (theoretical)
+    importance: central
+    evidence: Theorem 5.1 (§5), "We hereby answer open problem 1 in Maron et al. (2019a)"
+  - id: C4
+    claim: (k+1)-index expressions approximate any graph function whose separation power is bounded by k-WL, refining Azizian & Lelarge (2021) with layer information and covering the k-IGN case left open there (theoretical)
+    importance: central
+    evidence: Theorem 6.1 + Corollary 6.2 + §6.2 consequences list
+  - id: C5
+    claim: known bounds for GIN, GCN, Folklore GNN, k-GNN, ChebNet/CayleyNet etc. are recovered mechanically by transcribing them into TL, and new ones (CayleyNet ≤ 2-WL) follow (theoretical/descriptive)
+    importance: supporting
+    evidence: §5 "Consequences for GNNs"; Corollary D.1 for ChebNet
+experiments: []  # pure theory paper — no empirical experiments; validation is by recovering known results (§5) and answering open problems (Theorem 5.1)
+narrative:
+  introduction_roles: [Context (GNNs ubiquitous), Focus statement (separation power), Failure mode (per-architecture complex proofs), Gap, Insight (tensor language; indices→k-WL, depth→rounds), Solution (toolbox + k-MPNNs), Contribution (recovered + new results, open problems solved)]
+  introduction_move: leads with the methodological pain (bespoke proofs), then makes the paper's promise operational in the intro itself — "if tensor language expressions use k+1 indices, then their separation power is bounded by k-WL" — so the reader can predict every downstream result; contributions split into recovered vs new
+  related_work_strategy: lineage-contrast — positions TL against MATLANG/sum-MATLANG by precise capability deltas (matrices→tensors, no separation power, no guarded fragments), closes with "See Section A for more details"
+  method_strategy: formalism-first but example-led — every formal object is introduced through the σ(A·F·W) running example before the grammar
+  experiments_strategy: none; the "evidence" architecture is theorem → recovered known results → open problems answered, i.e., validation by predictive coverage of prior art
+  conclusion_strategy: compact recap of the two syntactic knobs (indices, summation depth) and the toolbox framing — no outlook
+reviewer_defense:
+  strengths: exact characterizations (equalities, not just inclusions); breadth of recovered architectures demonstrates the toolbox's coverage; solves open problems as corollaries
+  vulnerabilities: no practical algorithmics — TL "is not intended as a practical programming language" (§3); insights about boosting separation power are structural (treewidth/indices), not new architectures; results are upper-bound oriented for specific instantiations of Ω
+  anticipated_attacks: '"is this just MATLANG again?" — pre-empted in the intro by enumerating MATLANG''s limits (2-WL only, no index/depth reasoning); "notation burden" — mitigated by the running example (§3)'
+writing:
+  paragraph_patterns: result statements followed immediately by "This theorem gives us new insights:" application paragraphs (§4.2)
+  transition_patterns: '"We can do much more..." style escalations connecting characterization to refinement to guarded fragment'
+  terminology_patterns: disciplined notation section up front (§2); consistent use of ρ1 separation-equivalence from Azizian & Lelarge with explicit note of the small definitional difference (footnote 2)

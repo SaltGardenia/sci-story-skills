@@ -1,0 +1,88 @@
+# thesis: This paper shows that distribution comparison can be made decision-relevant by
+# measuring the excess optimal decision loss on a mixture versus each distribution, because
+# generalized (H-)entropy is concave so the mixture-entropy gap is a valid divergence, and
+# therefore proposes H-divergences — a family that strictly generalizes MMD and JS divergence
+# and lets modelers encode preferences via the choice of decision loss.
+paper:
+  venue: ICLR
+  year: 2022
+  field: statistical divergence / hypothesis testing
+  task: two-sample testing and decision-dependent distribution comparison
+  problem: '"Quantifying the difference between two probability distributions is a fundamental problem in machine learning" — but existing divergences only quantify *whether* distributions differ, not whether differences affect decisions (§1)'
+  importance: '"scientists and policy makers are often interested not only in if two distributions are different, but how two distributions are different and whether the differences affect decision making" (§1 para 4); applications to climate change assessment and preference-controlled feature selection (§5)'
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: 'two divergence families — integral probability metrics (IPMs: Wasserstein, MMD, based on identical expectations of test functions) and f-divergences (KL, JS, based on likelihood ratios) (§1, §2.1)'
+  core_assumption: a divergence should measure distributional difference in a task-agnostic way (all test functions / all points weighted equally)
+  limitation: '"Typical divergence measures (such as KL) or two sample tests only quantify if two distributions are different" — they cannot encode which differences matter for a decision task, and cannot import inductive biases of domain models (§1 para 4)'
+gap:
+  unresolved_problem: a divergence family that (a) strictly generalizes both existing families and (b) lets the modeler directly specify which differences affect decision making
+  evidence_for_gap: conceptual — Venn-diagram relationship between IPMs and f-divergences (Fig. 1); both families rest on different principles with neither containing the other
+insight:
+  observation: the Bayes-optimal loss under a distribution (H-entropy, DeGroot 1962) is concave in the distribution (Lemma 1), so a mixture distribution has at least as much entropy as the average of its components
+  central_insight: two distributions differ in a decision-relevant way exactly when acting under their mixture is costlier than acting under each separately — the mixture-entropy gap is itself a divergence (Def. 1, §3.1)
+  hypothesis: parameterizing the action space and loss recovers MMD (Theorem 1) and JS divergence, so a single family unifies them while allowing arbitrary decision tasks; empirical estimates suffice for powerful two-sample tests
+method:
+  conceptual_change: replace "how different are the densities" with "how much worse would the best decision be if I could not tell which distribution I am facing"
+  mechanism: H-divergence D^φ_`(p||q) = φ(H`((p+q)/2) − H`(p), H`((p+q)/2) − H`(q)) with any 1-Lipschitz φ (e.g. average → H-JS, max → H-Min); estimated by optimizing actions a∈A on samples, with mixture samples drawn by random swapping to keep bias comparable across terms (Def. 2, §3.5)
+  formulation: 'H-entropy H`(p) = inf_{a∈A} E_p[`(X,a)] (generalized entropy, §2.2); Proposition 3: divergence > 0 iff the optimal actions under p and q differ — the formalization of "differences that affect decision making"'
+claims:
+  - id: C1
+    claim: the H-JS divergences strictly contain the MMD^2 family, and both JS and MMD are H-divergences (theoretical)
+    importance: central
+    evidence: Theorem 1 + Fig. 1 (Venn diagram); proof via RKHS action space with `(x,a) = 4||k(x,·)−a||^2_H (App. A)
+  - id: C2
+    claim: D^φ_` is a valid (non-negative, zero-on-identity) divergence for any loss and any admissible φ, symmetric whenever φ is (theoretical)
+    importance: central
+    evidence: Lemma 2 (from concavity of H-entropy, Lemma 1); strictness characterized in Proposition 2
+  - id: C3
+    claim: H-divergence has an empirical estimator with O(1/√m) error and variance bounds, and is consistent under regularity (theoretical)
+    importance: supporting
+    evidence: Theorem 2 + Corollaries 1–2 (Rademacher complexity bounds); note JS itself is correctly excluded as non-consistently-estimable (§3.5)
+  - id: C4
+    claim: two-sample tests based on H-divergence with off-the-shelf generative models achieve superior test power at matched significance level α=0.05 (comparative)
+    importance: central
+    evidence: Fig. 4, Fig. 2, Table 1 (HIGGS avg power 0.847 vs 0.579 for best baseline MMD-D; 2x fewer samples on HIGGS; perfect power on MNIST at smallest N)
+  - id: C5
+    claim: by choosing the loss, H-divergence quantifies distribution change relevant to specific decisions — climate impact on agriculture vs energy, and preference-weighted feature selection (practical)
+    importance: central
+    evidence: §5.1 Fig. 3 (maps of agriculture vs energy H-divergence), §5.2 Table 2 (different features selected when upweighting high- vs low-income groups)
+experiments:
+  - id: E1
+    research_question: RQ1 — does H-divergence improve the primary objective (test power) on standard two-sample benchmarks?
+    setup: Blob, HDGM, HIGGS, MNIST following Liu et al. (2020); permutation test (100 permutations), α=0.05, 100 repeats ×10 (§4.2)
+    baseline: MMD-D (deep kernel), MMD-O, ME, SCF, C2ST-S/L
+    result: 'superior test power across the board (Table 1: avg 0.847 vs 0.579 for MMD-D); graceful scaling with dimension (Fig. 2)'
+    interpretation: gains come from "leveraging progress in generative model research" — decades of domain-specific model design imported via the action space (§4.3)
+    supported_claim: C4
+  - id: E2
+    research_question: does the divergence measure decision-relevant differences in a real scientific setting?
+    setup: NOAA daily weather (1981–2019), losses for crop choice (kernel ridge regression on FAO yields) and energy infrastructure (§5.1)
+    baseline: none — demonstration application (authors call it "an illustrative example")
+    result: H-divergence interpreted as excess loss of not adapting to climate change; agriculture and energy maps differ (Fig. 3)
+    interpretation: H-divergence is a general tool for hypothesis testing and visualization of decision-relevant change, unlike tailor-designed analyses (§5.1)
+    supported_claim: C5
+  - id: E3
+    research_question: does loss choice yield controlled, interpretable analysis outputs?
+    setup: UCI income dataset, logistic-regression action space, reweighting loss toward high- vs low-income groups (§5.2)
+    baseline: mutual-information feature selection (neutral)
+    result: different feature sets per decision focus (Table 2) — gender/race predictive for high-income, relationship/marital status for low-income
+    interpretation: divergence results become hypothesis-generating for social science ("merit further investigation", §5.2)
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (divergences fundamental), Existing paradigms (IPM + f-divergence with their principles), Gap (only measure whether, not how decision-relevant), Insight (mixture entropy gap), Solution (H-divergence family), Contribution (unification + test power + applications)]
+  introduction_move: defines the two incumbent families by their *design intuitions* (identical expectations vs identical likelihoods), then introduces a third principle (identical optimal decisions) as a peer category — the novelty is framed as taxonomy expansion, not just a new metric
+  related_work_strategy: minimal inline; the theory section itself does the positioning via Theorem 1 (containment) and Fig. 1
+  method_strategy: warm-up-first — presents the H-JS special case (Def. 1) before the general family (Def. 2), so the reader internalizes the core object before the parameterization
+  experiments_strategy: benchmark first to prove competence (§4), then application showcase to prove the point of the whole paper (§5) — order inverts the paper's real priority deliberately
+  conclusion_strategy: none — paper ends after applications (§5.2 → acknowledgements); no separate conclusion section
+reviewer_defense:
+  strengths: containment theorem (Thm 1) makes the family claim precise; estimation theory (Thm 2) with honest treatment of the non-estimable JS case; permutation test inherits exact significance guarantees
+  vulnerabilities: climate/feature-selection results are self-described as illustrative, not validated; loss design is pushed to domain experts (footnote 2); strictness depends on loss choice (Prop. 2) — a non-strict divergence can return p=q for p≠q, argued "inconsequential in finite data" (§4.1)
+  anticipated_attacks: '"JS is unbounded so your theory doesn''t cover it" — pre-empted: shown to be non-consistently-estimable and handled via clipping (§3.5); "too many hyperparameters" — answered by comparison with thousands of deep-kernel parameters of MMD-D (§4.2)'
+  anticipated_attacks_note: mixture-sampling trick in the estimator (using x''_i) is motivated by the failure mode that would break Theorem 2 (§3.5 para 3)
+writing:
+  paragraph_patterns: '"Intuitively, ..." recapitulation sentences immediately after each formal definition (§1, §3.3)'
+  transition_patterns: theory section flows through a strict special case → general definition → properties → estimation, each subsection answering the question raised by the previous
+  terminology_patterns: disciplined pairing H-entropy / H-divergence / H-JS; consistency of `, A, φ roles across theory and applications

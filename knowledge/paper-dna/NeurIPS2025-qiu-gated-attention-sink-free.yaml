@@ -1,0 +1,113 @@
+# thesis: This paper shows that a single sigmoid gate after scaled dot-product attention
+# consistently improves LLM performance, stability, and long-context behavior because it adds
+# non-linearity to attention's low-rank linear output path and imposes query-dependent sparse
+# modulation that eliminates the attention sink, and therefore proposes SDPA-output gated
+# attention as a validated default for next-generation foundation models.
+paper:
+  venue: NeurIPS
+  year: 2025
+  field: LLM architecture
+  task: systematic study of gating mechanisms in softmax attention
+  problem: '"Gating mechanisms have been widely utilized... Yet, existing literature rarely examines the specific effects of gating" — its contribution is confounded with routing/sparsity designs (abstract, §1: Switch Heads, NSA)'
+  importance: gating is ubiquitous (LSTM, Highway, Mamba, linear attention, softmax attention) but "insufficient understanding hinders assessing gating's true contribution, especially when confounded with other architectural factors" (§1); findings "pave the way for engineering the next generation of advanced foundation models" (§6)
+  source: full
+
+paradigm:
+  existing_approach: standard multi-head softmax attention (optionally with gating bolted on in SSMs/linear attention/sparse attention), and prior gated-attention uses whose gains are entangled with other mechanisms (§1, §5.1)
+  core_assumption: that gating's benefit is due to the selection/routing function it performs in those systems
+  limitation: no systematic ablation isolating position, granularity, head-specificity, multiplicative-vs-additive, and activation — so the field cannot attribute gains (§1)
+
+gap:
+  unresolved_problem: disentangle which property of gating makes it effective, where it should be applied, and what it fixes (performance? stability? attention sink?)
+  evidence_for_gap: empirical tease — Switch Heads retains large gains when reduced to a single expert with a pure modulating gate, "strongly suggest[ing] the gating itself provides significant intrinsic value, separate from the routing mechanism" (§1, App. A.1)
+
+insight:
+  observation: across 30 gating variants on 15B MoE and 1.7B dense models (3.5T tokens), only SDPA-output (G1) and value (G2) gating help substantially, and G1 wins (up to 0.2 PPL reduction, +2 MMLU) (abstract, §3.2, Table 1)
+  central_insight: G1/G2 gate inside the composition W_v·W_O — "the two consecutive linear layers - the value (Wv) and dense (WO) projections - can be rewritten into one low-rank linear projection. Therefore, introducing non-linearity through gating at positions G1 or G2 can increase the expressiveness of this low-rank linear transformation" — and the effective gates are query-dependent and sparse, which filters context irrelevant to the current query and removes the attention sink (§1, §4.1–4.3)
+  hypothesis: if sparse query-dependent gating is the active ingredient, then reducing sparsity (NS-sigmoid), input-dependence (zero-init learned gates), or head-specificity (shared scores) should each degrade gains and restore attention sinks — and sink-free models should extrapolate context length better (§4.2–4.4)
+
+method:
+  conceptual_change: treat gating as an object of controlled study — factorize it into five design axes (position G1–G5, granularity, head-specific/shared, multiplicative/additive, activation) and vary one at a time at scale
+  mechanism: 'Y'' = Y ⊙ σ(XW_θ) (Eq. 5) inserted after SDPA output, with head-specific sigmoid gates; recommended configuration: SDPA output, elementwise/headwise, head-specific, multiplicative, sigmoid (§2.2, §3.2)'
+  formulation: standard MHA (Eq. 1–4) with gating at five positions; low-rank argument for G1/G2 (Eq. 7–8, §4.1); NS-sigmoid(x) = 0.5 + 0.5·sigmoid(x) as the sparsity-removal control (§4.2)
+
+claims:
+  - id: C1
+    claim: SDPA-output head-specific sigmoid gating "consistently improves performance" — up to 0.2 PPL reduction and 2 points MMLU on 15B MoE, beating parameter-expanded baselines — comparative
+    importance: central
+    evidence: Table 1 rows 5, 10 vs rows 1–4 (k=8, q=48, +4 experts); §3.2.1
+  - id: C2
+    claim: the gate improves training stability — "nearly eliminating loss spikes", tolerating larger learning rates (baseline diverges at LR 8e-3 where gated models converge and improve) and enabling deeper/larger-batch scaling — comparative/causal
+    importance: central
+    evidence: Fig. 1 right; Table 2 rows 5–7 vs 10 (48-layer, 8e-3), rows 11–14 (1T tokens)
+  - id: C3
+    claim: effectiveness is attributable to (1) non-linearity on the low-rank W_v·W_O mapping and (2) input-dependent sparsity of query-dependent gating scores — mechanistic
+    importance: central
+    evidence: §4.1 Table 3 (GroupNorm/Identity/SDPA-SiLU variants give partial gains; sigmoid gate best); §4.2 Table 4 (sparse scores correlate with performance; NS-sigmoid and input-independent gates degrade)
+  - id: C4
+    claim: sparse SDPA-output gating "mitigates 'attention sink'" — first-token attention share drops from 46.7% to 4.8% average; head-specificity required; massive activations also reduced, explaining stability gains — mechanistic/causal
+    importance: central
+    evidence: §4.3, Fig. 2, Table 4 ('F-Attn', 'M-Act' columns); §6 ("we release the first attention-sink-free models")
+  - id: C5
+    claim: gated models extrapolate context length better — after YaRN extension to 128k, gated RULER 66.60/58.82 at 64k/128k vs baseline 37.51/31.65 (gain over 10 points) — comparative
+    importance: supporting
+    evidence: §4.4, Table 5
+  - id: C6
+    claim: head-specific gating matters — shared scores increase mean gate values, diminish gains, and fail to remove sinks; query-dependency beats key/value-derived (G2) sparsity — mechanistic
+    importance: supporting
+    evidence: §4.2–4.3 (Table 1 rows 10 vs 12; Table 4; Fig. 3)
+
+experiments:
+  - id: E1
+    research_question: RQ3-ablation — where and how should gating be applied in attention?
+    setup: 15A2B MoE (128 experts, GQA), 400B tokens; 30 variants across five axes; parameter-matched expansion baselines (more KV heads, query heads, experts); PPL + 5 benchmarks (§3.1–3.2, Table 1)
+    baseline: vanilla MoE + parameter expansions
+    result: G1 elementwise sigmoid best (PPL 5.761 vs 6.026); G2 second; G3/G4/G5 ≈ baseline; headwise ≈ elementwise once head-specific; multiplicative > additive; sigmoid > SiLU
+    interpretation: position (inside W_v·W_O) and head-specificity, not capacity, drive the gain
+    supported_claim: C1, C6
+  - id: E2
+    research_question: RQ4 — does the gate deliver stability and scaling on dense models?
+    setup: 1.7B dense at 28/48 layers, 400B–3.5T tokens, batch sizes up to 4096, LRs up to 8e-3; FFN-width-reduced for parameter parity; loss-spike measurement (§3.2.2, Table 2, Fig. 1 right)
+    baseline: optimized-hyperparameter baseline; sandwich-norm alternative
+    result: consistent gains across settings; baseline diverges at 8e-3 (rows 6, 12) while gated models converge with better scores; sandwich norm restores convergence but "the improvement is negligible" vs gating's gains
+    interpretation: gating is a stability intervention with performance upside
+    supported_claim: C2
+  - id: E3
+    research_question: RQ4-mechanistic — is it the non-linearity, the sparsity, or both?
+    setup: non-linearity controls (SDPA GroupNorm/RMSNorm, SDPA SiLU, additive-identity gate) at fixed position (Table 3); sparsity controls (NS-sigmoid, input-independent zero-init gates); gate-score distributions (Fig. 3, Table 4, App. A.2) (§4.1–4.2)
+    baseline: baseline and full sigmoid gate
+    result: non-linearity alone gives partial gains (GroupNorm 5.847); removing sparsity (NS-sigmoid) or input-dependence degrades and raises gate scores; effective gates concentrate near 0
+    interpretation: both factors necessary; sparsity must be query-dependent
+    supported_claim: C3, C6
+  - id: E4
+    research_question: RQ4-mechanistic — does gating remove the attention sink, and why does that matter?
+    setup: first-token attention share per layer/head, massive-activation magnitudes, comparison across all gating variants (§4.3, Fig. 2, Table 4)
+    baseline: baseline model (46.7% first-token share; 83% in layer 21)
+    result: G1 head-specific gates cut share to 4.8%/4%; shared or G2 gates reduce massive activations but not sinks — "massive activations are not a prerequisite for attention sinks"
+    interpretation: sink removal mechanism = query-dependent sparse filtering; also explains BF16 stability via smaller activations
+    supported_claim: C4, C6
+  - id: E5
+    research_question: RQ5 — does sink-freeness improve long-context extension?
+    setup: 3.5T-token models, RoPE base 10k→1M + 32k-80B-token continued training, YaRN to 128k; RULER at 4k–128k (§4.4, Table 5)
+    baseline: same pipeline without gating
+    result: 32k parity (slight gated edge); at 64k/128k gated wins by large margins; declines after extension smaller for gated models
+    interpretation: hypothesized mechanism — baselines rely on sinks to adjust attention distributions, which breaks under RoPE modification; gated models rely on input-dependent gating instead
+    supported_claim: C5
+
+narrative:
+  introduction_roles: [Context (gating everywhere from LSTM to Mamba), Failure mode (effects never disentangled — Switch Heads/NSA examples), Program (five gating positions, variants), Findings preview (G1 wins; stability; two-factor explanation), Sink/long-context teaser]
+  introduction_move: motivates by forensic examples of confounded credit (Switch Heads single-expert anomaly is described in the intro itself, converting a competitor's result into evidence for the study's necessity); the contribution is framed as understanding ("deepen our understanding of the mechanisms of gated attention") with the artifact (sink-free models) as a byproduct
+  related_work_strategy: two-track — gating lineage (LSTM→SwiGLU→SSM/linear attention) ending at "a comprehensive understanding... still needs exploration"; attention-sink literature positioned as the phenomenon the mechanism overturns (§5.1–5.2); closest prior work (Quantizable Transformers) distinguished by purpose (quantization vs performance)
+  method_strategy: design-space-first — §2 formalizes the gating operator and enumerates the five axes before any result; §3 presents the variant table as the primary evidence; §4 is a dedicated "Analysis" section doing mechanism archaeology with targeted controls (NS-sigmoid, zero-init gates, GroupNorm)
+  experiments_strategy: MoE variant scan → dense stability/scaling → mechanism analysis → long-context payoff; each analysis subsection opens with its takeaway sentence; negative and null results (G3/G4/G5 useless, additive weaker) reported in the main table
+  conclusion_strategy: short — recaps the 30-variant scope, the winning configuration, the three uncovered properties (non-linearity, sparsity, sink-freeness), and the artifact release (first attention-sink-free models), closing on engineering ambition (§6)
+
+reviewer_defense:
+  strengths: industrial-scale evidence (3.5T tokens, two architectures, parameter-matched controls); mechanism claims each supported by an intervention (NS-sigmoid, shared scores, zero-init gates); consistent replication across MoE/dense/long-context settings
+  vulnerabilities: 'no theory of why non-linearity on the low-rank path helps optimization (conceded §7 Limitations: "broader implications... remain under-explored"); attention-sink → long-context link is hypothetical ("we hypothesize", §4.4), no rigorous explanation (conceded); wall-clock overhead small but non-zero; mostly PPL/short-benchmark evidence for the headline gains'
+  anticipated_attacks: '"isn''t this just NSA/Switch Heads?" — preempted in intro and §5.1 by the isolation argument and by comparisons to parameter-matched baselines; "sandwich norm fixes stability too" — preempted with Table 2 row 7 (convergence restored but gains negligible); "Forgetting Transformer already gated SDPA output" — distinguished in §5.1 as motivating but unexplained, with this paper supplying the why'
+
+writing:
+  paragraph_patterns: enumerated-observation paragraphs — "(i) ... (ii) ... (iii) ..." consistently, in both results and analysis; analysis subsections open with "Here are the takeaways according to our analysis"
+  transition_patterns: results section repeatedly forwards questions to the Analysis section ("We will further investigate why... in Sec 4.2"), creating a results→mechanism relay; Table 1 doubles as design-space map and evidence
+  terminology_patterns: position labels G1–G5 as compact recurring references; careful hedging of causal claims ("may explain", "we hypothesize") in mechanism sections while keeping comparative claims blunt; consistent "SDPA output gating (G1)" naming

@@ -1,0 +1,103 @@
+# conf	year	title	filename	source_url	source_type
+NeurIPS	2021	A Universal Law of Robustness via Isoperimetry	NeurIPS2021 - A Universal Law of Robustness via Isoperimetry.pdf	https://arxiv.org/pdf/2105.12806	arxiv
+NeurIPS	2021	On the Expressivity of Markov Reward	NeurIPS2021 - On the Expressivity of Markov Reward.pdf	https://arxiv.org/pdf/2111.00876	arxiv
+NeurIPS	2021	Deep Reinforcement Learning at the Edge of the Statistical Precipice	NeurIPS2021 - Deep Reinforcement Learning at the Edge of the Statistical Precipice.pdf	https://arxiv.org/pdf/2108.13264	arxiv
+NeurIPS	2021	MAUVE: Measuring the Gap Between Neural Text and Human Text using Divergence Frontiers	NeurIPS2021 - MAUVE Measuring the Gap Between Neural Text and Human Text using Divergence Frontiers.pdf	https://arxiv.org/pdf/2102.01454	arxiv
+NeurIPS	2021	Continuized Accelerations of Deterministic and Stochastic Gradient Descents, and of Gossip Algorithms	NeurIPS2021 - Continuized Accelerations of Deterministic and Stochastic Gradient Descents, and of Gos....pdf	https://papers.nips.cc/paper_files/paper/2021/file/ec26fc2eb2b75aece19c70392dc744c2-Paper.pdf	nips-proceedings
+NeurIPS	2021	Moser Flow: Divergence-based Generative Modeling on Manifolds	NeurIPS2021 - Moser Flow Divergence-based Generative Modeling on Manifolds.pdf	https://arxiv.org/pdf/2108.08052	arxiv
+NeurIPS	2021	Reduced, Reused and Recycled: The Life of a Dataset in Machine Learning Research	NeurIPS2021 - Reduced, Reused and Recycled The Life of a Dataset in Machine Learning Research.pdf	https://arxiv.org/pdf/2112.01716	arxiv
+NeurIPS	2021	ATOM3D: Tasks on Molecules in Three Dimensions	NeurIPS2021 - ATOM3D Tasks on Molecules in Three Dimensions.pdf	https://arxiv.org/pdf/2012.04035	arxiv
+NeurIPS	2022	Is Out-of-distribution Detection Learnable?	NeurIPS2022 - Is Out-of-distribution Detection Learnable.pdf	https://arxiv.org/pdf/2210.14707	arxiv
+NeurIPS	2022	Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding	NeurIPS2022 - Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding.pdf	https://arxiv.org/pdf/2205.11487	arxiv
+NeurIPS	2022	Elucidating the Design Space of Diffusion-Based Generative Models	NeurIPS2022 - Elucidating the Design Space of Diffusion-Based Generative Models.pdf	https://arxiv.org/pdf/2206.00364	arxiv
+NeurIPS	2022	ProcTHOR: Large-Scale Embodied AI Using Procedural Generation	NeurIPS2022 - ProcTHOR Large-Scale Embodied AI Using Procedural Generation.pdf	https://arxiv.org/pdf/2206.06994	arxiv
+NeurIPS	2022	Using natural language and program abstractions to instill human inductive biases in machines	NeurIPS2022 - Using natural language and program abstractions to instill human inductive biases in ma....pdf	https://arxiv.org/pdf/2205.11558	arxiv
+NeurIPS	2022	A Neural Corpus Indexer for Document Retrieval	NeurIPS2022 - A Neural Corpus Indexer for Document Retrieval.pdf	https://arxiv.org/pdf/2206.02743	arxiv
+NeurIPS	2022	High-dimensional limit theorems for SGD: Effective dynamics and critical scaling	NeurIPS2022 - High-dimensional limit theorems for SGD Effective dynamics and critical scaling.pdf	https://arxiv.org/pdf/2206.04030	arxiv
+NeurIPS	2022	Gradient Descent: The Ultimate Optimizer	NeurIPS2022 - Gradient Descent The Ultimate Optimizer.pdf	https://arxiv.org/pdf/1909.13371	arxiv
+NeurIPS	2022	Riemannian Score-Based Generative Modelling	NeurIPS2022 - Riemannian Score-Based Generative Modelling.pdf	https://arxiv.org/pdf/2202.02763	arxiv
+NeurIPS	2022	Gradient Estimation with Discrete Stein Operators	NeurIPS2022 - Gradient Estimation with Discrete Stein Operators.pdf	https://arxiv.org/pdf/2202.09497	arxiv
+NeurIPS	2022	An empirical analysis of compute-optimal large language model training	NeurIPS2022 - An empirical analysis of compute-optimal large language model training.pdf	https://arxiv.org/pdf/2203.15556	arxiv
+NeurIPS	2022	Beyond neural scaling laws: beating power law scaling via data pruning	NeurIPS2022 - Beyond neural scaling laws beating power law scaling via data pruning.pdf	https://arxiv.org/pdf/2206.14486	arxiv
+NeurIPS	2022	On-Demand Sampling: Learning Optimally from Multiple Distributions	NeurIPS2022 - On-Demand Sampling Learning Optimally from Multiple Distributions.pdf	https://arxiv.org/pdf/2210.12529	arxiv
+NeurIPS	2022	LAION-5B: An open large-scale dataset for training next generation image-text models	NeurIPS2022 - LAION-5B An open large-scale dataset for training next generation image-text models.pdf	https://arxiv.org/pdf/2210.08402	arxiv
+NeurIPS	2022	MineDojo: Building Open-Ended Embodied Agents with Internet-Scale Knowledge	NeurIPS2022 - MineDojo Building Open-Ended Embodied Agents with Internet-Scale Knowledge.pdf	https://arxiv.org/pdf/2206.08853	arxiv
+NeurIPS	2023	Privacy Auditing with One (1) Training Run	NeurIPS2023 - Privacy Auditing with One (1) Training Run.pdf	https://arxiv.org/pdf/2305.08846	arxiv
+NeurIPS	2023	Are Emergent Abilities of Large Language Models a Mirage?	NeurIPS2023 - Are Emergent Abilities of Large Language Models a Mirage.pdf	https://arxiv.org/pdf/2304.15004	arxiv
+NeurIPS	2023	Scaling Data-Constrained Language Models	NeurIPS2023 - Scaling Data-Constrained Language Models.pdf	https://arxiv.org/pdf/2305.16264	arxiv
+NeurIPS	2023	Direct Preference Optimization: Your Language Model is Secretly a Reward Model	NeurIPS2023 - Direct Preference Optimization Your Language Model is Secretly a Reward Model.pdf	https://arxiv.org/pdf/2305.18290	arxiv
+NeurIPS	2023	ClimSim: A large multi-scale dataset for hybrid physics-ML climate emulation	NeurIPS2023 - ClimSim A large multi-scale dataset for hybrid physics-ML climate emulation.pdf	https://arxiv.org/pdf/2306.08754	arxiv
+NeurIPS	2023	DecodingTrust: A Comprehensive Assessment of Trustworthiness in GPT Models	NeurIPS2023 - DecodingTrust A Comprehensive Assessment of Trustworthiness in GPT Models.pdf	https://arxiv.org/pdf/2306.11698	arxiv
+NeurIPS	2024	Visual Autoregressive Modeling: Scalable Image Generation via Next-Scale Prediction	NeurIPS2024 - Visual Autoregressive Modeling Scalable Image Generation via Next-Scale Prediction.pdf	https://arxiv.org/pdf/2404.02905	arxiv
+NeurIPS	2024	Stochastic Taylor Derivative Estimator: Efficient amortization for arbitrary differential operators	NeurIPS2024 - Stochastic Taylor Derivative Estimator Efficient amortization for arbitrary differentia....pdf	https://arxiv.org/pdf/2412.00088	arxiv
+NeurIPS	2024	Not All Tokens Are What You Need for Pretraining	NeurIPS2024 - Not All Tokens Are What You Need for Pretraining.pdf	https://arxiv.org/pdf/2404.07965	arxiv
+NeurIPS	2024	Guiding a Diffusion Model with a Bad Version of Itself	NeurIPS2024 - Guiding a Diffusion Model with a Bad Version of Itself.pdf	https://arxiv.org/pdf/2406.02507	arxiv
+NeurIPS	2024	The PRISM Alignment Dataset: What Participatory, Representative and Individualised Human Feedback Reveals About the Subjective and Multicultural Alignment of Large Language Models	NeurIPS2024 - The PRISM Alignment Dataset What Participatory, Representative and Individualised Human....pdf	https://arxiv.org/pdf/2404.16019	arxiv
+NeurIPS	2025	Artificial Hivemind: The Open-Ended Homogeneity of Language Models (and Beyond)	NeurIPS2025 - Artificial Hivemind The Open-Ended Homogeneity of Language Models (and Beyond).pdf	https://arxiv.org/pdf/2510.22954	arxiv
+NeurIPS	2025	Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free	NeurIPS2025 - Gated Attention for Large Language Models Non-linearity, Sparsity, and Attention-Sink-Free.pdf	https://arxiv.org/pdf/2505.06708	arxiv
+NeurIPS	2025	1000 Layer Networks for Self-Supervised RL: Scaling Depth Can Enable New Goal-Reaching Capabilities	NeurIPS2025 - 1000 Layer Networks for Self-Supervised RL Scaling Depth Can Enable New Goal-Reaching C....pdf	https://arxiv.org/pdf/2503.14858	arxiv
+NeurIPS	2025	Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?	NeurIPS2025 - Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Ba....pdf	https://arxiv.org/pdf/2504.13837	arxiv
+NeurIPS	2025	Optimal Mistake Bounds for Transductive Online Learning	NeurIPS2025 - Optimal Mistake Bounds for Transductive Online Learning.pdf	https://arxiv.org/pdf/2512.12567	arxiv
+NeurIPS	2025	Superposition Yields Robust Neural Scaling	NeurIPS2025 - Superposition Yields Robust Neural Scaling.pdf	https://arxiv.org/pdf/2505.10465	arxiv
+NeurIPS	2025	Why Diffusion Models Don't Memorize: The Role of Implicit Dynamical Regularization in Training	NeurIPS2025 - Why Diffusion Models Don't Memorize The Role of Implicit Dynamical Regularization in Tr....pdf	https://arxiv.org/pdf/2505.17638	arxiv
+ICLR	2022	Analytic-DPM: an Analytic Estimate of the Optimal Reverse Variance in Diffusion Probabilistic Models	ICLR2022 - Analytic-DPM an Analytic Estimate of the Optimal Reverse Variance in Diffusion Probabil....pdf	https://arxiv.org/pdf/2201.06503	arxiv
+ICLR	2022	Hyperparameter Tuning with Renyi Differential Privacy	ICLR2022 - Hyperparameter Tuning with Renyi Differential Privacy.pdf	https://arxiv.org/pdf/2110.03620	arxiv
+ICLR	2022	Learning Strides in Convolutional Neural Networks	ICLR2022 - Learning Strides in Convolutional Neural Networks.pdf	https://arxiv.org/pdf/2202.01653	arxiv
+ICLR	2022	Expressiveness and Approximation Properties of Graph Neural Networks	ICLR2022 - Expressiveness and Approximation Properties of Graph Neural Networks.pdf	https://arxiv.org/pdf/2204.04661	arxiv
+ICLR	2022	Comparing Distributions by Measuring Differences that Affect Decision Making	ICLR2022 - Comparing Distributions by Measuring Differences that Affect Decision Making.pdf	https://web.archive.org/web/20260220124429/https://openreview.net/pdf?id=KB5onONJIAU	archive
+ICLR	2022	Neural Collapse Under MSE Loss: Proximity to and Dynamics on the Central Path	ICLR2022 - Neural Collapse Under MSE Loss Proximity to and Dynamics on the Central Path.pdf	https://arxiv.org/pdf/2106.02073	arxiv
+ICLR	2022	Bootstrapped Meta-Learning	ICLR2022 - Bootstrapped Meta-Learning.pdf	https://arxiv.org/pdf/2109.04504	arxiv
+ICLR	2023	Universal Few-shot Learning of Dense Prediction Tasks with Visual Token Matching	ICLR2023 - Universal Few-shot Learning of Dense Prediction Tasks with Visual Token Matching.pdf	https://arxiv.org/pdf/2303.14969	arxiv
+ICLR	2023	Rethinking the Expressive Power of GNNs via Graph Biconnectivity	ICLR2023 - Rethinking the Expressive Power of GNNs via Graph Biconnectivity.pdf	https://arxiv.org/pdf/2301.09505	arxiv
+ICLR	2023	DreamFusion: Text-to-3D using 2D Diffusion	ICLR2023 - DreamFusion Text-to-3D using 2D Diffusion.pdf	https://arxiv.org/pdf/2209.14988	arxiv
+ICLR	2023	Emergence of Maps in the Memories of Blind Navigation Agents	ICLR2023 - Emergence of Maps in the Memories of Blind Navigation Agents.pdf	https://arxiv.org/pdf/2301.13261	arxiv
+ICLR	2024	Generalization in diffusion models arises from geometry-adaptive harmonic representations	ICLR2024 - Generalization in diffusion models arises from geometry-adaptive harmonic representations.pdf	https://arxiv.org/pdf/2310.02557	arxiv
+ICLR	2024	Learning Interactive Real-World Simulators	ICLR2024 - Learning Interactive Real-World Simulators.pdf	https://arxiv.org/pdf/2310.06114	arxiv
+ICLR	2024	Never Train from Scratch: Fair Comparison of Long-Sequence Models Requires Data-Driven Priors	ICLR2024 - Never Train from Scratch Fair Comparison of Long-Sequence Models Requires Data-Driven P....pdf	https://arxiv.org/pdf/2310.02980	arxiv
+ICLR	2024	Protein Discovery with Discrete Walk-Jump Sampling	ICLR2024 - Protein Discovery with Discrete Walk-Jump Sampling.pdf	https://arxiv.org/pdf/2306.12360	arxiv
+ICLR	2024	Vision Transformers Need Registers	ICLR2024 - Vision Transformers Need Registers.pdf	https://arxiv.org/pdf/2309.16588	arxiv
+ICLR	2025	Safety Alignment Should be Made More Than Just a Few Tokens Deep	ICLR2025 - Safety Alignment Should be Made More Than Just a Few Tokens Deep.pdf	https://arxiv.org/pdf/2406.05946	arxiv
+ICLR	2025	Learning Dynamics of LLM Finetuning	ICLR2025 - Learning Dynamics of LLM Finetuning.pdf	https://arxiv.org/pdf/2407.10490	arxiv
+ICLR	2025	AlphaEdit: Null-Space Constrained Model Editing for Language Models	ICLR2025 - AlphaEdit Null-Space Constrained Model Editing for Language Models.pdf	https://arxiv.org/pdf/2410.02355	arxiv
+ICLR	2026	Transformers are Inherently Succinct	ICLR2026 - Transformers are Inherently Succinct.pdf	https://arxiv.org/pdf/2510.19315	arxiv
+ICLR	2026	LLMs Get Lost In Multi-Turn Conversation	ICLR2026 - LLMs Get Lost In Multi-Turn Conversation.pdf	https://arxiv.org/pdf/2505.06120	arxiv
+ICML	2023	Learning-Rate-Free Learning by D-Adaptation	ICML2023 - Learning-Rate-Free Learning by D-Adaptation.pdf	https://arxiv.org/pdf/2301.07733	arxiv
+ICML	2023	A Watermark for Large Language Models	ICML2023 - A Watermark for Large Language Models.pdf	https://arxiv.org/pdf/2301.10226	arxiv
+ICML	2023	Generalization on the Unseen, Logic Reasoning and Degree Curriculum	ICML2023 - Generalization on the Unseen, Logic Reasoning and Degree Curriculum.pdf	https://arxiv.org/pdf/2301.13105	arxiv
+ICML	2023	Adapting to game trees in zero-sum imperfect information games	ICML2023 - Adapting to game trees in zero-sum imperfect information games.pdf	https://arxiv.org/pdf/2212.12567	arxiv
+ICML	2023	Self-Repellent Random Walks on General Graphs - Achieving Minimal Sampling Variance via Nonlinear Markov Chains	ICML2023 - Self-Repellent Random Walks on General Graphs - Achieving Minimal Sampling Variance via....pdf	https://arxiv.org/pdf/2305.05097	arxiv
+ICML	2023	Bayesian Design Principles for Frequentist Sequential Learning	ICML2023 - Bayesian Design Principles for Frequentist Sequential Learning.pdf	https://arxiv.org/pdf/2310.00806	arxiv
+ICML	2024	VideoPoet: A Large Language Model for Zero-Shot Video Generation	ICML2024 - VideoPoet A Large Language Model for Zero-Shot Video Generation.pdf	https://arxiv.org/pdf/2312.14125	arxiv
+ICML	2024	Scaling Rectified Flow Transformers for High-Resolution Image Synthesis	ICML2024 - Scaling Rectified Flow Transformers for High-Resolution Image Synthesis.pdf	https://arxiv.org/pdf/2403.03206	arxiv
+ICML	2024	Debating with More Persuasive LLMs Leads to More Truthful Answers	ICML2024 - Debating with More Persuasive LLMs Leads to More Truthful Answers.pdf	https://arxiv.org/pdf/2402.06782	arxiv
+ICML	2024	Genie: Generative Interactive Environments	ICML2024 - Genie Generative Interactive Environments.pdf	https://arxiv.org/pdf/2402.15391	arxiv
+ICML	2024	Probabilistic Inference in Language Models via Twisted Sequential Monte Carlo	ICML2024 - Probabilistic Inference in Language Models via Twisted Sequential Monte Carlo.pdf	https://arxiv.org/pdf/2404.17546	arxiv
+ICML	2024	Stealing part of a production language model	ICML2024 - Stealing part of a production language model.pdf	https://arxiv.org/pdf/2403.06634	arxiv
+ICML	2024	Position: Considerations for Differentially Private Learning with Large-Scale Public Pretraining	ICML2024 - Position Considerations for Differentially Private Learning with Large-Scale Public Pre....pdf	https://arxiv.org/pdf/2212.06470	arxiv
+ICML	2024	Position: Measure Dataset Diversity, Don't Just Claim It	ICML2024 - Position Measure Dataset Diversity, Don't Just Claim It.pdf	https://arxiv.org/pdf/2407.08188	arxiv
+ICML	2024	Discrete Diffusion Modeling by Estimating the Ratios of the Data Distribution	ICML2024 - Discrete Diffusion Modeling by Estimating the Ratios of the Data Distribution.pdf	https://arxiv.org/pdf/2310.16834	arxiv
+ICML	2024	Information Complexity of Stochastic Convex Optimization: Applications to Generalization, Memorization, and Tracing	ICML2024 - Information Complexity of Stochastic Convex Optimization Applications to Generalization....pdf	https://arxiv.org/pdf/2402.09327	arxiv
+ICML	2025	Score Matching with Missing Data	ICML2025 - Score Matching with Missing Data.pdf	https://arxiv.org/pdf/2506.00557	arxiv
+ICML	2025	Roll the dice & look before you leap: Going beyond the creative limits of next-token prediction	ICML2025 - Roll the dice & look before you leap Going beyond the creative limits of next-token pre....pdf	https://arxiv.org/pdf/2504.15266	arxiv
+ICML	2025	CollabLLM: From Passive Responders to Active Collaborators	ICML2025 - CollabLLM From Passive Responders to Active Collaborators.pdf	https://arxiv.org/pdf/2502.00640	arxiv
+ICML	2025	Conformal Prediction as Bayesian Quadrature	ICML2025 - Conformal Prediction as Bayesian Quadrature.pdf	https://arxiv.org/pdf/2502.13228	arxiv
+ICML	2025	The Value of Prediction in Identifying the Worst-Off	ICML2025 - The Value of Prediction in Identifying the Worst-Off.pdf	https://arxiv.org/pdf/2501.19334	arxiv
+ICML	2025	Train for the Worst, Plan for the Best: Understanding Token Ordering in Masked Diffusions	ICML2025 - Train for the Worst, Plan for the Best Understanding Token Ordering in Masked Diffusions.pdf	https://arxiv.org/pdf/2502.06768	arxiv
+ICML	2025	Position: The AI Conference Peer Review Crisis Demands Author Feedback and Reviewer Rewards	ICML2025 - Position The AI Conference Peer Review Crisis Demands Author Feedback and Reviewer Rewards.pdf	https://arxiv.org/pdf/2505.04966	arxiv
+ICML	2025	Position: AI Safety should prioritize the Future of Work	ICML2025 - Position AI Safety should prioritize the Future of Work.pdf	https://arxiv.org/pdf/2504.13959	arxiv
+ICML	2026	The Flexibility Trap: Rethinking the Value of Arbitrary Order in Diffusion Language Models	ICML2026 - The Flexibility Trap Rethinking the Value of Arbitrary Order in Diffusion Language Models.pdf	https://arxiv.org/pdf/2601.15165	arxiv
+ICML	2026	High-Accuracy Sampling for Diffusion Models and Log-Concave Distributions	ICML2026 - High-Accuracy Sampling for Diffusion Models and Log-Concave Distributions.pdf	https://arxiv.org/pdf/2602.01338	arxiv
+ICML	2026	Position: The Alignment Community is Unintentionally Building a Censor's Toolkit	ICML2026 - Position The Alignment Community is Unintentionally Building a Censor's Toolkit.pdf	https://arxiv.org/pdf/2608.12346	arxiv
+CVPR	2022	Learning to Solve Hard Minimal Problems	CVPR2022 - Learning to Solve Hard Minimal Problems.pdf	https://arxiv.org/pdf/2112.03424	arxiv
+CVPR	2023	Visual Programming: Compositional Visual Reasoning Without Training	CVPR2023 - Visual Programming Compositional Visual Reasoning Without Training.pdf	https://arxiv.org/pdf/2211.11559	arxiv
+CVPR	2023	Planning-Oriented Autonomous Driving	CVPR2023 - Planning-Oriented Autonomous Driving.pdf	https://arxiv.org/pdf/2212.10156	arxiv
+CVPR	2024	Generative Image Dynamics	CVPR2024 - Generative Image Dynamics.pdf	https://arxiv.org/pdf/2309.07906	arxiv
+CVPR	2024	Rich Human Feedback for Text-to-Image Generation	CVPR2024 - Rich Human Feedback for Text-to-Image Generation.pdf	https://arxiv.org/pdf/2312.10240	arxiv
+CVPR	2025	VGGT: Visual Geometry Grounded Transformer	CVPR2025 - VGGT Visual Geometry Grounded Transformer.pdf	https://arxiv.org/pdf/2503.11651	arxiv
+CVPR	2026	Efficiently Reconstructing Dynamic Scenes One D4RT at a Time	CVPR2026 - Efficiently Reconstructing Dynamic Scenes One D4RT at a Time.pdf	https://arxiv.org/pdf/2512.08924	arxiv
+ICCV	2021	Swin Transformer: Hierarchical Vision Transformer using Shifted Windows	ICCV2021 - Swin Transformer Hierarchical Vision Transformer using Shifted Windows.pdf	https://openaccess.thecvf.com/content/ICCV2021/papers/Liu_Swin_Transformer_Hierarchical_Vision_Transformer_Using_Shifted_Windows_ICCV_2021_paper.pdf	cvf
+ICCV	2023	Adding Conditional Control to Text-to-Image Diffusion Models	ICCV2023 - Adding Conditional Control to Text-to-Image Diffusion Models.pdf	https://openaccess.thecvf.com/content/ICCV2023/papers/Zhang_Adding_Conditional_Control_to_Text-to-Image_Diffusion_Models_ICCV_2023_paper.pdf	cvf
+ICCV	2023	Passive Ultra-Wideband Single-Photon Imaging	ICCV2023 - Passive Ultra-Wideband Single-Photon Imaging.pdf	https://openaccess.thecvf.com/content/ICCV2023/papers/Wei_Passive_Ultra-Wideband_Single-Photon_Imaging_ICCV_2023_paper.pdf	cvf
+ICCV	2025	Generating Physically Stable and Buildable Brick Structures from Text	ICCV2025 - Generating Physically Stable and Buildable Brick Structures from Text.pdf	https://openaccess.thecvf.com/content/ICCV2025/papers/Pun_Generating_Physically_Stable_and_Buildable_Brick_Structures_from_Text_ICCV_2025_paper.pdf	cvf
+ECCV	2022	On the Versatile Uses of Partial Distance Correlation in Deep Learning	ECCV2022 - On the Versatile Uses of Partial Distance Correlation in Deep Learning.pdf	https://arxiv.org/pdf/2207.09684	arxiv
+ECCV	2024	Minimalist Vision with Freeform Pixels	ECCV2024 - Minimalist Vision with Freeform Pixels.pdf	https://arxiv.org/pdf/2501.00142	arxiv

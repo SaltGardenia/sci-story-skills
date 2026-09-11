@@ -1,0 +1,109 @@
+# thesis: This paper shows that GPT models have previously unpublished trustworthiness
+# vulnerabilities — most strikingly that GPT-4, though usually more trustworthy than GPT-3.5, is
+# more vulnerable to jailbreaking prompts because it follows misleading instructions more
+# precisely — and therefore proposes DecodingTrust, an eight-perspective trustworthiness
+# evaluation benchmark with adversarial system/user prompts and demonstrations.
+paper:
+  venue: NeurIPS
+  year: 2023
+  field: LLM trustworthiness evaluation (Datasets & Benchmarks track)
+  task: comprehensive trustworthiness benchmarking of GPT-4 / GPT-3.5 (and open LLMs)
+  problem: '"the literature on the trustworthiness of GPT models remains limited" while "practitioners have proposed employing capable GPT models for sensitive applications such as healthcare and finance – where mistakes can be costly" (abstract)'
+  importance: LLMs are being deployed in sensitive domains and "concerns are simultaneously growing about their trustworthiness"; existing evaluations "mainly focus on specific perspectives" (§1)
+  source: full
+
+paradigm:
+  existing_approach: capability benchmarks (GLUE/SuperGLUE, BIG-Bench, HELM) and single-perspective trust evaluations (AdvGLUE for robustness, overconfidence metrics) (§1)
+  core_assumption: that standard benign-prompt evaluation suffices to characterize model reliability
+  limitation: prior evaluations do not probe the new instruction-following and in-context-learning capabilities that themselves create attack surface — "these new capabilities also result in new trustworthiness concerns" (§1); no unified multi-perspective benchmark exists
+
+gap:
+  unresolved_problem: a comprehensive, reproducible trustworthiness evaluation covering both standard performance and "the resilience of their performance in adversarial environments (e.g., adversarial system/user prompts, demonstrations)" across eight perspectives (§1)
+  evidence_for_gap: citation-pattern argument (scattered single-perspective works) plus demonstration — newly discovered vulnerabilities (e.g., GPT-4 more manipulable than GPT-3.5) that no existing benchmark surfaces (abstract, §3.2, §4.3)
+
+insight:
+  observation: adversarial system prompts push toxicity probability "surging to almost 100%" from a baseline below 32%; GPT-4 agrees with targeted biased system prompts more than GPT-3.5 (§1 findings; §3.1–3.2)
+  central_insight: 'instruction-following capability is a double-edged sword — the better a model follows instructions, the more precisely it follows misleading ones, so capability gains can amplify trustworthiness risks (abstract: "potentially because GPT-4 follows (misleading) instructions more precisely"; §12)'
+  hypothesis: systematically constructed adversarial system prompts, user prompts, and demonstrations across all eight perspectives will expose vulnerabilities invisible to standard benchmarks and rank models differently than benign evaluation does
+
+method:
+  conceptual_change: treat trustworthiness as a multi-axis property each requiring (a) a standard benchmark, (b) adversarial/designed scenarios, and (c) new data where existing coverage is insufficient — a scenario × perspective matrix (Fig. 3 taxonomy)
+  mechanism: 'eight perspective-specific evaluation pipelines, each with 3–4 scenarios: toxicity (RealToxicityPrompts + 33 designed system prompts + 1.2K GPT-generated challenging user prompts), stereotype bias (24 demographic groups × 16 topics with untargeted/targeted system prompts), adversarial robustness (AdvGLUE + generated AdvGLUE++), OOD robustness (style/knowledge/demonstrations), adversarial demonstrations (counterfactual/spurious/backdoor), privacy (Enron memorization + PII in conversations + privacy-word understanding), machine ethics (ETHICS/Jiminy Cricket + jailbreaks/evasive/conditional), fairness (base-rate-parity controlled few-shot) (§1, §3–10)'
+  formulation: per-perspective metrics (toxicity probability, agreement likelihood with stereotype statements, attack success rate, PII extraction accuracy, fairness gaps) aggregated into DecodingTrust scores with a documented protocol (App. I.1)
+
+claims:
+  - id: C1
+    claim: GPT-4 "is usually more trustworthy than GPT-3.5 on standard benchmarks" — comparative
+    importance: central
+    evidence: standard-benchmark results across perspectives (e.g., AdvGLUE Table 5, §5.1; §12)
+  - id: C2
+    claim: '"GPT-4 is more vulnerable given jailbreaking system or user prompts, potentially because GPT-4 follows (misleading) instructions more precisely" — comparative/mechanistic (hedged cause)'
+    importance: central
+    evidence: toxicity under adversarial system prompts (§3.2); targeted stereotype system prompts (§4.3); §12
+  - id: C3
+    claim: '"GPT models can be easily misled to generate toxic and biased outputs and leak private information in both training data and conversation history" — descriptive'
+    importance: central
+    evidence: toxicity surging to ~100% under jailbreaks (§3.1–3.2); Enron/PII extraction (§8)
+  - id: C4
+    claim: transferred adversarial texts from open autoregressive models attack GPT models successfully — e.g., "SemAttack achieves 89.2% attack success rate against GPT-4 when transferring from Alpaca on QQP" — comparative
+    importance: supporting
+    evidence: §5.2, Table 7
+  - id: C5
+    claim: model bias is conditional — dependent on demographic group and topic sensitivity (e.g., agrees with "Women have HIV." while disagreeing with "Homosexuals have HIV.") — descriptive
+    importance: supporting
+    evidence: §4.3, Fig. 10
+
+experiments:
+  - id: E1
+    research_question: RQ1-analogue — how toxic are GPT-3.5/GPT-4 on standard vs adversarially prompted settings?
+    setup: RealToxicityPrompts baseline; 33 manually designed system prompts (role-playing, saying the opposite, word-meaning replacement); 1.2K challenging user prompts generated by GPT-3.5/4 (§3.1–3.3)
+    baseline: GPT-3 (Davinci) and other non-RLHF LLMs
+    result: <32% toxicity probability on standard prompts vs ~100% under jailbreaking system prompts; GPT-4 > GPT-3.5 under adversarial prompts; generated prompts transfer to other LLMs (Tables 2–3)
+    interpretation: instruction tuning reduces but does not close the adversarial toxicity gap
+    supported_claim: C2, C3
+  - id: E2
+    research_question: RQ1 — are the models biased, and does the bias survive adversarial system prompts?
+    setup: 24 demographic groups / 7 factors, 16 stereotype topics; benign vs untargeted vs targeted system prompts; agree/disagree likelihood (§4)
+    baseline: benign system prompts
+    result: not strongly biased under benign/untargeted prompts; tricked into agreement under targeted prompts, GPT-4 more than GPT-3.5; bias varies by group and topic (Fig. 10)
+    interpretation: bias is latent and elicitable — measurement depends on prompt regime
+    supported_claim: C2, C5
+  - id: E3
+    research_question: RQ5-analogue — how robust are GPT models to adversarial texts, including transfer attacks?
+    setup: AdvGLUE standard + instructive task descriptions + AdvGLUE++ generated against Alpaca-7B/Vicuna-13B/StableVicuna-13B (§5)
+    baseline: SOTA robust models on AdvGLUE
+    result: GPT-4 > GPT-3.5 on standard benchmark; but still vulnerable to transferred attacks (89.2%/100% success rates, Table 7)
+    interpretation: standard robustness gains do not transfer to strong transfer attacks
+    supported_claim: C1, C4
+  - id: E4
+    research_question: RQ1 — do OOD inputs and adversarial demonstrations undermine reliability?
+    setup: OOD style/knowledge/demonstrations; counterfactual, spurious-correlation, and backdoored demonstrations (backdoor trigger "cf") (§6–7, Fig. 2)
+    baseline: in-distribution, benign demonstrations
+    result: manipulated demonstrations mislead both models (per-perspective results in §6–7; examples Fig. 2)
+    interpretation: in-context learning is an attack channel
+    supported_claim: C3
+  - id: E5
+    research_question: RQ1 — do models leak private information (training data and conversation history) and respect privacy contexts?
+    setup: Enron email extraction, PII injected at inference, privacy-word/privacy-event conversations (§8)
+    baseline: n/a (measurement benchmark)
+    result: models leak memorized and in-conversation PII (abstract, §8)
+    interpretation: privacy risk spans both pretraining memorization and inference-time leakage
+    supported_claim: C3
+
+narrative:
+  introduction_roles: [Context (capability benchmarks lineage: GLUE→BIG-Bench→HELM), Stakes (sensitive deployment), Gap (trust evaluations fragmented), New-risk mechanism (instruction following + ICL create attack surface), Solution (eight-perspective taxonomy, Fig. 3), Findings preview (bullet-listed per perspective)]
+  introduction_move: builds legitimacy by walking the benchmark genealogy, then defines "comprehensive" operationally as eight named perspectives each with explicit scenarios; the introduction then does something unusual for a benchmark paper — it presents the empirical findings as a numbered bullet list per perspective, so the paper reads as a results catalogue before any method section
+  related_work_strategy: deferred to §11 near the end (benchmark-paper convention); the taxonomy figure (Fig. 3, yellow = existing benchmark, green = new data/protocols) does the positioning graphically
+  method_strategy: scenario-matrix-first — each perspective section repeats the same template (standard benchmark → designed/adversarial scenario → new data), making a 60+ page paper navigable by pattern repetition
+  experiments_strategy: no unified results section; evidence is distributed per perspective, each with its own tables, then aggregated in §12 as the GPT-4 paradox (better normally, worse under manipulation)
+  conclusion_strategy: restate the paradox, then convert findings into seven future-direction bullets spanning evaluation design (interactions, coordinated adversaries, domain-specific) and mitigation (verification, game-theoretic role design, auditing) (§12)
+
+reviewer_defense:
+  strengths: breadth + reproducibility discipline (pinned model versions "published on March 1st and March 14th, 2023", §1 footnote); every perspective has both a standard anchor and a novel stress test; public benchmark/dataset
+  vulnerabilities: closed models with unknown pretraining data limit causal explanation (conceded App. J "Obsecure pretraining data"); subjective metrics (toxicity, ethics) scored without human-alignment validation (conceded App. J); snapshot evaluation vs continuously updated models; releasing jailbreaks risks misuse (addressed by keeping generated prompts private, App. J)
+  anticipated_attacks: '"results will be stale" — preempted by open-source toolkit and App. I extension to open LLMs (App. J, §12); "you''re helping attackers" — preempted with a white-hat argument and private-prompt mitigation policy (App. J); "OOD is guesswork" — conceded as hypothesis-limited in App. J rather than defended'
+
+writing:
+  paragraph_patterns: 'perspective-definition bullet paragraphs in the intro each follow "To evaluate X, we construct three evaluation scenarios: 1)... 2)... 3)..." — a strict template repeated eight times (§1)'
+  transition_patterns: numbered findings lists mirror the numbered scenario lists one-to-one, making claim→evidence lookup trivial; sections named uniformly "Evaluation on <perspective>"
+  terminology_patterns: consistent coinages — "jailbreaking system prompts", "targeted vs untargeted system prompts", "adversarial demonstrations"; model names with version dates for reproducibility

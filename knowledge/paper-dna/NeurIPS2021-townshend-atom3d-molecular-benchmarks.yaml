@@ -1,0 +1,74 @@
+# thesis: This paper shows that 3D atomistic geometry consistently improves molecular ML
+# performance over 1D/2D representations (but the right 3D architecture is task-dependent),
+# because no systematic benchmark or toolkit existed to test 3D molecular learning, and therefore
+# proposes ATOM3D — eight benchmark datasets plus standardized baselines and the atom3d package.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: machine learning for structural biology / chemistry (3D molecular learning)
+  task: benchmarking deep learning on 3D molecular structure across 8 tasks
+  problem: '"deep neural networks ... widespread adoption in the biomolecular domain has been limited by a lack of either systematic performance benchmarks or a unified toolkit for interacting with 3D molecular data" (Abstract)'
+  importance: '"a molecule''s three-dimensional shape is critical to understanding its physical mechanisms of action, and can be used to answer a number of questions relating to drug discovery, molecular design, and fundamental biology" (§1 para 1); accessible benchmarks like ImageNet/SQuAD sparked progress in their fields (§1 para 3)'
+  source: full
+paradigm:
+  existing_approach: molecular ML on 1D sequences (amino-acid sequence, SMILES) and 2D chemical bond graphs — prior benchmarks MoleculeNet, TAPE focus on these lower-dimensional representations (§1 para 1, Table 1)
+  core_assumption: lower-dimensional representations suffice for molecular tasks; the atom is not yet treated as a first-class "machine learning datatype" like pixels or characters (§1 para 2)
+  limitation: '"to date there has been no systematic evaluation of such methods on molecular tasks"; raw 3D structures (e.g. PDB) "require significant processing before they are useful for machine learning tasks" (§1 para 3)'
+gap:
+  unresolved_problem: do 3D representations actually help, which 3D architectures work for which tasks, and how can new researchers enter the field without bespoke data plumbing?
+  evidence_for_gap: existing benchmarks cover only 1D/2D representations; growing PDB data unexploited; GNN/CNN methods suitable on their face but never systematically compared (§1 paras 1,3)
+insight:
+  observation: molecular systems share fixed element types and physical rotational/translational/permutational symmetries, and contain poorly characterized higher-level patterns learnable from data (§1 para 2)
+  central_insight: the atom is "a 'machine learning datatype' in its own right" — like pixels for vision — deserving standardized benchmarks; and 3D geometry is the representation that carries the information lower dimensions discard (§1 para 2, Table 1)
+  hypothesis: if 3D methods are benchmarked uniformly against the best 1D/2D methods, 3D will consistently win, and architecture choice (3DCNN vs GNN vs equivariant net) will systematically depend on task geometry and data size (Abstract, §5.2)
+method:
+  conceptual_change: treating the atom, not the molecule, as the unit of ML data — with symmetries and hierarchical structure analogous to vision/NLP (§1 para 2)
+  mechanism: 'ATOM3D = 8 datasets (3 novel: RES, MSP, plus others extracted from existing sources; SMP, PIP, RES, MSP, LBA, LEP, PSR, RSR) with leakage-minimizing splits, standardized format, plus reference implementations of three architecture families and the atom3d package (§3, §4, Abstract)'
+  formulation: tasks as classification/regression/ranking on atomistic geometry; leakage-controlled splits by protein topology class (CATH) or sequence identity < 30% (§3.3, §3.4)
+claims:
+  - id: C1
+    claim: '"incorporating atomistic geometry leads to consistently superior performance compared to 1D and 2D methods" — 3D methods hold state-of-the-art on the majority of ATOM3D tasks (comparative)'
+    importance: central
+    evidence: Tables 3–7 (Tables 3, 4, 5 shown; SMP all targets improve with ENN; biopolymer tasks 3D > 1D)
+  - id: C2
+    claim: 'architecture choice is task- and data-size-dependent: 3DCNNs excel on large biopolymer tasks with complex geometry, GNNs on small datasets and tasks needing precise positions, ENNs show "significant promise" (comparative)'
+    importance: central
+    evidence: '§5.2, Fig. 1 (dataset size vs atoms), Table 3 (SMP: GNN/ENN ≫ 3DCNN), Table 4'
+  - id: C3
+    claim: '"many-body representation hypothesis" — 3DCNN filters can learn many-body patterns that GNNs (restricted to one-/two-body features) cannot, explaining 3DCNN advantage on complex geometries and its fade in data-poor regimes (mechanistic, explicitly hypothesized: "We hypothesize this is due to...")'
+    importance: supporting
+    evidence: §5.2 text accompanying Fig. 1
+  - id: C4
+    claim: many tasks have "substantial further improvement" headroom for 3D molecular learning (descriptive)
+    importance: supporting
+    evidence: Abstract; modest absolute scores in Tables 4–6 (e.g. MSP AUROC 0.574–0.609)
+experiments:
+  - id: E1
+    research_question: RQ1 — does 3D representation improve the primary objective on each task?
+    setup: 8 ATOM3D tasks, three reference 3D architectures (GNN 5-layer graph conv, 3DCNN voxel grid 1 Å, ENN Cormorant), metrics per task, 3 replicates (§4, §5)
+    baseline: state-of-the-art 1D/2D methods per task (TAPE, BIPSPI sequence-only, DeepDTA, DeepAffinity, Tsubaki, Liu n-gram)
+    result: 3D methods outperform on SMP (all targets, Table 3), biopolymer tasks PIP/RES/MSP (Table 4), competitive-to-better on joint LBA/LEP (Table 5), and structure ranking PSR/RSR (Table 6)
+    interpretation: 3D geometry is the winning representation across molecule classes
+    supported_claim: C1
+  - id: E2
+    research_question: RQ2/RQ3-flavored — does the architecture advantage track dataset size and geometry complexity (i.e. is the many-body hypothesis consistent with the data)?
+    setup: compare 3DCNN vs GNN vs ENN across tasks ordered by dataset size (Fig. 1) (§5.2)
+    baseline: cross-architecture comparison within 3D methods
+    result: 3DCNN wins large biopolymer tasks (PIP, RES); parity at intermediate PSR/RSR; GNN wins small MSP/LEP; exception — large SMP where GNN/ENN win, attributed to absence of many-body patterns in small molecules and volumetric precision limits
+    interpretation: consistent with many-body hypothesis; ENNs combine precise positions and many-body capacity but current implementations limited to <1% of data on some tasks
+    supported_claim: C2, C3
+narrative:
+  introduction_roles: [Context (3D shape critical), Existing paradigm (1D/2D benchmarks), Gap (no systematic 3D evaluation, no toolkit), Analogy/Insight (atom as ML datatype), Solution (ATOM3D + package), Contribution preview]
+  introduction_move: build on an analogy to ImageNet/SQuAD — benchmarks spark fields — and a datatype analogy (atom ≈ pixel) that reframes the contribution from "a benchmark" to "founding a datatype"; the gap is infrastructural (no benchmarks, no toolkit), not algorithmic
+  related_work_strategy: landscape map by representation dimension (1D/2D pursued long ago, 3D newly feasible due to data availability) — §2
+  method_strategy: resource-first — dataset cards with parallel Impact/Source/Targets/Split structure for each of 8 tasks (§3.1–3.7)
+  experiments_strategy: RQ1 (3D vs non-3D) first, then cross-architecture analysis with a named hypothesis (many-body) woven into the results section rather than a separate ablation
+  conclusion_strategy: restate datatype vision, summarize the two headline findings, then a candid three-item limitations list (structure bias toward solved structures, simple baselines, task formulations diverging from real-world use)
+reviewer_defense:
+  strengths: systematic evaluation across 8 diverse tasks with leakage-controlled splits and 3 replicates; comparisons against genuine SotA per task; open package lowers reproduction barriers
+  vulnerabilities: 'authors concede (§6): datasets biased toward solved structures (intrinsically disordered/transmembrane proteins underrepresented); baselines are "competitive but simple" without comprehensive tuning; several tasks formulated differently from what practitioners need (e.g. LBA assumes the bound structure is known); ENN results incomplete (<1% of data on RES, absent on PIP/PSR/RSR)'
+  anticipated_attacks: '"are these tasks realistic?" — preempted in §3 opening ("do not always correspond to problem settings ... real-world scenarios") and §6 third limitation; "is 3D always better?" — preempted by LBA/LEP comparable-not-better results acknowledged in §5.1 and the SMP exception analyzed in §5.2'
+writing:
+  paragraph_patterns: rigid template paragraphs in §3 (Impact – Source – Targets – Split) repeated per dataset; results subsections each led by a one-sentence claim heading ("3D representations consistently improve performance")
+  transition_patterns: '"While X, Y" concessive openers; each results subsection ends by naming the next insight'
+  terminology_patterns: consistent acronym discipline (SMP, PIP, RES, MSP, LBA, LEP, PSR, RSR; 3DCNN/GNN/ENN); branded "many-body representation hypothesis"; quoted coinage "machine learning datatype"

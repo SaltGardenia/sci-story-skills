@@ -1,0 +1,79 @@
+# thesis: This paper shows that procedurally generating an arbitrarily large set of diverse,
+# interactive, physics-enabled embodied-AI environments enables simple RGB-only models (CNN+GRU)
+# to reach state-of-the-art — even zero-shot beyond prior SoTA that trains on downstream data —
+# because E-AI's data scarcity (manually designed or 3D-scanned scenes) causes overfitting to limited
+# scenes, and therefore proposes ProcTHOR, a procedural-generation framework (10K-house sample +
+# ArchitecTHOR test set) that scales scene counts orders of magnitude beyond existing simulators.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: embodied AI / datasets & benchmarks (procedural environments)
+  task: large-scale training and evaluation of embodied agents across navigation, rearrangement, and arm manipulation
+  problem: '"the Embodied AI (E-AI) research community predominantly trains agents in simulators with far fewer scenes ... the best performing E-AI models continue to overfit on the limited training scenes and thus generalize poorly to unseen environments" (§1)'
+  importance: massive task-agnostic data "driven many recent advancements in computer vision and natural language understanding" (CLIP, DALL-E, GPT-3, Flamingo); ProcTHOR "presents a platform to enable similar success stories in Embodied AI" (Abstract); scaling beyond 10K houses "is straightforward and inexpensive" (§4)
+  source: full
+paradigm:
+  existing_approach: manually designed scenes (AI2-THOR, Habitat 2.0's single floorplan, iGibson 2.0) or 3D scans of real structures (HM3D — 1,000 static scenes, navigation only) (§1, §2)
+  core_assumption: scene datasets must be authored by artists or captured by expensive scans, so they stay small
+  limitation: '"These approaches are not scalable, and expanding existing scene repositories multiple orders of magnitude is not practical" (§1); scanned scenes lack interactivity, object states, and physics'
+gap:
+  unresolved_problem: performant generation of unbounded, diverse, fully-interactive environments to train and evaluate agents — plus evidence that scale, not architectural complexity, drives E-AI generalization (§1 contributions)
+  evidence_for_gap: enumerated platform comparison (§2) — each existing simulator trades off interactivity, scale, or realism; HM3D's 1,000 scenes vs vision/NLP's billions of samples
+insight:
+  observation: a house can be specified compactly ("a house with 3 bedrooms, 3 baths, and 1 kitchen") and its diversity comes from four orthogonal factors — layouts, assets (108 types, 1633 interactable instances), placements, and lighting/textures (§1, §3)
+  central_insight: procedural generation with physically plausible, commonsense-constrained placement and per-load material randomization turns the dataset from a fixed artifact into a sampler — "allowing ProcTHOR to scale orders of magnitude beyond the number of scenes currently supported by present-day simulators" (§1)
+  hypothesis: agents trained on a simple architecture (CNN+GRU, RGB-only) over 10K procedurally generated houses will generalize enough to beat SoTA on downstream benchmarks — even zero-shot without fine-tuning (Abstract, §5)
+method:
+  conceptual_change: treat environments as generated data (with domain randomization per load) rather than curated assets; evaluation held out in artist-designed houses (ArchitecTHOR) to test realism transfer
+  mechanism: constraint-based procedural pipeline over AI2-THOR — floorplan specification and sampling (walls, doors, windows), automatic furniture placement respecting physics and commonsense (no clipping, plausible arrangements), asset/color/texture randomization, lighting variation incl. simulated skyboxes, dynamic material randomization at load time; ProcTHOR-10K as the concrete sample; ArchitecTHOR = 10 artist-designed high-fidelity test-only houses (§1, §3, §4)
+  formulation: room-specification → floorplan sampling → asset population; scale ablation across 10 → 100 → 1K → 10K houses isolates the data-scaling effect (Table 3)
+claims:
+  - id: C1
+    claim: models trained only on ProcTHOR-10K, RGB-only with no mapping/depth/human supervision, produce "state-of-the-art results across 6 embodied AI benchmarks", topping three live leaderboards as of June 14, 2022 (comparative)
+    importance: central
+    evidence: §5, Table 2 (fine-tune rows; Habitat 2022, AI2-THOR Rearrangement 2022, RoboTHOR challenges)
+  - id: C2
+    claim: zero-shot transfer — ProcTHOR pre-training without any downstream fine-tuning beats previous SoTA on 3 benchmarks (e.g. RoboTHOR ObjectNav 55.0% vs EmbCLIP 47.0%; AI2-iTHOR 75.7% vs 68.4%) (comparative)
+    importance: central
+    evidence: §5, Table 2 zero-shot rows
+  - id: C3
+    claim: performance improves monotonically with environment scale — "the performance improves as we use more houses for training, demonstrating the benefits of large-scale data for Embodied AI tasks" (10 → 100 → 1K → 10K), with further gains expected at larger scales (empirical)
+    importance: central
+    evidence: §5 Scale ablation, Table 3
+  - id: C4
+    claim: ProcTHOR's interactive, physics-enabled scenes are scalable in a way 3D-scan datasets (HM3D, OpenRooms) are not — and support tasks beyond navigation (descriptive/comparative)
+    importance: supporting
+    evidence: §2 platform comparison (three enumerated distinctions vs HM3D)
+  - id: C5
+    claim: 'ArchitecTHOR (artist-designed, high-fidelity) serves as a more demanding evaluation: transfer success improves from 18.5% (EmbCLIP trained on iTHOR) to 31.4% (ProcTHOR) (comparative)'
+    importance: supporting
+    evidence: §5 Table 2 ArchitecTHOR rows
+experiments:
+  - id: E1
+    research_question: RQ1/RQ4 — does ProcTHOR pre-training improve downstream embodied benchmarks, in zero-shot and fine-tuned settings?
+    setup: ObjectNav on RoboTHOR, Habitat-HM3D, AI2-iTHOR, ArchitecTHOR; 1-phase Room Rearrangement; ArmPointNav; CNN+GRU / CLIP-based encoders; RGB only; zero-shot vs fine-tuned (§5, Table 2)
+    baseline: EmbCLIP, MLNLC, FusionNav, prior challenge submissions
+    result: SoTA on all six benchmarks after fine-tuning (e.g. Habitat challenge SPL 0.270→0.318 with "Large-d"; RoboTHOR 47.0%→65.2% success); zero-shot beats prior SoTA on 3 benchmarks
+    interpretation: scale + diversity substitutes for architectural sophistication and extra sensors
+    supported_claim: C1, C2, C5
+  - id: E2
+    research_question: RQ2-flavored (scaling causal probe) — does environment count drive the gains?
+    setup: train the same model family on 10, 100, 1,000, 10,000 ProcTHOR houses without material augmentations (§5, Table 3)
+    result: monotone improvement with scale
+    interpretation: the procedural-generation premise is validated — more sampled houses = better agents
+    supported_claim: C3
+narrative:
+  introduction_roles: [Context (data-driven revolutions elsewhere), Failure mode (E-AI scene scarcity → overfitting), Impracticality of manual/scan scaling, Solution (ProcTHOR framework + features), Concrete instantiation (10K sample), Results barrage (6 benchmarks, date-stamped), Contributions (3)]
+  introduction_move: open by analogy to CLIP/GPT-3/Flamingo and immediately quantify the E-AI anomaly (few scenes, overfitting); the results preview is date-stamped ("As of 10am PT on June 14th, 2022") to make leaderboard claims auditable; simplicity of the model is foregrounded as evidence that data, not architecture, is the bottleneck
+  related_work_strategy: three-way platform taxonomy (embodied platforms, large-scale datasets, scene generation) each ending in the specific dimension ProcTHOR adds — interactivity at scale (§2)
+  method_strategy: capability-catalog structure (§3–4) — each generative feature (layouts, assets, lighting, randomization) presented with its commonsense constraints; the 10K-house dataset is positioned as "a sample" of an unbounded generator
+  experiments_strategy: leaderboard-anchored claims + the scale ablation as the paper's scientific core; zero-shot results separated from fine-tuned results to isolate generalization from adaptation; simple-architecture insistence repeated as a control against complexity confounds
+  conclusion_strategy: recap of SoTA results, scaling trajectory ("further improvements can be obtained"), open-source commitment
+reviewer_defense:
+  strengths: unbounded data supply with per-load randomization; interactivity + physics beyond scan-based rivals; strong empirical sweep across six benchmarks and three live challenges with a deliberately simple model; open-source framework and code
+  vulnerabilities: procedural houses may share distributional biases (plausibility constraints reflect the designers' commonsense rules); zero-shot on Habitat/HM3D is weak in absolute terms (9.0% success, 0.055 SPL) — the large-scale claim rests mostly on fine-tuned results there; visual realism below artist-designed scenes (addressed via ArchitecTHOR); no comparison against same-architecture models trained on other data (the scale ablation partially covers this); date-stamped leaderboard claims age quickly
+  anticipated_attacks: '"procedural scenes look synthetic" — ArchitecTHOR transfer results and material/lighting randomization address the sim-to-real-of-simulators gap; "just more compute?" — scale ablation fixes architecture and shows data-count effect; "HM3D zero-shot fails" — acknowledged implicitly by reporting it honestly (Table 2) and attributing to appearance-statistics mismatch (§5)'
+writing:
+  paragraph_patterns: feature-enumeration paragraphs with exact counts (108 object types, 1633 instances, 10K houses); results previewed in a dense semicolon-linked list before the experiments section
+  transition_patterns: framework → instantiation → evaluation pipeline mirrors the intro's three contributions; "We demonstrate the ease and effectiveness of ProcTHOR by sampling ..." pivot sentence
+  terminology_patterns: product naming (ProcTHOR, ProcTHOR-10K, ArchitecTHOR, following AI2-THOR lineage); -THOR suffix family; "0-shot" hyphenation used consistently; date-stamped leaderboard claims

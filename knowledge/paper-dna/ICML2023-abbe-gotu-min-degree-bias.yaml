@@ -1,0 +1,96 @@
+# thesis: This paper shows that (S)GD-trained networks solve Boolean-function learning
+# under generalization-on-the-unseen (GOTU) with a min-degree bias — they learn the
+# interpolator with minimal Fourier-Walsh degree-profile — because of an implicit bias
+# provable for random-features and linear networks and observed for Transformers, and
+# therefore proposes Degree-Curriculum (turning the bias into an asset) plus a formal
+# explanation of the length-generalization problem.
+# NOTE: extracted text is the JMLR-25 (2024) extended version ("This work is an extension
+# of earlier work (Abbe et al., 2023a)" — §1.1); ICML 2023 is the original venue.
+paper:
+  venue: ICML
+  year: 2023
+  field: learning theory / implicit bias of neural networks
+  task: learning Boolean (logical) functions under strong out-of-distribution shift (GOTU)
+  problem: "how networks trained by (S)GD generalize when part of the input domain is \"barely/never seen at training\" — the generalization-on-the-unseen (GOTU) setting, \"a strong case of OOD generalization\" (abstract; §2 Def. 1)"
+  importance: "reasoning tasks (arithmetic, logic, algorithmic) have combinatorial input spaces that resist representative sampling, so \"learning successfully under GOTU gives a first vignette of an 'extrapolating' or 'reasoning' learner\" (abstract, §1)"
+  source: full
+paradigm:
+  existing_approach: classical statistical learning controlling three error pillars (approximation, estimation, optimization) under matched train/test distributions (§2)
+  core_assumption: train and test distributions are the same, so generalization is driven by sample size and model richness
+  limitation: "for combinatorial reasoning data \"the setting with abundant representative data seems less prominent\"; on the unseen domain \"all bets are off\" unless one understands each algorithm's implicit bias there (§1, §2)"
+gap:
+  unresolved_problem: which solution is actually learned on the unseen domain by standard architectures, and can that bias be characterized, exploited, or corrected (§1.1 contributions 1–4)
+  evidence_for_gap: conceptual — GOTU voids memorization so the choice among interpolators is decided purely by implicit bias; prior work had no characterization of that choice for Boolean targets
+insight:
+  observation: when trained on Hamming balls or restricted assignments, the learned function's Fourier-Walsh mass concentrates on the lowest possible degrees (e.g. Fig. 1 coefficient traces; Fig. 2 degree-profiles)
+  central_insight: "GD-trained networks implement an Occam's razor measured by *degree-profile* — they pick the min-degree interpolator (MD interpolator), the interpolator \"having a Fourier-Walsh transform whose energy concentrates on basis elements of lowest possible degree\" (abstract, §1.1)"
+  hypothesis: if the MD bias holds, then (i) length generalization failures are predictable — a degree-r alternative exists to the degree-k parity and the model prefers it (Theorem 22), and (ii) curricula of increasing Hamming balls can incrementally build the monomial support (Algorithm 1)
+method:
+  conceptual_change: evaluate generalization *on the unseen* (Def. 1) rather than under distribution match, and read the learned solution through its Fourier-Walsh degree-profile
+  mechanism: theoretical identification of the learned interpolator for RF models (Thm 11), deep diagonal linear networks (Thm 15), 2-layer fully connected linear networks (Thm 18); experimental identification for encoder-only Transformers; Degree-Curriculum (Alg. 1) trains successively on Hamming balls B_{r1} ⊂ ... ⊂ B_{rk}, each step forcing the MD interpolator of degree ≤ r_i so the support is learned incrementally (§6)
+  formulation: "(µ1, µ2, m, ε)-generalization with train/test domains µ1, µ2 (Def. 1); degree-profile of the interpolator's Fourier-Walsh transform; MD interpolator constructible from the \"vanishing ideal\" of the seen data (App. C)"
+claims:
+  - id: C1
+    claim: "for random features models, deep diagonal linear networks, and 2-layer fully connected linear networks, \"a min-degree-interpolator (MD interpolator) is learned on the unseen\" (§1.1 contribution 2i)"
+    importance: central
+    evidence: theoretical — Theorems 11, 15, 18
+  - id: C2
+    claim: "encoder-only Transformers \"tend to also have the min-degree bias\" toward MD interpolators (§1.1 contribution 2ii)"
+    importance: central
+    evidence: empirical — Fig. 1 (Transformer and RF recover MD interpolators for f1, f2, f3; 10 seeds averaged, §4)
+  - id: C3
+    claim: the MD bias formally explains the length generalization problem for Boolean functions — when training on radius-r Hamming balls, parity of degree k has a degree-r surrogate and the MD bias makes the model learn it, causing failure on longer inputs (§5, Theorem 22)
+    importance: central
+    evidence: theoretical + empirical — Theorem 22; Fig. 2 (lower-degree mass grows as training length shrinks)
+  - id: C4
+    claim: "Degree-Curriculum \"learns monomials more efficiently by incrementing supports\", reducing sample complexity for learning parity (abstract; §6)"
+    importance: central
+    evidence: empirical — Fig. 3 (degree-16 parity with leap-4 curriculum, degree-30 parity with leap-1 curriculum vs plain SGD)
+  - id: C5
+    claim: "the MD bias can fade or become \"leaky\" depending on sparsity, ambient dimension, causal attention masking, learning rate, or architecture — and can be corrected by symmetry-based regularization when undesirable (§1.1 contribution 4; §7; §9)"
+    importance: supporting
+    evidence: empirical — Fig. 4 (small ambient dimension leakage), Table 1 (causal attention behavior varies), Fig. 8 (MLP leakage vs learning rate), Fig. 6 (symmetry regularizer recovers x0x1x2; test error 0.95±0.13 vs 8.14±0.9 without, §9)
+experiments:
+  - id: E1
+    research_question: RQ4 — which interpolating solution does each architecture learn on the unseen domain?
+    setup: d=15 Boolean inputs, training on all assignments in the complement of the unseen set U, ℓ2 loss, coefficient estimation f̂NN(T); architectures RF, encoder-only Transformer (then MLP, mean-field in §7.3), 10 seeds (§4)
+    baseline: the analytically computed MD interpolator for each (f, U) pair
+    result: "learned coefficients are \"very close to the MD interpolator in all cases\" (Fig. 1); MLP and mean-field show weaker MD bias with leakage (Fig. 5)"
+    interpretation: MD bias spans lazy and feature-learning regimes and models of practical interest (§4)
+    supported_claim: C1, C2
+  - id: E2
+    research_question: does the MD-bias theory explain observed length generalization failures?
+    setup: full parity on 15 bits trained on Hamming balls B6..B10 vs full space, MLP (§5, Fig. 2)
+    baseline: training on the full space B15
+    result: shorter training lengths → more low-degree monomial mass, less full-parity mass (Fig. 2)
+    interpretation: networks fail length generalization because a low-degree alternative exists and the MD bias selects it
+    supported_claim: C3
+  - id: E3
+    research_question: RQ1 — can the bias be turned into a learning accelerant?
+    setup: degree-16 and degree-30 full parity, MLP, Degree-Curriculum with leap-4 / leap-1 curricula, loss threshold ε=0.001, same data and hyperparameters as plain SGD (§6, Fig. 3)
+    baseline: standard SGD on the whole training set
+    result: "\"the Degree-Curriculum algorithm can reduce the sample complexity for learning parity functions\" (§6)"
+    interpretation: the bias, harnessed via staged Hamming balls, bootstraps support learning staircase-style
+    supported_claim: C4
+  - id: E4
+    research_question: boundary conditions — when does the MD bias hold, fade, or leak?
+    setup: small ambient dimension (Fig. 4), Transformers with causal attention (Table 1), MLP/mean-field (Fig. 5, Fig. 8), symmetry regularizer on cyclic-symmetric f3 (Fig. 6, §9)
+    baseline: encoder-only Transformer with bidirectional attention (Fig. 1 setting)
+    result: MD bias present or leaky depending on condition; causal masking behavior depends on positional embeddings; symmetry regularizer recovers the high-degree symmetric term (0.95 vs 8.14 generalization error)
+    interpretation: the bias is a property of training regime and architecture, not a universal law — and it can be steered
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (SGD success with representative data), New task class (reasoning's combinatorial data), Problem (GOTU motivated), Contributions (numbered 1–4), Reframing (three error pillars → distribution shift §2)]
+  introduction_move: motivates a *new evaluation axis* (GOTU) before any result; lists four numbered contributions where two are assets (theory + curriculum) and two are honest boundary conditions (bias fades/correctable) — the intro pre-concedes scope limits
+  related_work_strategy: deferred to §8, structured around length generalization and implicit-bias literatures; concurrent works (Cornacchia & Mossel) credited inline in §6
+  method_strategy: definition-first — Def. 1 (GOTU generalization) and MD interpolator are established before any theorem; theorems are ordered as architecture ladder (RF → diagonal linear → fully-connected linear)
+  experiments_strategy: "coefficient-level visualization (Fourier mass trajectories over epochs) instead of accuracy tables — the reader watches the bias happen; boundary-condition experiments in a dedicated \"beyond the previous settings\" section (§7)"
+  conclusion_strategy: "reframe MD bias as \"a form of Occam's razor chosen by GD-trained neural nets\" with the caveat that it \"might not be a desirable form of razor for various reasoning tasks\" (§9), then propose four correction directions and demo one (symmetry regularizer)"
+reviewer_defense:
+  strengths: theory and experiments agree; the same bias explains failures (length generalization) and enables a method (curriculum) — a two-sided payoff; limits (leaky bias, causal attention) mapped empirically
+  vulnerabilities: "Transformer MD-bias claim is experimental only (no theorem); experiments are small Boolean functions (d=15/16/30) — leap to LLM-scale reasoning is by analogy; JMLR version concedes \"preliminary attempt\" for the correction (§1.1)"
+  anticipated_attacks: "\"isn't this just NTK/lazy-regime bias?\" — covered by spanning lazy (RF) and active regimes plus practical Transformers (§4); \"large learning rates break it\" — pre-empted as leaky MD bias (§1.1 footnote, App. B.2); \"sparsity assumption is restrictive\" — §7.1 dedicated relaxation study"
+writing:
+  paragraph_patterns: numbered contribution lists with sub-numbered theory/experiment pairings; footnote-level technical honesty (code links, leakage caveats)
+  transition_patterns: "\"Using these, we obtain two additional results\" — each result block consumes the previous one; boundary sections named to advertise scope (\"Min-Degree Bias Beyond the Previous Settings\")"
+  terminology_patterns: dense but disciplined coinages kept consistent — GOTU, MD interpolator, MD bias, degree-profile, leaky MD bias, Degree-Curriculum; vanishing-ideal algebraic-geometry vocabulary

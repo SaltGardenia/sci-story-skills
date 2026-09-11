@@ -1,0 +1,79 @@
+# thesis: This paper shows that Nesterov acceleration can be built as a "continuized" process
+# (two variables mixing via an ODE, taking gradient steps at Poisson random times) with the same
+# convergence rates as Nesterov's method but analytically expressible parameters and exact
+# discretization, because continuous time avoids the vanishing-stepsize limit of ODE models while
+# remaining exactly implementable, and therefore proposes continuized Nesterov acceleration for
+# deterministic and stochastic gradients plus the first rigorous acceleration of asynchronous gossip.
+paper:
+  venue: NeurIPS
+  year: 2021
+  field: optimization theory / distributed optimization
+  task: acceleration of (stochastic) gradient descent and asynchronous gossip
+  problem: continuous-time analyses of Nesterov acceleration use vanishing-stepsize limits whose "resulting ODE must be discretized ... choosing the right discretization is not straightforward as it introduces stability and approximation errors" (§3, §1)
+  importance: '"the continuized version of Nesterov acceleration can be practically implemented while the original acceleration can not" in asynchronous distributed settings where "the total number k of gradient steps taken in the network is typically not known to each particular node" (§1)'
+  source: full
+paradigm:
+  existing_approach: Nesterov's discrete two/three-sequence scheme with recurrence-defined parameters; continuous-time equivalents via vanishing-stepsize limits or variational frameworks (Su-Boyd-Candès ODE etc.) (§1, §3)
+  core_assumption: acceleration must be analyzed either purely discretely (complicated recurrence relations for parameters) or as an ODE limit that then needs error-prone discretization (§1, §3)
+  limitation: ODE-based analyses lose exact implementability; discrete Nesterov parameters are defined by recurrences "complicated to solve"; asynchronous gossip had no rigorous acceleration (§1, §3, Abstract)
+gap:
+  unresolved_problem: a continuous-time counterpart of Nesterov that (a) supports differential calculus, (b) discretizes exactly with no approximation error, and (c) extends to stochastic gradients and asynchronous/distributed settings where iteration counts are unknown (§1, §3)
+  evidence_for_gap: prior continuous-time studies are enumerated (12+ works) and all rely on the vanishing-stepsize or variational route; the discretization-error problem is stated with citations [57, 49, 46] (§1, §3)
+insight:
+  observation: '"the accelerated iteration becomes more natural when considering two variables indexed by a continuous time, that are continuously mixing and that take gradient steps at random times" — random alternation of mixing and gradient steps simplifies analysis, as with randomized coordinate descent (§3)'
+  central_insight: replace the discrete iteration index by Poissonian random times — the "continuized" Markov chain idea transplanted to acceleration — keeping the process exactly implementable (its ODE mixing has closed-form solution between random gradient events) (§3, §8)
+  hypothesis: this process converges at Nesterov rates (O(1/t²) convex, exp(−√(µ/L)t) strongly convex) in expectation, and its exact sampling at event times yields a Nesterov-like discrete recursion with random parameters (Theorems 2–3)
+method:
+  conceptual_change: stop viewing acceleration as a deterministic discrete recursion to be mimicked by an ODE; instead define the process first in continuous time with random event times and recover the discrete algorithm as an exact evaluation of the process (§3, §4)
+  mechanism: two sequences x_t, z_t mix via dxt = ηt(zt−xt)dt, dzt = η't(xt−zt)dt between events; at Poisson times T_k both take gradient steps (Eqs. 6–11); exact discretization x̃k = x_{T_k} yields Nesterov-structured recursion with random parameters τk, τ'k, γ̃k, γ̃'k (Theorem 3, Eqs. 12–14)
+  formulation: 'continuized dynamics as a Poisson point measure dN(t) with intensity dt: dxt = ηt(zt−xt)dt − γt∇f(xt)dN(t), dzt = η''0(xt−zt)dt − γ''0∇f(xt)dN(t) (Eqs. 10–11); parameters ηt = 2/t, γt = 1/L, γ''0 = 2/L give Ef(xt) − f(x*) ≤ 2L‖z0−x*‖²/t² (Theorem 2.1)'
+claims:
+  - id: C1
+    claim: continuized Nesterov acceleration with explicit parameters achieves the Nesterov rates in continuous time — O(1/t²) (convex) and exp(−√(µ/L)·t) (strongly convex) (theoretical)
+    importance: central
+    evidence: Theorem 2, proof Appendix D.2
+  - id: C2
+    claim: the exact discretization of the continuized process is a recursion of the same structure as Nesterov acceleration but with random (Gamma-distributed-time-derived) parameters, with matching performance guarantees, and behaves similarly to Nesterov's method in simulations (theoretical + empirical)
+    importance: central
+    evidence: Theorem 3 (Eqs. 12–14); simulations Appendix A.1
+  - id: C3
+    claim: the framework extends to stochastic gradients with additive and multiplicative noise; in the multiplicative-noise case the rate depends on the "statistical condition number" and matches [30] while being "much simpler" to prove (theoretical)
+    importance: supporting
+    evidence: §5, Appendix B; §1 statement of comparison caveat ("not directly comparable ... only deal with pure multiplicative noise")
+  - id: C4
+    claim: formulating gossip averaging as stochastic minimization of the edge energy f(x) = Σ P{v,w}(x(v)−x(w))²/2 and applying continuized acceleration yields "the first rigorous acceleration of asynchronous gossip algorithms" (theoretical)
+    importance: central
+    evidence: Abstract; §6 — randomized gossip [Boyd et al.] shown to be stochastic gradient descent on f (Eqs. 21–24), graph quantities (Laplacian eigenvalue µ_gossip, effective resistance R_max, Definition 1) supply strong convexity
+  - id: C5
+    claim: the continuized process has the same deterministic ODE scaling limit as Nesterov acceleration, showing it is "fundamentally different from previous continuous-time equivalents" (theoretical, sanity check)
+    importance: supporting
+    evidence: §3 discussion + Appendix F
+experiments:
+  - id: E1
+    research_question: RQ6/RQ1-flavored — does the randomized discrete algorithm perform comparably to deterministic Nesterov in practice?
+    setup: simulations of the discrete random-parameter algorithm (Appendix A.1)
+    baseline: Nesterov original deterministic acceleration
+    result: '"performance similar to Nesterov acceleration" (§4, Abstract)'
+    interpretation: randomness in parameters costs nothing appreciable
+    supported_claim: C2
+  - id: E2
+    research_question: RQ3-flavored — does the continuized process share Nesterov's continuous-time limit (sanity check of the modeling)?
+    setup: compute the scaling limit of the random continuized acceleration (Appendix F)
+    result: same deterministic ODE as Nesterov's (§3)
+    interpretation: the new process is a genuine counterpart, not an unrelated scheme
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (first-order + acceleration), Established rates (GD vs Nesterov), Existing paradigms (many interpretations incl. continuous-time), Gap (discretization errors; parameters hard to solve), Insight/Solution (continuized process), Bonus application (gossip: settings where the original cannot run), Contributions]
+  introduction_move: state rates for GD and Nesterov up front, concede that many interpretations of Nesterov already exist, then position the contribution as a *modeling* move (continuized Markov chains → acceleration) whose payoff is exact implementability + asynchronous settings; the gossip application is presented as the case where "the original acceleration can not" run — need, not nicety
+  related_work_strategy: long chronological list of continuous-time Nesterov interpretations, then a sharp contrast paragraph ("On the contrary, our process does not correspond to a limit where the stepsizes vanish") (§3)
+  method_strategy: definition-first with heuristic justification ("We argue that the accelerated iteration becomes more natural...") before theorems; randomness motivated twice (Markov chain continuization; randomized coordinate descent analogy)
+  experiments_strategy: theory-led; simulations relegated to appendix and used only as confirmation (RQ6), gossip treated as a second theory section rather than an experiment
+  conclusion_strategy: recap mechanism in two sentences, restate the no-approximation feature, and generalize ("usually agents are not aware of the total number of iterations") — closes on the asynchronous distributed insight
+reviewer_defense:
+  strengths: exact, self-contained convergence proofs for deterministic and stochastic cases; rates match the best known; a genuinely new application domain (asynchronous gossip) unlocked by the formalism
+  vulnerabilities: rate guarantees are in expectation over the Poisson clock (pathwise behavior unaddressed); comparisons to Hendrikx et al. [30] acknowledged as "not directly comparable" (§1); experiments limited to small convex simulations in an appendix; gossip acceleration requires knowledge of graph constants (µ_gossip, R_max — §6)
+  anticipated_attacks: '"is this just another ODE model?" — countered by the no-vanishing-stepsize distinction and the Appendix F scaling-limit check (§3); "random parameters must hurt" — countered by Theorem 3 guarantees + simulations (§4, App. A.1); "what about discrete coins instead of exponential times?" — Remark 1 shows an interpolation and promises adaptable guarantees'
+writing:
+  paragraph_patterns: '"First / Second" enumeration paragraphs for motivation; each theorem immediately followed by a paragraph contrasting with prior art'
+  transition_patterns: '"In this section, we ..." openers; explicit contrast pivot "On the contrary"; "In a nutshell" recap in conclusion'
+  terminology_patterns: coined term "continuized" defined by analogy to continuized Markov chains and used consistently; tildes for discretized objects (x̃k) vs continuous t subscripts; parameters as time-functions (γt, ηt) throughout

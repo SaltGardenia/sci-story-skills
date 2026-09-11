@@ -1,0 +1,83 @@
+# thesis: This paper shows that OOD detection is not distribution-free PAC-learnable — impossibility
+# theorems hold in the total space (ID/OOD overlap) and the separate space (unbounded VC dimension)
+# — because with OOD data absent and the class prior unknown, no algorithm can be consistent for all
+# domains, and therefore establishes the first PAC learning theory of OOD detection: necessary
+# conditions (Linear Condition, compatibility Condition 3) and necessary-and-sufficient conditions
+# in practical spaces (finite ID distributions, density-based), plus theoretical support for far-OOD
+# learnability and existing representative algorithms.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: learning theory / out-of-distribution detection
+  task: characterize PAC learnability of OOD detection (detect OOD inputs while classifying ID inputs, with OOD data unavailable in training)
+  problem: '"very few works study theory of OOD detection, which hinders the rigorous path forward for the field. This paper aims to bridge the gap" (§1); the PAC learnability of OOD detection "is posed as an open problem to date"; the setting is "fundamentally challenging due to the absence of OOD data in training" (§1)'
+  importance: '"Our study is not of purely theoretical interest; it has also practical impacts" — algorithm design normally has only finite ID data (Theorem 8''s scenario), the theory supports representative existing works, defines when far-OOD is learnable, and warns against expecting universally consistent algorithms (§1 "Implications and Impacts", §9)'
+  source: full
+paradigm:
+  existing_approach: empirical OOD detection algorithms (a "rich line" cited); scattered theory — goodness-of-fit tests [49], provable-detection avenue [50], open-set PAC bounds requiring test data [24,29,51,52], classification-with-rejection theory focused on ID risk only (§1, §8)
+  core_assumption: implicit in practice — that an OOD detector can generalize to arbitrary, a priori-unknown OOD distributions ("researchers have studied ... whether there exists an algorithm that can be used to detect various OOD data instead of merely some specified OOD data", §1)
+  limitation: no PAC learnability framework; existing open-set theories require test data during training or very strong assumptions (§8)
+gap:
+  unresolved_problem: '"Given hypothesis spaces and several representative domain spaces, what are the conditions to ensure the learnability of OOD detection? If possible ... necessary and sufficient in some scenarios" (§1 boxed question)'
+  evidence_for_gap: posed as an open problem by the OOD survey [4]; impossibility results in robust statistics as precedent; no prior theory without test-data access (§1, §8)
+insight:
+  observation: OOD data are unavailable, so the class prior π_out ∈ [0,1) is unknown and ID/OOD imbalance is a core challenge; standard risk minimization over D_XY is ill-posed — but requiring the excess-risk bound to hold uniformly over α ∈ [0,1] (Eq. 3) removes dependence on the prior (§2)
+  central_insight: 'learnability hinges on a decomposability condition — the Linear Condition (Condition 1): inf_h R^α_D(h) = (1−α)inf R^in + α inf R^out — which fails whenever ID and OOD supports overlap (Theorem 3), so learnability must be rescued by restricting the domain space and hypothesis space (§4, §5)'
+  hypothesis: in restricted practical spaces — separate space with finite feature space, finite-ID-distribution space, density-based space with a Realizability Assumption — necessary and sufficient conditions exist (and reduce to compatibility/realizability conditions), explaining when practical far-OOD methods can succeed (§5, Theorems 6–11)
+method:
+  conceptual_change: convert the algorithmic question "is my detector good?" into a learnability question over spaces — the unit of analysis is the (domain space, hypothesis space) pair, and impossibility results are as informative as algorithms
+  mechanism: define OOD learnability (Definition 1) as consistency w.r.t. the α-risk uniformly over α (Eq. 3); prove a necessary condition (Linear Condition, Theorem 2 in the single-distribution space); derive impossibility theorems for total space (overlap, Theorem 3/4) and separate space (VC dimension, Theorem 5); then construct positive characterizations per domain space (Theorems 6, 7, 8, 9, 10, 11)
+  formulation: domain D_XY = (1−π_out)D^{XY}_I + π_out D^{XY}_O; α-risk R^α_D(h) = (1−α)R^in_D(h) + αR^out_D(h); learnability = existence of algorithm A with E[R^α_D(A(S)) − inf_h R^α_D(h)] ≤ ε_cons(n) → 0 for all domains and all α (Eqs. 1–3, Definition 1)
+claims:
+  - id: C1
+    claim: the Linear Condition (Condition 1) is necessary for OOD learnability, and in the single-distribution space it is necessary and sufficient (Theorem 2) (theoretical)
+    importance: central
+    evidence: §4, Theorem 2
+  - id: C2
+    claim: 'impossibility — OOD detection is not learnable in the total space: if a domain has ID/OOD overlap with both minimal risks equal to zero, the Linear Condition fails (Theorems 3–4) (theoretical)'
+    importance: central
+    evidence: §4, Definition 4, Theorems 3, 4
+  - id: C3
+    claim: 'impossibility — in the separate space, learnability requires VCdim(φ∘H) = +∞ or sup_h |{x: h(x) ∈ Y}| < +∞; since FCNN hypothesis spaces have finite VC dimension, "OOD detection is learnable in the separate space if and only if the feature space is finite" (Theorems 5, 10) (theoretical)'
+    importance: central
+    evidence: §5, Theorems 5, 10; §1 Main Results
+  - id: C4
+    claim: in the finite-ID-distribution space, a compatibility condition (Condition 3) is necessary and sufficient for learnability (Theorem 8), covering the practical case of "only finite ID datasets" (theoretical)
+    importance: central
+    evidence: §5, Theorem 8; §1 Implications item 1
+  - id: C5
+    claim: in the density-based space with Realizability Assumption, the compatibility condition is again necessary and sufficient (Theorem 11); τ-far-OOD tasks (different semantics and styles) are learnable under appropriate hypothesis spaces, while near-OOD tasks may instantiate the overlap condition and hence be unlearnable (theoretical)
+    importance: central
+    evidence: §5 Theorem 11; §7 Discussion (far-OOD/near-OOD definitions with benchmarks)
+  - id: C6
+    claim: the theory provides theoretical support for several representative OOD detection works [7, 8, 23] and implies a large-capacity model is needed for one-class novelty detection in the separate space (Theorem 6) (theoretical/practical)
+    importance: supporting
+    evidence: §1 Implications item 2; §7 "Understanding One-class Novelty Detection"
+experiments:
+  - id: E1
+    research_question: RQ3-flavored (motivating analysis) — does the Linear Condition reflect actual detector behavior?
+    setup: experiments in Figure 1 (details Appendix C.2) motivating Condition 1 (§4)
+    result: motivates the linear decomposition of risks (per §4 reference to Fig. 1)
+    interpretation: the necessary condition is empirically grounded, not just algebra
+    supported_claim: C1
+  - id: E2
+    research_question: RQ7-flavored (boundary of feasibility) — when can OOD detection succeed or must it fail?
+    setup: 'theorem-by-theorem analysis across domain spaces: total → separate → finite-ID-distribution → density-based (§4–5)'
+    result: impossibility theorems in total/separate spaces; iff-characterizations (Theorems 2, 6, 8, 10, 11) in restricted spaces
+    interpretation: '"we cannot expect a universally consistent algorithm to handle all scenarios" (§9), but success conditions are now precise'
+    supported_claim: C2, C3, C4, C5
+narrative:
+  introduction_roles: [Context (supervised assumption breaks), Problem definition (OOD detection), Gap (no theory; open problem), Challenge (no OOD data, unknown prior), Question box (boxed formal question), Main Results walk (necessity → impossibility → positive characterizations), Implications list]
+  introduction_move: the intro narrates the paper's own arc — "frustrating" impossibility theorems first, then the observation that their assumptions may fail in practice, converting failure into iff-characterizations; a literal boxed question states the deliverable; implications are promised before any theorem appears
+  related_work_strategy: contrast-based five-way taxonomy (OOD theory, open-set theory, reject-option, robust statistics, PQ learning), each ending with what it cannot do that this theory does (§8)
+  method_strategy: space-by-space descent — start from the largest (total) space, prove impossibility, relax assumptions one at a time, and characterize learnability at each level; definitions carry the framework (Definition 1 explicitly reduces to agnostic PAC when π_out = 0)
+  experiments_strategy: theory-led with a single motivating experiment (Fig. 1); "experiments" are the theorems themselves; implications section translates theorems into benchmark-level guidance (far-OOD learnable, near-OOD may be unlearnable)
+  conclusion_strategy: restate the arc, claim the first PAC theory of OOD detection, close with a concrete future direction (robust-statistics-based robustness)
+reviewer_defense:
+  strengths: first PAC framework for OOD detection with iff-characterizations; conditions tied to practical scenarios (finite ID data); explains and unifies existing empirical practice (far vs near OOD; large-capacity models); definition rigorously reduces to standard agnostic PAC
+  vulnerabilities: positive results require strong structural assumptions (finite feature space for FCNN-based separate space; Realizability Assumption in density-based space); the α-uniform risk (Eq. 3) is a modeling choice that sidesteps the unknown prior rather than solving it; near-OOD learnability left open; no experiments validating the conditions beyond Figure 1
+  anticipated_attacks: '"OOD without overlap is trivial" — the separate-space result shows even non-overlapping data is unlearnable without finite features/large capacity (Theorems 5, 6); "AUROC-style metrics already handle imbalance" — §2 explicitly bridges Definition 1 to AUROC/AUPR/FPR95 practice via Eq. 3; "test-time access theories exist" — §8 distinguishes all prior open-set PAC work as requiring test data'
+writing:
+  paragraph_patterns: numbered walkthrough ("Main Results") in the intro that previews every theorem in order; theorem statements interleaved with plain-language interpretation paragraphs ("Theorem 3 clearly shows ...")
+  transition_patterns: '"Although the impossibility theorems are frustrating, we find that some conditions ... may not hold in some practical scenarios" — the pivot sentence repeated in abstract and intro; boxed question as a structural anchor'
+  terminology_patterns: systematic space taxonomy (total/separate/finite-ID-distribution/density-based; τ-far-OOD); conditions named and numbered (Linear Condition = Condition 1, compatibility = Condition 3); superscript in/out risk notation kept consistent

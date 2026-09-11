@@ -1,0 +1,81 @@
+# thesis: This paper shows that GNN expressive power should be measured by graph
+# biconnectivity rather than only the WL hierarchy, because biconnectivity is computationally
+# trivial (linear-time algorithms) yet nearly all popular GNN architectures provably cannot even
+# detect cut vertices/edges, and therefore proposes GD-WL — a distance-injected color
+# refinement (SPD-WL for edge-, RD-WL for vertex-biconnectivity) implemented as the fully
+# parallelizable Graphormer-GD Transformer.
+paper:
+  venue: ICLR
+  year: 2023
+  field: graph neural networks / expressiveness theory
+  task: designing GNNs with provable expressiveness for biconnectivity problems
+  problem: prior WL-beating GNNs justify themselves with toy counterexamples and "it is quite unclear what additional power they can systematically and provably gain... there is still a lack of principled and convincing metrics beyond the WL hierarchy" (§1)
+  importance: cut vertices/edges matter in practice — "chemical reactions are highly related to edge-biconnectivity of the molecule graph", social-network communities relate to vertex-biconnectivity — and biconnectivity is solvable in linear time, so GNNs "should be able to learn all things related to biconnectivity without difficulty" (§1)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: higher-order WL matching GNNs (prohibitively costly) and efficient message-passing variants (GSN, CWN, GraphSNN, ESAN) justified by regular-graph toy examples (§1, §3.1)
+  core_assumption: WL hierarchy is the only yardstick for GNN expressiveness; local neighborhood aggregation suffices for structural properties computable by local algorithms
+  limitation: '"none of them could even solve the easiest biconnectivity problem: to distinguish whether a graph has cut vertices/edges or not" (§1 para 4); 1-WL is "agnostic to distance information between nodes" (§4)'
+gap:
+  unresolved_problem: a principled metric family beyond WL to measure expressiveness, plus an efficient GNN provably expressive for it
+  evidence_for_gap: logical + empirical — linear-time Tarjan algorithms vs provable GNN failure (Table 1 cross of architectures × biconnectivity tasks, all ✗ except ESAN)
+insight:
+  observation: the one expressive exception (ESAN/DSS-WL with node marking) implicitly encodes distance information in its color mapping (§3.2, used in the proof); meanwhile 1-WL only lets nodes "see" neighbors (§4)
+  central_insight: injecting a general distance metric into the WL aggregation recovers biconnectivity — shortest-path distance suffices for edge-biconnectivity, resistance distance for vertex-biconnectivity (Theorems 4.1–4.2, Corollary 4.3)
+  hypothesis: since distances are precomputable and the aggregation is Transformer-compatible, a Graph Transformer with distance-biased attention should be provably as expressive as GD-WL and empirically stronger than prior GNNs
+method:
+  conceptual_change: replace the WL hierarchy with biconnectivity as the design target, and treat "what distance information the aggregation sees" as the fundamental design variable
+  mechanism: 'GD-WL color update χ_t(v) := hash{{(d_G(v,u), χ_{t−1}(u)) : u ∈ V}} (Eq. 3); instantiate d_G = SPD (Theorem 4.1: cut edges + BCE trees) or RD (Theorem 4.2: cut vertices + BCV trees) or the pair (Corollary 4.3)'
+  formulation: Graphormer-GD attention Y_h = φ_1^h(D) ⊙ softmax(XW_Q^T(XW_K)^T/√d) + φ_2^h(D) XW_V (Eq. 5), equivariant and simulating GD-WL; Theorem 4.4 gives exact expressivity match; Theorem 4.5/4.6 upper-bounds GD-WL by 2-FWL, and GD-WL matches 2-FWL on distance-regular graphs
+claims:
+  - id: C1
+    claim: MPNNs, GSN, CWN, GraphSNN cannot solve any biconnectivity problem; only ESAN (DSS-WL with node marking) can (theoretical, negative result)
+    importance: central
+    evidence: Table 1 summary; counterexample suite in §3.1/Fig. 2; Theorem 3.1, Props C.12–C.14
+  - id: C2
+    claim: DSS-WL with node marking precisely identifies cut vertices and cut edges — a new theoretical justification for ESAN; ego-network policy without marking and DS-WL cannot identify cut vertices (theoretical)
+    importance: central
+    evidence: Theorem 3.2 + §3.2 fine-grained analysis (Prop C.14, C.16)
+  - id: C3
+    claim: SPD-WL is fully expressive for all edge-biconnectivity problems (cut edge detection, BCETree isomorphism) (theoretical)
+    importance: central
+    evidence: Theorem 4.1 — "combines three seemingly unrelated concepts (i.e., SPD, biconnectivity, and the WL test) into a unified conclusion"
+  - id: C4
+    claim: GD-WL with (SPD, RD) is fully expressive for all biconnectivity metrics at Θ(n) space / Θ(n²) time per iteration, and Graphormer-GD is exactly as expressive as GD-WL (theoretical)
+    importance: central
+    evidence: Corollary 4.3, Theorems 4.2/4.4; complexity comparison in Table 1 (vs DSS-WL Θ(nm) time, Θ(n²) space)
+  - id: C5
+    claim: Graphormer-GD achieves perfect accuracy on hard synthetic cut vertex/edge detection and outperforms prior GNNs on ZINC at matched parameter budget (comparative)
+    importance: central
+    evidence: Table 2 (100% vs Graphormer 76.4%/84.5%), Table 3 (ZINC-Subset 0.081 MAE, ZINC-Full 0.025 — best across MPNN/higher-order/subgraph/Transformer families)
+experiments:
+  - id: E1
+    research_question: can GNNs learn biconnectivity as theory predicts? (paper's framing §5)
+    setup: synthetic dataset of hard graphs (regular graphs with cut vertices/edges + counterexamples C.9/C.10); node/edge-level binary prediction heads; graph-level accuracy (all cut items correct) (§5)
+    baseline: GCN, GAT, GIN, GSN, Graphormer
+    result: Graphormer-GD 100%/100%; ablation "-w/o Resistance Distance" drops cut-vertex accuracy to 83.3% — matching Theorems 4.1 vs 4.2
+    interpretation: the SPD/RD split is empirically load-bearing, exactly as the theory demands
+    supported_claim: C4, C5
+  - id: E2
+    research_question: does biconnectivity expressiveness help real-world molecular tasks?
+    setup: ZINC-Subset (12K) and ZINC-Full (250K), 500k parameter budget per Dwivedi et al. (2020), 4 seeds (§5, Table 3)
+    baseline: 20+ architectures across four families (MPNNs, higher-order, substructure/subgraph GNNs, Graph Transformers)
+    result: best MAE on both splits (0.081 / 0.025) at Graph-Transformer-like wall-clock (12.52 s/epoch)
+    interpretation: empirical ranking "aligns with their expressive power measured by graph biconnectivity" — biconnectivity-expressive families (subgraph GNNs) beat MPNNs
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (GNNs dominant; 1-WL barrier), Existing responses (higher-order vs efficient variants), Failure mode (toy-example justification, no principled metric), Insight (biconnectivity as the lens), Surprise (all fail but ESAN), Solution (GD-WL → Graphormer-GD), Contribution (Table 1 theory map + empirical wins)]
+  introduction_move: builds the argument on an incongruity — a property that is linear-time computable should be GNN-learnable, yet is not — so the reader accepts the paper's metric proposal before seeing any new architecture; contributions are staged as negative survey → justification of ESAN → new framework → implementation
+  related_work_strategy: taxonomy-driven — Table 1 is both a results summary and a related-work map; each architecture family gets its own WL variant column
+  method_strategy: proof-guided design — the DSS-WL expressiveness proof reveals distance as the operative ingredient, which then *dictates* the new framework; limitations volunteered (upper bound by 2-FWL) to complete the theory
+  experiments_strategy: theory-verification first (synthetic, with a deletion ablation mirroring the theorem structure), real-world second, with an explicit cross-check that empirical rankings track biconnectivity expressiveness
+  conclusion_strategy: recaps the lens, then sets four open problems (sub-quadratic biconnectivity, GD-WL theory, better distance encodings, higher-order connectivity hierarchy) — the last reframes the paper as the seed of an alternative to the WL hierarchy
+reviewer_defense:
+  strengths: complete positive and negative theory (exact matches, upper bounds, distance-regular-graph analysis); ablation aligned with theorem structure; parameter-matched comparison with timing disclosed
+  vulnerabilities: distance preprocessing O(nm)/O(n³) once (argued negligible §4, but quadratic memory attention remains); ZINC-scale evidence only for real tasks; GD-WL bounded by 2-FWL so it is not a general expressiveness advance
+  anticipated_attacks: '"SPD-encoding is not new (Li et al. 2020, Graphormer)" — pre-empted: prior work "either purely empirical or provide limited theoretical analysis"; the novelty claim is the *systematic* biconnectivity characterization (§4); "isn''t ESAN already enough?" — answered by complexity (n× costlier, sophisticated aggregation) (§4 opening)'
+writing:
+  paragraph_patterns: theorem statements followed by "is highly non-trivial and perhaps surprising at first sight" style significance paragraphs (§4) that narrate the proof strategy
+  transition_patterns: explicit problem restatement at each section head ("can we design a principled and efficient GNN framework...?", §4) with the accumulated constraints from prior sections
+  terminology_patterns: careful naming ladder SPD-WL → RD-WL → GD-WL → Graphormer-GD; ✓/✗ theory table as the paper's spine; all WL variants defined in a consistent color-mapping style (Algorithms 1–4)

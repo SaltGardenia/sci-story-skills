@@ -1,0 +1,224 @@
+# thesis: This paper shows that fixed-precision transformers have no expressive-power deficit
+# worth worrying about because they are exponentially more succinct than LTL/RNNs/SSMs and doubly
+# exponentially more succinct than finite automata (via attention-encoded doubly exponential
+# counters), and therefore proposes succinctness plus verification complexity (emptiness/equivalence
+# are EXPSPACE-complete) as the right lens for comparing architectures.
+paper:
+  venue: ICLR
+  year: 2026
+  field: formal language theory / theory of transformers
+  task: characterizing the succinctness and verifiability of fixed-precision transformers
+  problem: >-
+    Expressive-power comparisons make transformers look weak — fixed-precision transformers
+    recognize only subregular languages while RNNs recognize all regular languages; "the strong
+    empirical performance of transformers invites the question as to whether expressive capacity is
+    the most revealing lens through which to compare architectures" (§1)
+  importance: >-
+    Succinctness is the classical refinement of expressive power in logic/automata theory
+    (Stockmeyer; Sistla & Clarke's LTL vs automata results cited §1); it determines the
+    computational cost of verification, "a central concern of explainable AI" (§6); conclusions
+    hold "in the setting that most faithfully mirrors real-world implementations—fixed precision
+    arithmetic" (§1)
+  source: full
+  inferred: []
+paradigm:
+  existing_approach: >-
+    Expressivity-focused theory: UHAT/softmax transformers characterized as recognizing
+    subregular (star-free) language classes, tied to LTL via B-RASP (Yang et al. 2024; Barceló;
+    Jerad et al.); RNNs shown to recognize all regular languages under fixed precision (Prop. 1)
+  core_assumption: >-
+    That expressivity (which languages are recognizable) is the comparison axis — the paper
+    replaces it with succinctness (how compactly languages are described) (§1)
+  limitation: >-
+    Expressivity comparisons miss size: LTL is expressively equivalent to counter-free automata
+    yet "can be exponentially more succinct than finite automata" with correspondingly harder
+    decision problems (§1) — the same refinement had not been applied to transformers
+gap:
+  unresolved_problem: >-
+    "none of these results concerns succinctness and computational complexity of verification"
+    for transformers (§6 Related work); prior verification bounds were only NEXP-hardness with a
+    mixed soft/hard-attention model (Sälzer et al. 2025)
+  evidence_for_gap: >-
+    Logical: the expressive-equivalence findings leave open a size dimension; complexity gap is
+    already visible (UHAT non-emptiness EXPSPACE vs LTL PSPACE) suggesting unexploited succinctness
+    (§4 opening)
+insight:
+  observation: >-
+    Unique-hard attention with strict future masking and tie-breaking can verify binary-counter
+    increments between #-delimited blocks and check adjacency constraints (Ex. 2, Eq. 7–8), so a
+    polynomial-size program can recognize encodings of tiling configurations whose shortest word
+    has doubly exponential length 2^(2^n) (§3, Thm. 15 proof)
+  central_insight: >-
+    "transformers can count from 0 to 2^(2^N) — that is, implement doubly exponentially large
+    counters—via a subtle encoding using attention" (§1); shortest-witness length then lower-bounds
+    the size of any competing representation (automata accept words of length ≤ size; LTL ≤
+    exponential)
+  hypothesis: >-
+    If UHATs can encode such counters, then (a) they are (doubly) exponentially more succinct than
+    automata/LTL/RNNs, (b) matching upper bounds exist via an exponential UHAT→LTL translation,
+    and (c) verification problems are EXPSPACE-complete (§1 program)
+method:
+  conceptual_change: >-
+    Treat the transformer as a finite representation in the formal-language-theory sense and ask
+    size questions (Def. 2 f-more succinct = existential lower bound on witness family; Def. 3
+    g-bounded expansion = universal upper bound; "together they pin the gap", §2.5)
+  mechanism: >-
+    Reduction machinery: (1) 2^N-tiling problem is EXPSPACE-complete (Prop. 7, via
+    Schwarzentruber 2019); (2) polynomial-size B-RASP program recognizes valid tilings by
+    attention-selected counter increments and vertical constraints (Lem. 8); (3) special-form
+    programs compile to polynomial-size UHATs (Lem. 9, Eq. 9); (4) Turing-machine counter runs
+    yield the doubly-exponential witness family (Thm. 15 proof, 3 steps)
+  formulation: >-
+    UHAT with positional masking and unique-hard attention; B-RASP program notation
+    ▶j[M(i,j), S(j)] V(i,j) : D(i); key upper-bound lemma: precision of any UHAT evaluation is
+    poly(|T|) bits (Prop. 12), making the arising value set finite/enumerable and enabling the
+    exponential UHAT→LTL construction (Prop. 13)
+claims:
+  - id: C1
+    claim: >-
+      UHATs are exponentially more succinct than LTL: "there exist families of languages
+      describable by polynomial-size transformers whose smallest equivalent LTL formula... is
+      exponentially large" (theoretical)
+    importance: central
+    evidence: theoretical — Thm. 15 (witness family via 2^(2^n)-length shortest words; LTL lower
+      bound from smallest-word ≤ exponential in formula size); converse Prop. 16 (polynomial expansion)
+  - id: C2
+    claim: >-
+      UHATs are doubly exponentially more succinct than finite automata (theoretical)
+    importance: central
+    evidence: theoretical — Thm. 17 (automata accept words of length ≤ linear in size, vs
+      shortest word ≥ 2^(2^n) for poly-size UHATs)
+  - id: C3
+    claim: >-
+      UHATs are exponentially more succinct than fixed-precision RNNs, "and by extension,
+      state-space models" (theoretical)
+    importance: central
+    evidence: >-
+      theoretical — Cor. 18 (composition of Thm. 17 with Prop. 1: fixed-precision RNN ≡
+      automaton with 2^(kD) states); SSM extension argued via RNN equivalence (§1)
+  - id: C4
+    claim: >-
+      The non-emptiness problem for UHATs and B-RASP programs is EXPSPACE-complete (theoretical)
+    importance: central
+    evidence: theoretical — Thm. 4 (hardness via 2^N-tiling reduction, Lem. 8–9; membership via
+      Prop. 12 + Prop. 13 + PSPACE LTL emptiness); restricted UHATs in NEXP (Cor. 14)
+  - id: C5
+    claim: >-
+      Any fixed-precision UHAT translates to an LTL formula of exponential size — improving the
+      prior doubly exponential translation of Yang et al. 2024 (theoretical)
+    importance: central
+    evidence: theoretical — Prop. 13, enabled by Prop. 12 (polynomial evaluation precision)
+  - id: C6
+    claim: >-
+      Equivalence of two UHATs is EXPSPACE-complete (theoretical)
+    importance: supporting
+    evidence: theoretical — Thm. 19 (App. A.7)
+experiments:
+  - id: E1
+    research_question: >-
+      Can polynomial-size attention programs verify structured exponential-space computations?
+      (worked construction, §3 Ex. 2)
+    setup: B-RASP program over Σ = {0,1,#,a,b,c} checking binary-counter increments (Eq. 7) and
+      adjacency constraints H (Eq. 8) on counter-annotated words
+    baseline: —
+    result: recognizes words whose shortest member is exponential in counter bits
+    interpretation: attention's rightmost-tie-breaking + masking suffices for counter gadgets;
+      stacking rows adds vertical constraints for tiling
+    supported_claim: C4 (hardness direction), C1
+  - id: E2
+    research_question: >-
+      Is UHAT non-emptiness computationally intractable? (Thm. 4)
+    setup: hardness — reduce 2^N-tiling (EXPSPACE-complete, Prop. 7) via Lem. 8 (B-RASP) + Lem. 9
+      (UHAT compilation); membership — Prop. 12 precision bound → Prop. 13 LTL translation →
+      PSPACE LTL emptiness
+    baseline: LTL non-emptiness is PSPACE-complete (Sistla & Clarke)
+    result: >-
+      EXPSPACE-complete (Cor. 14: NEXP for one-directional masking variants)
+    interpretation: succinctness directly prices verification — compact descriptions force
+      procedures to "unfold a larger amount of underlying structure" (§1)
+    supported_claim: C4
+  - id: E3
+    research_question: >-
+      How large is the true size gap between transformers and LTL/automata/RNNs? (§4)
+    setup: >-
+      witness family {L_n} from counter Turing machines → tiling instances → poly-size UHATs
+      (Thm. 15 proof); converse translations: Prop. 16 (LTL→UHAT polynomial), Maler & Pnueli
+      (counter-free automata→LTL exponential)
+    baseline: prior best translations (Yang et al. 2024 doubly exponential UHAT→LTL)
+    result: exponential gap to LTL (Thm. 15 + Prop. 16 pin it), doubly exponential to automata
+      (Thm. 17), exponential to RNNs (Cor. 18)
+    interpretation: the expressivity ranking is inverted by size — transformers are the most
+      compressed formalism of those compared
+    supported_claim: C1, C2, C3, C5
+  - id: E4
+    research_question: >-
+      Does intractability extend to the natural verification task of equivalence? (§5, Thm. 19)
+    setup: reduction in App. A.7
+    baseline: DFA equivalence in polynomial time (Kozen)
+    result: EXPSPACE-complete
+    interpretation: >-
+      "reasoning about the language accepted by a UHAT... is intractable" (§5)
+    supported_claim: C6
+narrative:
+  introduction_roles: [Context (expressivity literature), Tension (transformers look weak), Reframing (succinctness as lens), Classical anchor (LTL vs automata), Headline theorem, Key technical ingredient (counters), Consequence (EXPSPACE verification), Scope (UHAT, fixed precision)]
+  introduction_move: >-
+    Reframing intro typical of pure theory: concede the expressive-power verdict against
+    transformers, then import a classical notion (succinctness) that inverts the verdict, state
+    the theorem in one paragraph with concrete magnitudes, disclose the key trick (attention
+    counters) up front, and end with the verification consequence; a final paragraph fixes the
+    model (UHAT, positional masking, fixed precision) to pre-empt scope disputes (§1)
+  related_work_strategy: >-
+    Post-results positioning (§6 "Related work" inside Concluding Remarks): results are measured
+    against the nearest competitor (Sälzer et al. 2025) on four axes — bound strength (doubly vs
+    singly exponential), scope (LTL/RNN new), model simplicity, and positional-encoding
+    restrictions; expressivity lineage (Yang, Barceló, Jerad, Li & Cotterell) credited as
+    foundation while flagged as silent on succinctness
+  method_strategy: >-
+    Definitions-first and proof-skeleton-first: §2.5 gives dual definitions (f-more succinct /
+    g-bounded expansion) with a remark explaining why both are needed; §3 opens with the
+    2^O(N)-tape intuition and a fully worked N=4 example (Ex. 2) before the theorem chain
+  experiments_strategy: >-
+    No experiments — results sections are theorem sequences ordered hardness → membership →
+    succinctness → applications, each proof sketched in text with details in appendices (App. A.1–A.7);
+    the "worked example" (Ex. 2) plays the role experiments play in empirical papers
+  conclusion_strategy: >-
+    Concluding remarks double as research program: challenge the verification community to make
+    EXPSPACE-worst-case tractable in practice, propose counter-free subclasses as the tractable
+    regime, flag learnability of succinct transformers as open, and hand off softmax/average-hard
+    succinctness to future work (§6)
+reviewer_defense:
+  strengths: >-
+    Matching lower and upper bounds pin every claimed gap (no loose ends); results hold under
+    fixed precision — the implementation-faithful setting; the witness construction is concrete
+    and reusable (B-RASP gadgets); improvements over two prior translations (Yang et al.; Sälzer
+    et al.) are quantified
+  vulnerabilities: >-
+    (1) Results are for UHATs; fixed-precision softmax transformers are only covered via the
+    Jerad et al. expressivity-entailment argument and explicitly left open ("We leave the
+    succinctness of fixed-precision softmax and average-hard attention transformers as future
+    work", §6); (2) RNN comparison requires unary precision in the size measure (a modeling
+    choice, §2.5); (3) the SSM extension is "by extension" — via the RNN equivalence, not a
+    direct proof (§1); (4) hardness relies on adversarial encodings (tilings) far from natural
+    language data; (5) lower bound uses strict future masking variants whose relation to causal
+    LLM decoding needs the fragment-specific corollaries
+  anticipated_attacks: >-
+    "Is this just Sälzer et al. again?" — answered on four axes in §6 including the simpler
+    model and stronger bounds; "UHATs are unrealistic" — pre-empted in §1 via Jerad et al.'s
+    entailment from UHAT bounds to fixed-precision softmax bounds and the fixed-precision
+    emphasis; "the witness languages are unnatural" — absorbed by reframing: the point is the
+    existence of the size gap and its verification cost, not natural-language relevance
+writing:
+  paragraph_patterns: >-
+    "In concrete terms" paragraphs that translate theorem statements into magnitudes ("polynomial
+    size... exponentially larger... doubly exponentially larger", §1); definition-remark pairs
+    where a formal definition is immediately glossed with its dual/intuition (§2.5)
+  transition_patterns: >-
+    Proof-roadmap signposting: "Throughout the rest of this section, we build up to the proof of
+    the following complexity bound" (§3); numbered proof steps inside theorem proofs (Thm. 15's
+    3-step construction); footnotes carrying subtle scope conditions (unconditional bounds fn. 1,
+    EOS-padding caveat fn. 8)
+  terminology_patterns: >-
+    Precise fixed notation (UHAT, B-RASP, f-more succinct, g-bounded expansion) introduced in
+    §2.5 and never varied; witness-family language reused across all three succinctness theorems;
+    magnitude vocabulary (singly/doubly exponentially) kept exactly consistent between abstract,
+    intro, and theorems

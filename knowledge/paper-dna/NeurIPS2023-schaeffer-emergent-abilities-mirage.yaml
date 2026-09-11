@@ -1,0 +1,110 @@
+# thesis: This paper shows that claimed emergent abilities of LLMs are likely a mirage because
+# nonlinear/discontinuous metrics deform smoothly-improving per-token error rates into sharp,
+# unpredictable-looking curves (and sparse test data hides small-model competence), and therefore
+# proposes re-analyzing emergence with linear/continuous metrics and better statistics.
+paper:
+  venue: NeurIPS
+  year: 2023
+  field: LLM scaling / scientific measurement methodology
+  task: re-analysis of claimed emergent abilities in LLMs
+  problem: '"whether LLMs possess emergent abilities — sharp and unpredictable changes in model outputs as a function of model scale on specific tasks" (§1)'
+  importance: emergent abilities drive AI-safety concerns ("larger models might one day, without warning, acquire undesired mastery over dangerous capabilities", §1) and motivate research programs on controlling emergence
+  source: full
+  inferred:
+    - field/task classification (paper self-identifies as re-analysis/measurement critique, not a new subfield)
+
+paradigm:
+  existing_approach: claiming abilities are "not present in smaller-scale models but are present in large-scale models" and "cannot be predicted by simply extrapolating" (Wei et al. definition quoted §1; Fig. 1 reproduces their curves)
+  core_assumption: that the plotted metric faithfully tracks underlying model behavior with scale
+  limitation: metrics like Multiple Choice Grade and Exact String Match nonlinearly or discontinuously deform per-token error, so smooth underlying improvement renders as a cliff (§1–2)
+
+gap:
+  unresolved_problem: is emergence a fundamental property of scale, or an artifact of measurement?
+  evidence_for_gap: observation that emergent abilities appear "only under metrics that nonlinearly or discontinuously scale any model's per-token error rate" — >92% of BIG-Bench emergence claims sit under just two such metrics (§1, Fig. 5C)
+
+insight:
+  observation: under a smooth power-law per-token cross-entropy, scoring L tokens correct multiplies per-token error, producing a sharp knee in accuracy vs scale (§2, Fig. 2)
+  central_insight: emergent abilities are created by the researcher's choice of metric (and by insufficient test-set resolution), not by fundamental changes in model behavior with scale (§2, Fig. 2 caption)
+  hypothesis: switching to linear/continuous metrics or increasing test resolution should make claimed emergent abilities evaporate — and one should be able to induce "emergence" anywhere by choosing a sharp metric (§3–5 predictions)
+
+method:
+  conceptual_change: treat the metric as an experimental variable and benchmark construction as (task, metric) joint choice, not a fixed property of the task (§7)
+  mechanism: a simple mathematical model (power-law cross-entropy → accuracy ≈ exp(−(N/c)^α·L)) plus three test designs — prediction-driven re-analysis, meta-analysis, and deliberate metric-induced emergence
+  formulation: '"Accuracy(N) ≈ exp(−(N/c)^α)^L" for a nonlinear metric vs "Token Edit Distance(N) ≈ L(1 − exp(−(N/c)^α))" for a linear metric (§2); Emergence Score of Eq. 1 for the meta-analysis (§4)'
+
+claims:
+  - id: C1
+    claim: '"claimed emergent abilities evaporate upon changing the metric" (Fig. 3, Fig. 6 captions) — comparative'
+    importance: central
+    evidence: InstructGPT/GPT-3 arithmetic under Token Edit Distance (Fig. 3); LaMDA Multiple Choice Grade → Brier Score (Fig. 6)
+  - id: C2
+    claim: claimed emergent abilities evaporate upon using better statistics / more test data — comparative
+    importance: central
+    evidence: generated additional test data reveals smooth above-chance accuracy on GPT-3 arithmetic (Fig. 4)
+  - id: C3
+    claim: '"> 92% of emergent abilities appear under one of two metrics: Multiple Choice Grade and Exact String Match" — descriptive'
+    importance: central
+    evidence: meta-analysis of hand-annotated BIG-Bench triplets (§4, Fig. 5C)
+  - id: C4
+    claim: seemingly emergent abilities can be induced at will in vision networks by choosing discontinuous/nonlinear metrics — mechanistic (demonstrative)
+    importance: supporting
+    evidence: induced reconstruction ability in shallow autoencoders on CIFAR100 via Reconstruction_c metric (§5, Fig. 7, Eq. 2); induced subset-accuracy emergence in autoregressive Transformers on Omniglot (§5, Fig. 8)
+  - id: C5
+    claim: '"emergent abilities may be creations of the researcher''s choices, not a fundamental property of the model family on the specific task" — carefully hedged generalization ("may be", "might likely be a mirage") (§7)'
+    importance: central
+    evidence: synthesis of all three analyses (§7 Discussion)
+
+experiments:
+  - id: E1
+    research_question: RQ3-analogue (paper's prediction 1) — does changing the metric remove claimed emergence in GPT-3 arithmetic?
+    setup: InstructGPT/GPT-3 family (350M–175B) on 2-integer 2-digit multiplication and 4-digit addition (§3)
+    baseline: published Accuracy curves showing emergence (Fig. 2E inset)
+    result: Accuracy sharp/unpredictable; Token Edit Distance smooth, continuous, predictable (Fig. 3)
+    interpretation: metric choice, not model behavior, generates the sharpness
+    supported_claim: C1
+  - id: E2
+    research_question: paper's prediction 3 — does better test resolution remove apparent emergence even under Accuracy?
+    setup: generated additional test data for the same arithmetic tasks (§3, Fig. 4)
+    baseline: original sparse-data accuracy estimates
+    result: '"performance is above chance and improves in a smooth, continuous, predictable manner" (Fig. 4 caption)'
+    interpretation: small models were competent but under-measured (resolution = 1/test-set-size, §2)
+    supported_claim: C2
+  - id: E3
+    research_question: paper's prediction — at the population level, do emergent abilities attach to metrics rather than task-model pairs?
+    setup: meta-analysis of all BIG-Bench emergence scores + Srivastava et al. hand annotations (§4)
+    baseline: null expectation that emergence distributes over task-model families
+    result: at most 5/39 metrics show emergence; 2 metrics account for >92% of claims (Fig. 5)
+    interpretation: emergence is a property of the metric, not the model family
+    supported_claim: C3
+  - id: E4
+    research_question: paper's prediction 2 — does changing the metric on the same task-model pairs remove emergence?
+    setup: LaMDA on BIG-Bench tasks where it shows emergence under Multiple Choice Grade (§4)
+    baseline: Multiple Choice Grade curves
+    result: emergence "disappeared" under continuous Brier Score (Fig. 6)
+    interpretation: within-pair causal test of the metric hypothesis
+    supported_claim: C1
+  - id: E5
+    research_question: constructive demonstration — can metrics induce never-before-seen emergence?
+    setup: shallow nonlinear autoencoders on CIFAR100 with a self-defined discontinuous Reconstruction_c metric; autoregressive Transformers on Omniglot with subset accuracy over L∈[1,5] images (§5)
+    baseline: continuous metrics (Test MSE; per-image accuracy) showing smooth scaling
+    result: sharp, seemingly unpredictable emergent ability appears under the induced metric, qualitatively matching published LLM emergence (Figs. 7–8)
+    interpretation: sharpness is a property of the measurement, transferable across domains/architectures
+    supported_claim: C4
+
+narrative:
+  introduction_roles: [Context (Anderson "More Is Different"), Existing paradigm (emergence definition + two defining properties), Stakes (safety/alignment questions), Contrarian claim (we call into question), Observation (emergence only under nonlinear/discontinuous metrics), Alternative explanation, Method preview (three complementary tests)]
+  introduction_move: opens with the prestige framing of emergence, quotes the definition and its two properties verbatim, then pivots with "In this paper, we call into question the claim" — the contrarian move lands in one sentence, immediately backed by the observation that emergence co-occurs with two specific metrics, and the abstract's three-pronged test structure is pre-announced so the reader knows refutation will be systematic, not anecdotal
+  related_work_strategy: contrast-based — positions against Wei et al. (claim being refuted), Srivastava et al. (whose own speculation "may be partially attributed to the metric" the paper "converts... into precise predictions"), Caballero et al. and Michaud et al. (rival real-emergence theories) (§6)
+  method_strategy: model-first — a toy mathematical model makes the mechanism visual (Fig. 2 A–F), then every empirical section is organized as prediction → test → confirmation
+  experiments_strategy: three independent lines of evidence in escalating strength — intervention on one family (E1–E2), population-level meta-analysis (E3–E4), deliberate synthesis/induction (E5); each section opens by restating the prediction it tests
+  conclusion_strategy: Discussion restates the alternative explanation with explicit hedging ("nothing in this paper should be interpreted as claiming that large language models cannot display emergent abilities"), then converts the finding into four prescriptive implications for benchmarking and science (§7)
+
+reviewer_defense:
+  strengths: the mathematical model is self-contained and the three evidence lines (intervention, meta-analysis, induction) are mutually independent; the paper only needs the weaker claim "may not be a fundamental property" (abstract)
+  vulnerabilities: the independence assumption between tokens is acknowledged as false (footnote 1, §2); no theory of when genuine emergence might occur; induction experiments show possibility, not that all published cases are artifacts
+  anticipated_attacks: '"emergence might be real under changed power laws" — preempted in related work by contrasting piecewise power-law accounts (Caballero et al.) and noting emergence appears even under a single power law (§6); "you only doubt, don''t disprove" — preempted by the explicit hedge in §7; "emergence score is unreliable" — preempted by supplementing automatic scores with hand annotations (§4)'
+
+writing:
+  paragraph_patterns: prediction-test paragraphs open with a bolded/italic prediction sentence, then describe the test and result in the same paragraph (§3–5)
+  transition_patterns: each numbered prediction is restated verbatim at the top of its empirical section, creating a paper-wide echo ("Our alternative explanation makes three predictions..." → "makes two predictions...")
+  terminology_patterns: '"alternative explanation" used consistently instead of "refutation"; the mirage metaphor appears in title and abstract but is kept out of technical sections; metrics named consistently (Multiple Choice Grade, Exact String Match, Token Edit Distance, Brier Score)'

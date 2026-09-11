@@ -1,0 +1,231 @@
+# thesis: This paper shows that modern vision transformers store global image information by
+# repurposing high-norm tokens in low-informative patches, because large well-trained models learn
+# to recognize redundant tokens and recycle them as internal scratchpads, and therefore proposes
+# appending dedicated "register" tokens so this behavior is isolated and patch features stay clean.
+paper:
+  venue: ICLR
+  year: 2024
+  field: self-supervised visual representation learning
+  task: artifact analysis and remediation in ViT feature/attention maps
+  problem: >-
+    High-norm artifact tokens appear in feature and attention maps of modern vision transformers
+    (supervised and self-supervised), corrupting local features and making attention maps
+    uninterpretable ("identify and characterize artifacts in feature maps of both supervised and
+    self-supervised ViT networks", Abstract)
+  importance: >-
+    Generic frozen features unlock downstream tasks where annotation is expensive (medical,
+    remote sensing); unsupervised object discovery methods like LOST depend on smooth local
+    features, and modern backbones "deliver disappointing performance" there (§1)
+  source: full
+  inferred:
+    - >-
+      importance detail: the annotation-cost framing is the paper's own (§1 para 1); the
+      LOST-compatibility framing is from §1 para 3
+paradigm:
+  existing_approach: >-
+    Scale up ViT pretraining (supervised DeiT-III, text-supervised OpenCLIP, self-supervised
+    DINO/DINOv2) and use frozen features for dense downstream tasks; DINO's attention maps were
+    the reference for interpretability (§1, §2)
+  core_assumption: >-
+    That good benchmark scores imply good local features — "despite excellent benchmark scores,
+    DINOv2 features exhibit undesirable artifacts" (§4 related work); also that all patch tokens
+    should serve representation purposes
+  limitation: >-
+    Peaky outlier values in attention maps of all modern ViTs (except DINO); DINOv2 incompatible
+    with LOST object discovery; artifacts only in low-informative background areas (Fig. 2, §1)
+gap:
+  unresolved_problem: >-
+    Why artifacts appear, when they appear during training, what information they carry, and how
+    to remove them without losing performance ("we set out to better understand this phenomenon
+    and develop methods to detect these artifacts", §1)
+  evidence_for_gap: >-
+    Empirical anomaly: DINOv2 is "surprisingly incompatible with LOST" — on par with supervised
+    backbones despite better benchmarks; and "surprisingly, applying the same observations to
+    supervised vision transformers exposes similar artifacts" (§1 para 3)
+insight:
+  observation: >-
+    Artifact patches have ~10x higher output norm (~2% of tokens, Fig. 3), appear around middle
+    layers after 1/3 of training only in large models (Fig. 4), lie in patches similar to their
+    neighbors, carry less local (position/pixel) information but much more global image
+    information (linear probing, Table 1)
+  central_insight: >-
+    "the model learns to recognize patches containing little useful information, and recycle the
+    corresponding tokens to aggregate global image information while discarding spatial
+    information" (§1) — i.e. an internal memory mechanism already exists implicitly inside ViTs
+  hypothesis: >-
+    If the recycling behavior is given dedicated tokens, patch tokens stop being repurposed:
+    appending learnable input tokens ("registers") should make outlier tokens disappear entirely
+    while keeping or improving performance (§2.2)
+method:
+  conceptual_change: >-
+    Treat the artifacts not as a defect to suppress but as evidence of a missing scratchpad —
+    don't remove the behavior, give it a home ("such tokens allow us not to create but to isolate
+    this existing behavior", §4)
+  mechanism: >-
+    Append N (default 4) learnable tokens after the patch embedding, independent of the image;
+    at the output they are discarded and only patch tokens + [CLS] are used (§2.2, Fig. 6)
+  formulation: >-
+    No new loss or equation — a purely architectural change: input sequence becomes
+    [patch tokens, CLS, REG1..REGN] with learnable register values, trained with the unchanged
+    recipe (Fig. 6)
+claims:
+  - id: C1
+    claim: >-
+      Artifacts correspond to high-norm tokens appearing during inference primarily in
+      low-informative background areas, repurposed for internal computations (descriptive)
+    importance: central
+    evidence: descriptive — Fig. 2, Fig. 3 (bimodal norm distribution, 2.37% of tokens > norm 150)
+  - id: C2
+    claim: >-
+      Outliers appear around middle layers, only after sufficient training, and only in
+      sufficiently large models (mechanistic)
+    importance: supporting
+    evidence: descriptive — Fig. 4a–c (layer 15 of 40, after 1/3 of training, only 3 largest sizes)
+  - id: C3
+    claim: >-
+      Outlier tokens hold less local information (position, original pixels) but significantly
+      more global image information than regular tokens (mechanistic)
+    importance: supporting
+    evidence: comparative — linear probes per token type, Table 1 and appendix Table 5b
+  - id: C4
+    claim: >-
+      Training with register tokens removes high-norm artifacts entirely for supervised,
+      text-supervised, and self-supervised models (comparative)
+    importance: central
+    evidence: comparative — Fig. 7 norm distributions across DeiT-III/OpenCLIP/DINOv2 with and without registers
+  - id: C5
+    claim: >-
+      Registers cause no performance regression on global tasks and improve dense prediction;
+      "sets a new state of the art for self-supervised visual models on dense visual prediction
+      tasks" (comparative)
+    importance: central
+    evidence: comparative — Table 2a (ImageNet/ADE20k/NYUd probing), Table 3 (LOST corloc)
+  - id: C6
+    claim: >-
+      The memory-token mechanism already appears naturally in ViTs; registers isolate the
+      existing behavior rather than create a new one (mechanistic)
+    importance: supporting
+    evidence: logical — hypothesis + remediation argument in §2.2, restated as "new insight" in §4
+experiments:
+  - id: E1
+    research_question: >-
+      Characterization — what are the artifacts, when do they arise, and what do they contain
+      (paper's own framing in §2)
+    setup: >-
+      DINOv2-g norm analysis (Fig. 3), training/layer/size analysis (Fig. 4), neighbor-similarity
+      analysis (Fig. 5), per-token linear probing (Table 1)
+    baseline: DINO ViT-B/16 (artifact-free reference) and regular patch tokens
+    result: >-
+      Artifacts = high-norm outlier tokens (~2.37% above norm 150); appear after 1/3 of training,
+      middle layers, large models only; outliers hold global not local information
+    interpretation: models recycle low-information patches as storage for global computations
+    supported_claim: C1, C2, C3
+  - id: E2
+    research_question: >-
+      Does the proposed remediation remove artifacts across training paradigms? (mechanistic
+      validation of the hypothesis, §3.2)
+    setup: >-
+      Train DeiT-III (IN-22k, ViT-B), OpenCLIP (licensed corpus, ViT-B/16), DINOv2 (IN-22k,
+      ViT-L) with and without 4 registers; compare output-norm distributions (Fig. 7)
+    baseline: same recipes without registers
+    result: >-
+      "when training with registers, models do not exhibit large-norm tokens at the output"
+      (§3.2)
+    interpretation: the recycling hypothesis is confirmed — giving dedicated tokens removes the pressure on patch tokens
+    supported_claim: C4
+  - id: E3
+    research_question: >-
+      RQ1 — does the fix preserve/improve the primary objective (no regression, dense tasks up)?
+    setup: >-
+      Linear probing on ImageNet classification, ADE20k segmentation, NYUd depth, zero-shot
+      ImageNet for OpenCLIP (Table 2a/2b)
+    baseline: same models without registers
+    result: >-
+      "models do not lose performance and sometimes even work better"; zero-shot unchanged
+      (§3.2)
+    interpretation: cleaning local features does not trade off global performance
+    supported_claim: C5
+  - id: E4
+    research_question: >-
+      Ablation — how many registers are needed? (paper's framing: "ablate the number of
+      registers... to check that they do not cause a performance regression", §3)
+    setup: DINOv2 ViT-L/14 trained with 0, 1, 2, 4, 8, 16 registers (Fig. 8)
+    baseline: 0 registers
+    result: >-
+      Artifacts vanish with ≥1 register; there is an optimum for dense tasks; ImageNet improves
+      with more registers; 4 used throughout
+    interpretation: one register captures most of the artifact fix; dense tasks benefit from smoothness, global tasks from capacity
+    supported_claim: C4, C5
+  - id: E5
+    research_question: >-
+      Does fixing features restore unsupervised object discovery with modern backbones?
+    setup: >-
+      LOST on PASCAL VOC 2007/2012 and COCO 20k, corloc metric, three model families ± registers
+      (Table 3)
+    baseline: same backbones without registers; DINO's reported 61.9 corloc on VOC2007
+    result: >-
+      DINOv2 35.3 → 55.4 (VOC07), DeiT-III 11.7 → 27.1; OpenCLIP slightly worse (38.8 → 37.1);
+      DINOv2+reg still below DINO's 61.9
+    interpretation: >-
+      registers make all models "significantly more viable for usage in object discovery";
+      OpenCLIP counter-case analyzed in appendix §C
+    supported_claim: C5
+  - id: E6
+    research_question: What behavior do register tokens themselves learn? (§3.4)
+    setup: qualitative attention-map visualization of CLS vs register tokens (Fig. 9)
+    baseline: —
+    result: registers show natural diversity, some attending to distinct objects
+    interpretation: differentiation "emerged naturally from training", reminiscent of slot attention
+    supported_claim: C6 (weakly, qualitative)
+narrative:
+  introduction_roles: [Context, Existing success, Failure mode, Gap, Observation, Insight, Solution, Contribution preview]
+  introduction_move: >-
+    A detective story, not a method pitch: the intro opens on the generic-features agenda, reports
+    a concrete anomaly (DINOv2 fails at LOST), generalizes the anomaly to supervised models, then
+    walks the reader through the measurements that identify the culprit (high-norm recycled
+    tokens) before naming the fix. The method is one sentence at the end of the intro; the
+    diagnosis is the star (§1 paras 1–6).
+  related_work_strategy: >-
+    Two contrast-anchored clusters: pretrained-feature models (positioning the anomaly) and
+    additional-tokens literature (BERT/Perceiver/Memory Transformer/AdaTape) each closed by the
+    differentiator "our tokens add no information and their output is not used" — plus the
+    claim of a new insight: the behavior pre-exists (§4)
+  method_strategy: >-
+    Diagnosis-first, formulation-second: a full §2 "Problem Formulation" precedes the fix; the
+    method section (§2.2) is titled "Hypothesis and Remediation" and fits in three paragraphs
+    with no equations
+  experiments_strategy: >-
+    Confirm-the-mechanism first (Fig. 7 norms), then no-regression check (Table 2), ablation
+    (Fig. 8), a downstream application resurrected (LOST, Table 3), and qualitative behavior
+    analysis last — evidence ordered to close each loophole opened in §2
+  conclusion_strategy: >-
+    Compact restatement of discovery → interpretation → fix → generality, ending on
+    "confirming the generality of our solution" across supervision types (§5)
+reviewer_defense:
+  strengths: >-
+    The fix is one architectural line validated across three independent training paradigms;
+    the characterization is quantitative (norm criterion, bimodal distribution) and the
+    hypothesis test (registers remove outliers) is a clean intervention
+  vulnerabilities: >-
+    (1) Authors concede incomplete causal understanding: "we have not been able to fully
+    determine which aspects of the training led to the appearance of artifacts" (§2.2);
+    (2) the norm-150 cutoff is hand-picked (§2.1); (3) OpenCLIP gets slightly worse at object
+    discovery with registers (Table 3); (4) DINOv2+reg still does not match DINO's original
+    corloc (§3.3)
+  anticipated_attacks: >-
+    "Isn't this just Memory Transformers?" — answered head-on in §4: prior memory tokens improve
+    tasks, whereas here they fix an existing pathology, with the explicit "not to create but to
+    isolate" differentiator; "is the interpretation speculative?" — consistently framed as
+    "hypothesis"/"interpretation" and backed by the intervention experiment (§2.2, §3.2)
+writing:
+  paragraph_patterns: >-
+    Bolded mini-claims as paragraph openers in §2 ("Artifacts are high-norm outlier tokens.",
+    "Outliers appear during the training of large models.") — each paragraph states, then proves,
+    one finding
+  transition_patterns: >-
+    Anomaly-driven chaining: each section ends on the question the next answers ("This suggests
+    that DINO is, in fact, an exception..."); §2.2 bridges observations to intervention with
+    "Having made these observations, we make the following hypothesis"
+  terminology_patterns: >-
+    One memorable coinage ("registers") repeated verbatim; "high-norm" and "outlier" declared
+    interchangeable once and kept consistent; registers named [REG1..REGN] in figures

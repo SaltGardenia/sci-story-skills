@@ -1,0 +1,93 @@
+# thesis: This paper shows that physically stable, buildable brick structures can be
+# generated from text by casting next-brick prediction as next-token prediction with a
+# fine-tuned LLM, because an autoregressive formulation admits physics-aware rollback that
+# prunes unstable designs at inference, and therefore proposes BrickGPT with the
+# StableText2Brick dataset (47k+ stable captioned structures).
+paper:
+  venue: ICCV
+  year: 2025
+  field: text-to-3D generation / physically grounded generative modeling
+  task: generating physically stable, buildable interconnecting toy-brick (LEGO-style) assembly structures from text prompts
+  problem: "\"digital designs often cannot be physically realized\" — objects may be hard to assemble from standard components, and \"the resulting structure may be physically unstable even if assembly is possible ... parts of the design could collapse, float, or be disconnected\" (§1 para 2)"
+  importance: "bricks \"can serve as a reproducible benchmark, as all standard components are readily available\"; applications in \"education, artistic creation, and manufacturing prototyping\" (§1 para 2); designs buildable \"brick-by-brick by humans or robots\" (§1 goal list)"
+  source: full
+paradigm:
+  existing_approach: text-to-3D generative models (diffusion, reconstruction, autoregressive meshes, LLM mesh generation) producing unconstrained geometry; brick design as optimization from a given 3D shape with hand-crafted heuristics; physics-aware generation via penalty terms or simulators (§1–2)
+  core_assumption: (prior text-to-3D) the mesh/volume is an adequate output format; physical feasibility can be addressed later or ignored; (prior brick work) a valid input 3D shape exists and only the layout must be optimized
+  limitation: "\"these existing methods cannot be directly applied to generating brick structures as they do not account for the unique physical and assembly constraints of real-world designs\" (§2); brick-specific prior work \"only generate designs given an input 3D shape, assuming a valid brick structure exists\" (§2)"
+gap:
+  unresolved_problem: "the first text-to-brick generation that is simultaneously prompt-faithful, physically stable, and buildable with real interlocking parts (Abstract \"the first approach\"; §1 goal bullets)"
+  evidence_for_gap: systematic enumeration of neighboring fields and their blocking assumptions (text-to-3D ignores constraints; brick-assembly methods need a reference shape; selection-based methods limited to faces; voxel-heuristic methods ignore physics) (§2)
+insight:
+  observation: "a brick structure is naturally a sequence (raster-scan, bottom-to-top), and pre-trained LLMs \"excel at modeling sequences and understanding natural language\" — the base LLaMA-3.2-1B can already emit plausible brick text via in-context learning, though invalid and unstable (§4.1, Fig. 5)"
+  central_insight: repurpose autoregressive next-token prediction as next-brick prediction, and let the autoregressive structure itself carry physics — an efficient validity check prunes infeasible bricks, and because stability failure is localizable via per-brick stability scores, generation can roll back to before the first unstable brick instead of restarting (§1, §4.2, Alg. 1)
+  hypothesis: stability enforced at both training time (stable-only data) and inference time (rejection sampling + rollback) will yield near-fully stable and valid outputs without sacrificing text alignment (Abstract; Table 1)
+method:
+  conceptual_change: treat a 3D physical structure as a text sequence, and treat physics not as a differentiable loss but as an inference-time verifier with rollback over the same sequence — constraints on the process, not the objective
+  mechanism: "StableText2Brick — ShapeNet meshes voxelized to 20³ grids, delete-and-rebuild layout with randomized variations, stability-score filtering, GPT-4o multi-view captions (§3, Fig. 2); fine-tune LLaMA-3.2-1B-Instruct on instruction pairs with a compact custom brick text format \"{h}×{w} ({x},{y},{z})\" replacing LDraw (§4.1); inference Alg. 1 — brick-by-brick rejection sampling (format/library/bounds/collision), EOF-triggered full stability check via a Gurobi-solved nonlinear program over a candidate-force model, physics-aware rollback to before the first unstable brick, ≤100 rollbacks (§4.2, Eqns. 1–4); extensions — FlashTex UV texturing and uniform color assignment (§4.3)"
+  formulation: autoregressive p(b1..bN | ω) = Π p(bi | b<i, ω) (Eq. 1); static equilibrium ΣFij = 0, Σεij = ΣLji×Fij = 0 (Eq. 2); NLP argmin over forces with non-negativity, co-exclusion, Newton's-third-law constraints (Eq. 3); per-brick stability score si with friction-capacity threshold FT (Eq. 4)
+claims:
+  - id: C1
+    claim: "BrickGPT is \"the first approach for generating physically stable interconnecting brick assembly models from text prompts\" (descriptive/novelty)"
+    importance: central
+    evidence: "Abstract; §2 \"our paper is the first attempt to incorporate physics-aware constraints into text-based brick assembly structure generation\" (§2 Physics-Aware Generation)"
+  - id: C2
+    claim: "BrickGPT \"produces stable, diverse, and aesthetically pleasing brick structures that align closely with the input text prompts\" — 100% valid, 98.8% stable, mean stability 0.996, while keeping high CLIP (0.324) and DINO (0.880) similarity (comparative)"
+    importance: central
+    evidence: Table 1; Fig. 5 gallery
+  - id: C3
+    claim: Brick-by-brick rejection sampling and physics-aware rollback are both necessary — without them validity falls to 37.2%/stability 12.8%; without rollback stability falls to 24.0% (causal)
+    importance: central
+    evidence: Table 1 ablation rows; Fig. 6
+  - id: C4
+    claim: End-to-end brick generation beats mesh-generation-plus-conversion pipelines (LLaMA-Mesh, LGM, XCube, Hunyuan3D-2 + delete-and-rebuild) even when those are augmented with the authors' stability analysis and multi-sample selection (88.4% best baseline vs 98.8%) (comparative)
+    importance: central
+    evidence: "Table 1 \"+ our stability analysis\" rows"
+  - id: C5
+    claim: The designs are buildable in the real world — assembled manually and automatically by a dual-robot-arm system (practical)
+    importance: supporting
+    evidence: Fig. 1(b); §5.3; Appendices B–C
+experiments:
+  - id: E1
+    research_question: RQ1 — does BrickGPT beat LLM and text-to-3D baselines on validity, stability, and prompt alignment?
+    setup: 250 withheld validation prompts; % valid, % stable, mean/min stability (valid only), CLIP score, DINOv2 similarity vs GT structures (§5.1–5.2, Table 1)
+    baseline: zero-shot and 5-shot LLaMA; LLaMA-Mesh; LGM, XCube, Hunyuan3D-2 with mesh-to-brick conversion (multi-sample stable selection); baselines + authors' stability analysis
+    result: 100% valid / 98.8% stable with alignment on par with the best baselines
+    interpretation: inference-time physics enforcement dominates post-hoc filtering
+    supported_claim: C2, C4
+  - id: E2
+    research_question: RQ3 — which inference components cause the stability/validity gains?
+    setup: ablations — full vs w/o rejection sampling or rollback vs w/o rollback (Table 1; Fig. 6 qualitative)
+    baseline: ablated BrickGPT
+    result: each component independently necessary; joint necessity as in C3
+    interpretation: "cheap validity heuristics handle format errors; expensive stability analysis is invoked only at structure completion — the \"when to apply\" argument (§4.2)"
+    supported_claim: C3
+  - id: E3
+    research_question: RQ5 — real-world buildability (robotic + manual assembly)?
+    setup: dual-robot-arm system with manipulation policy and asynchronous multi-agent planner; manual assembly (§5.3, Appendices B–C)
+    baseline: none
+    result: successful automated and hand assembly of generated designs
+    interpretation: stability scores translate into physical execution
+    supported_claim: C5
+  - id: E4
+    research_question: RQ4 — appearance extension without geometry loss?
+    setup: FlashTex UV texturing and voxel-based uniform color assignment on the same structures with varied appearance prompts (§4.3, Fig. 7)
+    baseline: none
+    result: diverse textures/colors preserving geometry
+    interpretation: the brick sequence representation decouples shape from appearance
+    supported_claim: "C1 (scope claim: colored/textured designs)"
+narrative:
+  introduction_roles: [Context (text-to-3D progress), Failure mode (unrealizable designs: assembly + stability), Scope choice (bricks as tractable, reproducible benchmark), Goal bullets (stable, buildable), Key insight (next-brick = next-token), Mechanism (constraints at train + inference), Results preview, Contributions/dataset release]
+  introduction_move: novelty is claimed through problem definition rather than architecture — the intro's two bullet definitions (physically stable, buildable) are the contribution; the LLM-repurposing insight is presented as the enabling trick for a problem-first paper; dataset release is folded into the contribution narrative early
+  related_work_strategy: four-block map (text-to-3D; autoregressive 3D; brick assembly; physics-aware generation) each ending in the specific assumption BrickGPT removes; the physics-aware block ends with the first-attempt claim, placed as the transition into the dataset section
+  method_strategy: "data-first (§3 before §4) because the dataset is a contribution; representation-design argument included (\"what format should we use?\" — rejecting LDraw for token economy + dimension information, §4.1); physics presented as an engineering decision tree (\"When to apply stability analysis?\", §4.2) leading to the rejection+rollback design"
+  experiments_strategy: single main table doing triple duty (baselines, stability-augmented baselines, own ablations) so the causal chain (components → validity+stability, without alignment loss) is visible at a glance; physical assembly as closing demonstration rather than benchmark
+  conclusion_strategy: four-sentence restatement of mechanism and comparative standing; no limitations paragraph in main text (deferred to discussions in appendices)
+reviewer_defense:
+  strengths: direct causal evidence for every mechanism via ablations embedded in the main table; baselines given the authors' own stability analysis as an augmentation, so the comparison is not strawman; physical real-world verification (robots + hands); dataset, code, models released
+  vulnerabilities: 1B model and 20×20×20 grid with 1-unit-tall axis-aligned bricks — limited scale, single brick height, no arbitrary orientations (custom format drops orientation/scale information by design, §4.1); 40.8 s median generation and up to 100 rollbacks; stability uses a quasi-static NLP with a fixed friction constant FT, not full dynamics; no user study of aesthetic quality
+  anticipated_attacks: "\"just rejection sampling on an LLM\" — preempted by the ablation showing rejection alone yields 24% stable (rollback is the load-bearing step) and the \"overly constrain exploration space\" argument for check timing (§4.2); \"post-hoc conversion of SOTA mesh models suffices\" — preempted by the \"+ our stability analysis\" baseline rows (88.4% vs 98.8%); \"stability analysis too slow\" — preempted by 0.35 s average per structure (§3) and median 2 rollbacks (§5.1)"
+writing:
+  paragraph_patterns: "goal bullets with bolded terms (Physically stable / Buildable) that later become table column names; method paragraphs open with the failure that motivates the component (\"Although trained on physically stable data, our model sometimes generates designs that violate physics\", §4.2)"
+  transition_patterns: "rhetorical question as section pivot (\"But what format should we use?\", §4.1); bold sub-paragraph headers inside method sections acting as a second-level outline (Brick-by-Brick Rejection Sampling / Physics-Aware Rollback / When to apply...?)"
+  terminology_patterns: "tight naming — BrickGPT, StableText2Brick; \"physics-aware rollback\" coined once and reused in abstract, method, captions, and conclusion; table column names map 1:1 to intro goal bullets, closing the loop between promise and evidence"

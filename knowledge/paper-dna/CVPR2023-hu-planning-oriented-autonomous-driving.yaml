@@ -1,0 +1,86 @@
+# thesis: This paper shows that end-to-end autonomous driving should be designed
+# planning-oriented rather than as standalone modules or naive multi-task learning, because
+# tasks connected by unified query interfaces and jointly optimized toward planning
+# substantially reduce planning error and collision rate, and therefore proposes UniAD, a
+# full-stack query-based perception-prediction-planning network.
+paper:
+  venue: CVPR
+  year: 2023
+  field: autonomous driving
+  task: "end-to-end driving: detection, tracking, online mapping, motion forecasting, occupancy prediction, planning in one network"
+  problem: "\"Toward a reliable and planning-oriented autonomous driving system, how to design the pipeline in favor of planning? which preceding tasks are requisite?\" (§1, quoted question)"
+  importance: "framework design determines safety — standalone modules risk \"information loss across modules, error accumulation and feature misalignment\" (§1 para 1)"
+  source: full
+paradigm:
+  existing_approach: three designs — (a) standalone models per task (industrial default), (b) multi-task learning with shared backbone + separate heads (MTL), (c) end-to-end, either direct trajectory regression (c.1) or partial pipelines (c.2) (§1, Fig. 1, Table 1 taxonomy)
+  core_assumption: (in prior work) tasks are separable units to be either isolated (a/b) or bypassed entirely (c.1); the planning target does not dictate the design of preceding tasks
+  limitation: "standalone/MTL suffer \"accumulative errors or deficient task coordination\"; MTL risks \"negative transfer\" (§1 paras 1–2); direct regression (c.1) \"is inadequate in safety guarantee and interpretability\" (§1 para 3); partial end-to-end works \"more or less fail to consider certain components\" (§1 para 4)"
+gap:
+  unresolved_problem: "a principled account of which preceding tasks are requisite and how they should be organized to serve planning — not \"a simple stack of tasks with mere engineering effort\" (§1 para 5)"
+  evidence_for_gap: Table 1 task-taxonomy survey showing no prior system covers all six tasks jointly; closed-loop results of c.1 works verified only in simulation (§1 para 3)
+insight:
+  observation: "queries \"benefit from a larger receptive field to soften the compounding error from upstream predictions\" and can encode multi-agent interactions (§1 para 5)"
+  central_insight: make planning the optimization target and wire every task to it through unified query interfaces, so each module's output is a flexible intermediate representation that transfers knowledge downstream (§1 para 5, contribution (b))
+  hypothesis: with planning-oriented task prioritization and query-based communication, planning metrics (L2, collision) improve far beyond naive MTL and even LiDAR-based methods, while perception stays unharmed (Abstract, contribution (c))
+method:
+  conceptual_change: "reorder the design question — from \"which tasks can we train together?\" to \"which tasks does planning need?\"; perception modules are justified by their contribution to planning, not by perception metrics (\"We argue that UniAD is to benefit final planning with perceived information rather than optimizing perception with full model capacity\", §3.2)"
+  mechanism: BEVFormer features feed TrackFormer (detection+MOT via detection/track queries), MapFormer (panoptic road elements), MotionFormer (scene-centric multi-agent multimodal forecasting with agent-agent/agent-map/agent-goal attention, §2.2), OccFormer (dense+instance occupancy via mask features, §2.3), and an attention-based Planner with an ego-vehicle query that avoids predicted occupied regions (§2.4); two-stage training (6 epochs perception, then 20 end-to-end, §2.5); non-linear optimization smooths ground-truth targets to absorb upstream uncertainty (§2.2)
+  formulation: queries Q as the interface object; motion queries Q_pos = MLP(PE(I_s)) + MLP(PE(I_a)) + MLP(PE(x̂_0)) + MLP(PE(x̂_T^(l-1))) (Eq. 3); instance occupancy Ô_A^t = U^t · F_dec^t (Eq. 8); planner cost λ_coord‖x, x̃‖₂ + λ_obs O^t (§2.4, Eq. 9-area)
+claims:
+  - id: C1
+    claim: "UniAD \"substantially outperform[s] previous state-of-the-arts in all aspects\" on nuScenes across tracking, mapping, motion, occupancy and planning (comparative)"
+    importance: central
+    evidence: Abstract; Tables 3–7
+  - id: C2
+    claim: Planning-oriented design beats naive multi-task learning with separate heads by large margins in prediction and planning with no substantial perceptual drop (-15.2% minADE, -17.0% minFDE, -0.15m avg.L2, -0.51 avg.Col.) (comparative)
+    importance: central
+    evidence: Table 2, Exp.0 vs Exp.12; §3.1
+  - id: C3
+    claim: Both prediction tasks (motion + occupancy) are required for safe planning; only their combination yields the best L2 and collision rate (causal — ablation)
+    importance: central
+    evidence: "Table 2, Exp.7–12; \"we conclude that both these two prediction tasks are required for a safe planning objective\" (§3.1)"
+  - id: C4
+    claim: Perception modules (tracking + mapping) substantially improve motion forecasting (-9.7% minADE, -12.9% minFDE) (causal — ablation)
+    importance: supporting
+    evidence: Table 2, Exp.4–6
+  - id: C5
+    claim: Each MotionFormer/Planner component (anchors, goal interaction, ego query, non-linear optimization, occupancy optimization) contributes (mechanistic)
+    importance: supporting
+    evidence: Tables 8, 10
+experiments:
+  - id: E1
+    research_question: RQ4 — is the planning-oriented joint design necessary, i.e., what does each module contribute to planning?
+    setup: 13-row module-inclusion ablation on nuScenes val, ID-0 = naive MTL baseline (Table 2)
+    baseline: ID-0 separate-head MTL; Exp.10 direct planning (c.1); Exp.1–3 single-task training
+    result: Exp.12 best on all planning metrics; prediction gains cascade with each added module
+    interpretation: the philosophy, not just the modules, drives the gains
+    supported_claim: C2, C3, C4
+  - id: E2
+    research_question: RQ1 — does UniAD beat prior art per task?
+    setup: nuScenes val, modular comparisons (Tables 3–7)
+    baseline: MUTR3D, ViP3D, Immortal Tracker, BEVFormer, FIERY, BEVerse, ST-P3, FF/EO (LiDAR-based)
+    result: MOT +6.5/+14.2 AMOTA; motion -38.3% minADE vs PnPNet-vision; planning -51.2% L2, -56.3% collision vs ST-P3; beats LiDAR-based methods in most intervals
+    interpretation: one network can match or beat specialized systems on every sub-task
+    supported_claim: C1
+  - id: E3
+    research_question: RQ3 — which components of MotionFormer matter?
+    setup: component ablation (Table 8)
+    baseline: progressively added anchors → goal interaction → ego query → NLO
+    result: rotated scene-level anchors give -15.8% minADE; NLO -5.0% minADE
+    interpretation: prior statistics + perceptual uncertainty handling both matter
+    supported_claim: C5
+narrative:
+  introduction_roles: [Context (driving = stacked tasks), Existing designs (Fig. 1 taxonomy), Failure mode per design, Question (quoted), Intuitive resolution and its flaw, Insight (planning-oriented + queries), Solution (UniAD), Contributions (a,b,c)]
+  introduction_move: "builds a two-axis design space (Fig. 1: standalone/MTL/end-to-end) and positions every alternative as failing planning either by isolation or by omission; poses its central question verbatim, then answers it with a philosophy (\"planning-oriented\") rather than an architecture — the architecture is presented as the minimal instantiation of the philosophy"
+  related_work_strategy: embedded in the intro as the design-space taxonomy (Table 1); no separate related-work section in main text — prior systems are categorized by which tasks they include
+  method_strategy: pipeline-order exposition (perception → prediction → planning) mirroring data flow; each module opens with the limitation of the prior paradigm it replaces (RNN+clustering for occupancy, per-agent coordinates for motion)
+  experiments_strategy: "ablation-first ordering inverted from convention — the giant Table 2 (joint ablation) comes before per-task SOTA tables, because the paper's thesis is about design philosophy, not benchmark bragging; \"Roadmap toward safe planning\" walks the ablation backwards from planning to perception"
+  conclusion_strategy: "philosophy restatement + explicit \"Limitations and future work\" paragraph conceding compute cost and deferring task-set expansion"
+reviewer_defense:
+  strengths: ablation matrix (Table 2) directly tests the thesis against the naive-MTL baseline under one codebase; per-task SOTA tables prove no task was sacrificed for planning; released code and models
+  vulnerabilities: "computational cost admitted (\"needs extensive computational power\", Conclusion); tracking and mapping admittedly trail specialized perception-oriented methods (§3.2); improvements partly from stronger module choices (BEVFormer backbone) inherited from prior work"
+  anticipated_attacks: "\"this is just engineering stacking\" — preempted by the quoted claim \"this is not a simple stack of tasks\" (§1 para 5) and the ID-0 vs ID-12 ablation; \"why not direct regression?\" — preempted by Exp.10 vs Exp.12; \"perception suffers?\" — preempted by Exp.1–3 comparability statement"
+writing:
+  paragraph_patterns: "module paragraphs follow limitation-of-prior → our design → mechanism; bolded colloquial framing (\"the devil lies in the details\") to signal that differences from prior work are fine-grained"
+  transition_patterns: "numbered rhetorical question (§1) answered across sections; \"Taking a step back\" used inside ablation discussion to zoom from metrics to conclusions (§3.1)"
+  terminology_patterns: "consistent query vocabulary (track queries, map queries, motion queries, ego-vehicle query) unifying six heterogeneous tasks under one noun; abbreviation discipline (MTL, NLO, NLO introduced then kept); philosophy name (\"planning-oriented\") repeated in abstract, Fig. 2 caption, method and conclusion"

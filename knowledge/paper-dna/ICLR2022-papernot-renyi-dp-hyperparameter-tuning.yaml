@@ -1,0 +1,83 @@
+# thesis: This paper shows that hyperparameter tuning leaks private information but its cost
+# can be bounded far below naive composition, because selecting the best of a randomized
+# number of private runs admits a Renyi-DP analysis whose overhead grows only logarithmically
+# in the expected number of repetitions, and therefore proposes private hyperparameter search
+# procedures (truncated negative binomial / Poisson repetition counts) improving Liu & Talwar.
+paper:
+  venue: ICLR
+  year: 2022
+  field: differential privacy / private machine learning
+  task: differentially private hyperparameter tuning (private selection among black-box DP training runs)
+  problem: '"few studies have reasoned about the privacy leakage resulting from the multiple training runs needed to fine tune the value of the training algorithm''s hyperparameters" — even when each run is DP (Abstract)'
+  importance: hyperparameter tuning is universal practice and "in practice, it is often ignored entirely" in privacy accounting; naive composition gives linear-in-repetitions costs that would be prohibitive (§1)
+  source: full
+  inferred: [task]
+paradigm:
+  existing_approach: analyze a single DP-SGD training run (Moments Accountant / RDP); for tuning, either ignore the tuning loop, pay naive composition over all candidates, or use Chaudhuri & Vinterbo (2013) (requires stability) / Liu & Talwar (2019) (geometric repetition, (3ε,0)-DP, approximate-DP only) (§1.2)
+  core_assumption: privacy analysis need only cover one training run; the selection over repetitions is either free or costs linearly via composition
+  limitation: composition-based bounds for tuning are "very loose"; Liu & Talwar are restricted to (ε,δ)-DP and "do not give any results for Rényi DP", making them hard to apply to DP-SGD systems (§1.2)
+gap:
+  unresolved_problem: sharp, framework-appropriate (Rényi DP) privacy bounds for selecting the best among black-box DP runs, applicable to DP-SGD
+  evidence_for_gap: empirical leakage demonstration (§2, Fig. 1) shows the question is real; prior tight results absent for RDP (§1.2)
+insight:
+  observation: a hyperparameter is "a narrow channel" — an outlier can skew the optimum and enable membership inference, so leakage exists but may be small (§1.1, §2)
+  central_insight: if the number of repetitions K is itself randomized with a sufficiently spread-out (heavy-tailed) distribution, the Rényi divergence of the best-of-K selection is controlled by the derivative of the probability generating function of K, adding only ~log E[K]/(λ−1) (Lemma 7, Theorem 2)
+  hypothesis: choosing the repetition distribution trades privacy against utility (success probability of finding good hyperparameters) and runtime, yielding a tunable spectrum of procedures
+method:
+  conceptual_change: stop treating the number of candidate runs as a fixed design parameter — randomize it, so the selection step becomes a DP mechanism in its own right
+  mechanism: run the base DP algorithm Q a random K times (K ~ truncated negative binomial D_{η,γ} or Poisson) and return the best output under a total order on Y (§3.3–3.4)
+  formulation: "Lemma 7 (generic bound): Dλ(A||A') ≤ Dλ(Q||Q') + (1/(λ−1)) log f'(q)^λ f'(q')^{1−λ} where f is the pgf of K; Theorem 2 yields ε' = ε + (1+η)(1−1/λ̂)ε̂ + (1+η)log(1/γ)/λ̂ + log E[K]/(λ−1); Corollary 3: pure-DP overhead (2+η)ε (recovers Liu & Talwar's 3ε at η=1)"
+claims:
+  - id: C1
+    claim: non-private hyperparameter tuning on DP-or-not pipelines can leak membership information through outlier-skewed optima (descriptive/causal, via constructed example)
+    importance: supporting
+    evidence: §2 SVM example, Fig. 1 — accuracy-vs-α curve shifts visibly with 8 added outlier points
+  - id: C2
+    claim: best-of-K selection with K random satisfies Renyi DP with overhead independent of or logarithmic in the number of repetitions — improving and extending Liu & Talwar (2019) (theoretical)
+    importance: central
+    evidence: Theorem 2, Theorem 6, Lemma 7; Corollary 3 recovers (3ε,0) at η=1 and improves to (2+η)ε for η<1
+  - id: C3
+    claim: there is a tradeoff between privacy, utility (expected quantile / success probability), and runtime governed by how heavy-tailed the distribution of K is (theoretical + comparative)
+    importance: central
+    evidence: §3.6, Figs. 2–6 — Poisson best at intermediate privacy budgets, negative binomial η=0.5 best for strong utility guarantees
+  - id: C4
+    claim: on a real DP hyperparameter search task, the proposed procedures achieve practical privacy-utility tradeoffs (comparative)
+    importance: supporting
+    evidence: §3.6 Fig. 7 — DP-SGD CNN on MNIST, learning-rate search, 500 trials, Poisson best tradeoff
+experiments:
+  - id: E1
+    research_question: does tuning leak private information at all? (paper's own motivation)
+    setup: synthetic-data SVM, accuracy vs regularization α with and without 8 outlier points (§2)
+    baseline: identical pipeline on D vs D∪{outliers}
+    result: '"the choice of hyperparameter α which maximizes [accuracy]" visibly shifts (Fig. 1) — optimum differs between adjacent datasets'
+    interpretation: hyperparameters are a leakage channel even though a "narrow" one
+    supported_claim: C1
+  - id: E2
+    research_question: RQ3/analysis — how do the proposed guarantees compare to naive composition across distributions?
+    setup: plots of Rényi divergence / converted (ε,10^-6)-DP for base 0.1-zCDP algorithm, varying distribution of K at fixed E[K] (Figs. 2–4)
+    baseline: naive repetition (point-mass K), base algorithm unrepeated
+    result: logarithmic-distribution bounds grow ~log E[K] vs linear for naive composition (Fig. 2)
+    interpretation: the randomization of K, not the specific family, is what buys the improvement
+    supported_claim: C2, C3
+  - id: E3
+    research_question: RQ1 — does the procedure still find good hyperparameters under a privacy budget?
+    setup: MNIST CNN, DP-SGD in JAX, learning-rate grid 0.025–1, 500 trials (§3.6)
+    baseline: different distributions on K at equal budget
+    result: Poisson achieves the best privacy-utility tradeoff for this simple search (Fig. 7), matching theory
+    interpretation: theory-guided distribution choice transfers to practice
+    supported_claim: C4
+narrative:
+  introduction_roles: [Context (DP-SGD success), Failure mode (tuning ignored), 'Question (does tuning leak?)', 'Both answers previewed (yes, but modest)', Contribution bullets]
+  introduction_move: poses the question explicitly ("Can the tuning of hyperparameters reveal private information?"), then structures the entire paper as negative answer (leakage example §2) + positive answer (tight bounds §3) — a two-sided question-driven frame
+  related_work_strategy: precision positioning — names the single direct predecessor (Liu & Talwar) and states exactly which axis each result improves (distribution, framework, tightness); separates from private-selection literature by black-box assumption
+  method_strategy: theorem-first with interpretation scaffolding — each theorem is followed by special-case corollaries and "hard to interpret" concessions solved by corollaries
+  experiments_strategy: minimal, illustrative — one constructed leakage example and one small real task; the burden of proof is carried by theory and figures of the bounds
+  conclusion_strategy: recaps the randomization requirement, then pivots to a practical recommendation (report both base and end-to-end guarantees) in an explicit Limitations paragraph
+reviewer_defense:
+  strengths: improvement over Liu & Talwar is quantified and recovered as a special case (η=1); generic Lemma 7 covers arbitrary distributions; explicit limitations section
+  vulnerabilities: '"privacy parameter may double or even triple after accounting for hyperparameter tuning, which could be prohibitive" (Limitations); non-adaptive ("random search") tuning only — adaptive selection "will require further analysis" (Limitations); utility depends on distribution choice left to the practitioner (conceded, "differences... relatively small")'
+  anticipated_attacks: '"can the bounds be improved?" — Appendix D gives negative results/intuition why not easily; "why randomize K?" — theorem structure itself requires it (composition vs randomization contrast, §3.2 strawman)'
+writing:
+  paragraph_patterns: theorem → "shows a tradeoff..." interpretation → illustrative corollary chain (§3.4)
+  transition_patterns: explicit roadmap sentences ("We now present our main technical lemma, which applies to any distribution...", §3.5)
+  terminology_patterns: careful DP-taxonomy discipline (pure DP, zCDP, RDP each named and converted explicitly); plain-language intuition paragraphs after formal statements ("A first-order intuition is that...", Lemma 7 discussion)

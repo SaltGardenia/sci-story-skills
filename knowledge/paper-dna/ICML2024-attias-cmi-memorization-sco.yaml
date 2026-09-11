@@ -1,0 +1,78 @@
+# thesis: This paper shows that learning in stochastic convex optimization necessarily
+# requires memorization because any ε-learner must reveal Ω(1/ε²) (resp. Ω(1/ε) under
+# strong convexity) bits of conditional mutual information about its training sample —
+# proved via fingerprinting lemmas — and therefore proposes a CMI–accuracy tradeoff
+# characterization that makes CMI generalization bounds vacuous, enables membership-inference
+# adversaries recalling a constant fraction of the training set, and rules out
+# dimension-independent sample compression for SCO.
+paper:
+  venue: ICML
+  year: 2024
+  field: learning theory / information-theoretic generalization
+  task: characterizing the memorization–learning tradeoff in stochastic convex optimization (SCO) via conditional mutual information (CMI)
+  problem: "\"How much information must an ε-learner reveal about their training data?\" (§1, posed verbatim) — i.e., the interplay of memorization and learning in SCO, answering an open question of Livni [Liv23]"
+  importance: modern DNNs generalize while memorizing heavily, challenging the classical intuition that good learners avoid memorization; SCO is a tractable model for this since first-order methods generalize dimension-independently while arbitrary ERMs do not (§1)
+  source: full
+paradigm:
+  existing_approach: "information-theoretic generalization bounds — IOMI (Xu & Raginsky), and Livni [Liv23]'s Ω(d) IOMI lower bound for SCO learners; CMI framework of Steinke & Zakynthinou [SZ20] giving generalization gap ≤ √(CMI/n) (§1, §5.1)"
+  core_assumption: "that IOMI-style total information measures are the right lens — but \"bits of information between the sample and the model do not distinguish between the number of bits per sample and the number of memorized samples\" (§1), and that CMI might still tightly capture optimal generalization beyond binary classification"
+  limitation: "[Liv23] \"does not rule out the sufficiency of memorizing a single example, which overall has O(d) entropy\"; whether CMI characterizes SCO accuracy was open (§1)"
+gap:
+  unresolved_problem: a precise lower bound on CMI of ε-learners in SCO, its consequences for CMI-based generalization bounds, memorization necessity, and sample compression (§1.1)
+  evidence_for_gap: "analytical — explicit open question from Livni [Liv23] plus the known success of CMI bounds only for 0–1 loss binary classification (§5.1)"
+insight:
+  observation: CMI counts memorized *samples* (each memorized example ≈ 1 bit, conditioned on a supersample Z̃), unlike IOMI which conflates bits-per-sample with number of samples (§1)
+  central_insight: accurate learning in SCO is statistically fingerprintable — an ε-learner's output is positively correlated with enough individual training labels that fingerprinting-lemma arguments (differential-privacy machinery, BUV14/Ste16/KLSU19) force the learner to encode Ω(1/ε²) (Lipschitz) or Ω(1/ε) (strongly convex) bits of CMI (§1.1, Lemmas 6.2–6.3, 7.1–7.3)
+  hypothesis: the same lower-bound machinery should convert into operational statements — a sound-and-recalling membership-inference adversary, vacuity of CMI generalization bounds, and impossibility of constant-size compression schemes (§1.1 implications)
+method:
+  conceptual_change: read memorization not as a defect of specific algorithms but as a *worst-case information lower bound* every accurate learner must pay; measure it in the supersample-conditioned currency where memorization of one example is one bit
+  mechanism: "(1) SCO problem constructions Pcvx (1-Lipschitz, §6) and Pscvx (1-Lipschitz + 1-strongly-convex, §7) whose optimal learner must encode the supersample selection vector U; (2) fingerprinting-lemma reduction showing learner output correlates with Σ TU_{i,i}, lower-bounding CMI = I(A_n(S_n); U | Z̃) (Def. 3.2, Thms 4.1–4.2); (3) the recall game (Def. 4.3–4.4: ξ-sound adversary certifying recall of m samples) converting CMI bits into identified training points (Thms 4.5–4.6)"
+  formulation: "CMI_D(A_n) ≜ I(A_n(S_n); U | Z̃) with Z̃ a (2,n) supersample array and U ~ Ber(1/2)^n selecting the training set (Def. 3.2); results: CMI = Ω(1/ε²) (Thm 4.1, tight via subsampling upper bound Thm 6.5), CMI = Ω(1/ε) under strong convexity (Thm 4.2, tight via stability of ERM, Thm 7.4)"
+claims:
+  - id: C1
+    claim: for 1-Lipschitz bounded SCO, every ε-learner has CMI ≥ Ω(1/ε²) under some data distribution, matching the optimal sample complexity O(1/ε²) — and this is tight (Thm 4.1 + upper bound)
+    importance: central
+    evidence: theoretical — Theorem 4.1, matching Theorem 6.5; holds for proper and improper learners (Thm 6.4 via projection + data processing)
+  - id: C2
+    claim: under 1-strong convexity, every ε-learner has CMI ≥ Ω(1/ε), tight against stable-ERM sample complexity O(log(1/δ)/ε) (Thm 4.2)
+    importance: central
+    evidence: theoretical — Theorem 4.2, Theorem 7.4
+  - id: C3
+    claim: "memorization is necessary — an efficient ξ-sound adversary can identify Ω(1/ε²) (resp. Ω(1/ε)) training samples with high confidence; \"any sample-efficient learner needs to memorize a constant fraction of its training set\" (§1.1, Thms 4.5–4.6)"
+    importance: central
+    evidence: theoretical — memorization game (Def. 4.3), Theorems 4.5, 4.6
+  - id: C4
+    claim: "CMI-based generalization bounds are vacuous for optimal SCO learners — plugging Ω(1/ε²) CMI into EGED ≤ LR√(8CMI/n) yields an Ω(1) bound where the true error is O(ε) (Thm 5.2, extending limitations of [HRTSRD23])"
+    importance: central
+    evidence: theoretical — Theorem 5.1 (quoted) + Theorem 5.2
+  - id: C5
+    claim: "dimension-independent (constant-size) sample compression schemes for SCO are impossible, via the CMI–compression connection in [SZ20] (§1.1 \"Incompressibility of Samples\")"
+    importance: supporting
+    evidence: theoretical — implication section §5 (with Remark 5.3), contrasting binary classification/regression where constant compression exists
+  - id: C6
+    claim: the same Ω(1/ε²)/Ω(1/ε) lower bounds hold for individual-sample CMI variants (ISCMI), so claimed tightening via individual-sample measures is impossible in SCO (§1.1, §5.4 Thm 4.1/4.2 extension)
+    importance: supporting
+    evidence: theoretical — individual-sample CMI analysis (§5.4)
+experiments:
+  - id: E1
+    research_question: "no empirical experiments — the paper is pure theory; \"experiments\" are the constructive proof components"
+    setup: "constructive lower-bound proofs: Pcvx construction (§6) with Lemmas 6.2–6.3 establishing positive correlation of learner output with training labels, then fingerprinting lemma bounding |I| (proof sketch of Thm 4.1); Pscvx construction (§7) with Lemmas 7.1–7.3 and Lemma A.4/A.7 bookkeeping"
+    baseline: matching upper bounds by construction — subsampling algorithms (Thm 6.5) and stable ERM (Thm 7.4) show tightness
+    result: matching lower/upper bounds Ω(1/ε²) and Ω(1/ε); adversary constructions achieve ξ-soundness with Ω(1/ε²)/Ω(1/ε) recall
+    interpretation: the tradeoff is exact, not merely qualitative — CMI must scale with the optimal sample size
+    supported_claim: C1, C2, C3
+narrative:
+  introduction_roles: [Context (generalization vs memorization puzzle), Tension (classical intuition vs DNN memorization), Arena (SCO as model), Prior attempt (Livni's IOMI bound and its caveat), Refined question (CMI), Key result (tradeoff), Implications (four enumerated)]
+  introduction_move: stages the paper as a dialogue of measures — IOMI is introduced precisely to be criticized (bits vs samples), CMI is introduced precisely to be criticized (vacuous bounds) — so the contributions read as resolving a chain of measure-adequacy questions; the central question is set as a verbatim displayed question
+  related_work_strategy: two-stream map (information-theoretic generalization; memorization/DP literature) with the fingerprinting-lemma lineage credited as the proof engine
+  method_strategy: "theorem-first with proof-overview sections (§6, §7 \"key steps\"); the memorization game (Def. 4.3) acts as a bridge artifact translating abstract CMI bits into an attack anyone can simulate"
+  experiments_strategy: tightness serves as the experimental validation — every lower bound is paired with its matching upper bound inside the main results section
+  conclusion_strategy: "no conclusion section; §5 \"Implications\" is the payoff and closing move — a theory paper ending on consequences rather than summary (the proofs sections 6–7 close the paper before acknowledgements)"
+reviewer_defense:
+  strengths: matching upper bounds establish exactness; results hold for proper and improper learners (Thm 6.4); one construction yields four downstream implications (bounds, memorization, compression, individual-sample CMI); proof techniques portable from DP literature
+  vulnerabilities: "lower bounds are for *existence* of a hard problem/distribution per learner, not for all SCO problems; dimension requirement d ≥ Ω(n² log n) in the theorems; \"memorization\" via adversary sound/recall tradeoff constants is asymptotic (up to log factors)"
+  anticipated_attacks: "\"CMI works fine for classification\" — conceded and scoped: the negative result is specific to SCO's real-valued losses (§5.1); \"maybe only bad learners memorize\" — the tradeoff is for *every* ε-learner, with tight upper bounds showing it is the price of accuracy itself (Thm 4.1 + Thm 6.5)"
+writing:
+  paragraph_patterns: "bolded mini-headline paragraphs in §1.1 (Key result / Limitation / Necessity / Incompressibility / Individual-Sample variant); theorem statements with immediate \"Note that ... tight\" remarks"
+  transition_patterns: question→measure→failure→refined question chaining; each implication section opens by restating the main theorem it consumes
+  terminology_patterns: disciplined Ω/O bookkeeping in every claim; coined game vocabulary (contestant/adversary, ξ-sound, certifies recall); consistent CMI/ISCMI/IOMI acronym hygiene

@@ -1,0 +1,86 @@
+# thesis: This paper shows that open-ended embodied agents can learn free-form language-specified
+# tasks without manually engineered dense rewards, because internet-scale Minecraft videos with
+# transcripts can train a video-language model (MineCLIP) whose similarity score serves as a dense
+# language-conditioned reward, and therefore proposes MineDojo — a Minecraft-based framework of
+# thousands of open-ended tasks plus a multimodal knowledge base (7M+ YouTube videos, wiki, Reddit)
+# — with agents that match hand-crafted rewards and generalize zero-shot to unseen terrains, weather,
+# and tasks.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: embodied AI / datasets & benchmarks (open-ended agents)
+  task: building generally capable agents for thousands of open-ended language-prompted Minecraft tasks
+  problem: '"Autonomous agents ... typically learn tabula rasa in isolated environments with limited and manually conceived objectives, thus failing to generalize across a wide spectrum of tasks and capabilities" (Abstract); dense task-specific rewards "are hard or even infeasible to define for our diverse and open-ended tasks" (§4)'
+  importance: developing generalist agents "has been a long-standing goal for AI research"; MineDojo is offered as the trinity of ingredients (environment + knowledge base + scalable architecture) the community needs, fully open-sourced (§1, Abstract)
+  source: full
+paradigm:
+  existing_approach: specialist agents trained tabula rasa with hand-tuned dense rewards (Atari, MineRL) or with costly expert demonstrations; narrow benchmarks with fixed objectives (§1, §3)
+  core_assumption: each task must come with a manually designed reward function and curated training data
+  limitation: rewards "hard or even infeasible" for open-ended tasks like "build an epic modern house"; expert demonstrations "costly and infeasible"; prior Minecraft benchmarks two orders of magnitude smaller (§3, §4, contribution 1)
+gap:
+  unresolved_problem: an open-ended environment with diverse language-prompted tasks, internet-scale multimodal prior knowledge, and a scalable language-conditioned agent architecture — none of which existed together (§1 three pillars)
+  evidence_for_gap: contrast with specialist benchmarks (Atari/Go/MineRL); humans learn open-endedly by harvesting prior knowledge from others' experiences (videos, tutorials, forums) — a source agents don't exploit (§1)
+insight:
+  observation: '"Instead of hiring a handful of human demonstrators, we capture the collective wisdom of millions of Minecraft gamers" — 33 years of YouTube videos, 6K+ wiki pages, millions of Reddit threads, all language-paired (§3)'
+  central_insight: '"our key insight is to learn a dense, language-conditioned reward function from in-the-wild YouTube videos and their transcripts" — a contrastive video-language model trained on web data scores how faithfully agent behavior matches a language goal, replacing per-task reward engineering (§4)'
+  hypothesis: MineCLIP rewards will work zero-shot on simulator frames despite the domain gap with noisy YouTube videos (as CLIP's zero-shot robustness suggests), enabling PPO agents to solve programmatic and creative tasks competitively with hand-crafted rewards (§4.2)
+method:
+  conceptual_change: reward functions become learned internet-scale artifacts rather than hand-coded simulator scripts; evaluation of creative tasks becomes learned rather than programmatic
+  mechanism: '(1) MineDojo simulator + benchmark: programmatic tasks (precise success conditions) and creative tasks (open-ended, e.g. build houses), natural-language prompted, thousands of tasks; (2) knowledge base: YouTube (7M+ videos, 300K+ transcripts), wiki, Reddit with toxicity/quality filtering; (3) MineCLIP: CLIP-style InfoNCE over 16-frame windows + transcripts, factorized video encoder (frozen pretrained image encoder + temporal aggregator + CLIP-Adapter), 640K video-transcript pairs; reward ΦR(G,V) = similarity of goal and snippet embeddings; (4) PPO + self-imitation with efficiency tricks (precomputed text features, frozen image encoder, sliding-window feature caching) (§2–4, Fig. 4)'
+  formulation: 'InfoNCE objective correlating positive video-text pairs; reward ΦR: (G, V) → R high iff video behavior follows language description (§4.1)'
+claims:
+  - id: C1
+    claim: '"MineCLIP is competitive with manual reward" — agents guided by MineCLIP achieve competitive success rates with hand-engineered dense rewards on Programmatic tasks, even outperforming them on 3 of 8 tasks despite manual rewards using privileged simulator states (comparative)'
+    importance: central
+    evidence: §5, Table 1 (e.g. Hunt Cow 83.5 vs 48.3; Shear Sheep 12.1 vs 52.3)
+  - id: C2
+    claim: for Creative tasks with no definable reward, MineCLIP-guided agents "consistently learn better than CLIPOpenAI-guided agents" (which achieve 0.0 success on all Creative tasks) (comparative)
+    importance: central
+    evidence: §5, Table 1 Creative rows vs CLIPOpenAI column
+  - id: C3
+    claim: MineCLIP "agrees well with the ground-truth human judgment" as an automatic evaluation metric for Creative tasks — F1 97.4–100.0 vs CLIPOpenAI's 48.7–98.4 (comparative)
+    importance: central
+    evidence: §5, Table 2
+  - id: C4
+    claim: pre-training on diverse in-the-wild YouTube videos boosts zero-shot visual generalization — MineCLIP-encoder agents degrade far less (−15.4% to −32.9%) on 27 unseen weather/lighting/terrain scenarios than CLIPOpenAI-encoder agents (−31.8% to −77.0%) (comparative)
+    importance: supporting
+    evidence: §5, Table 3
+  - id: C5
+    claim: a single multi-task agent trained on all 12 tasks improves many individual-task results, and the MineCLIP agent shows open-vocabulary generalization — zero-shot success on two unseen tasks (Hunt Pig 1.3%, Harvest Spider String 1.6%) that finetuning raises to 46.0%/36.5% vs 0.0%/12.5% for RL from scratch (empirical)
+    importance: supporting
+    evidence: §5, Tables 4–5
+experiments:
+  - id: E1
+    research_question: RQ1 — can learned MineCLIP rewards match manual rewards on the primary objective (task success)?
+    setup: '3 task groups (Animal-Zoo, Mob-Combat, Creative), one multi-task agent per group, PPO + self-imitation, 3 seeds × 200 episodes; methods: Ours (Attn/Avg), Manual Reward, Sparse-only, CLIPOpenAI (§5, Table 1)'
+    baseline: hand-engineered dense rewards with privileged states; sparse-only reward
+    result: competitive on 8 Programmatic tasks (better on 3); Creative tasks solvable only with MineCLIP
+    interpretation: internet-scale reward learning removes the reward-engineering bottleneck
+    supported_claim: C1, C2
+  - id: E2
+    research_question: RQ2-flavored (metric validation) — does MineCLIP's automatic success judgment agree with humans?
+    setup: F1 between MineCLIP binary success classification and human labels on Creative tasks (§5, Table 2)
+    result: attn 97.4–100.0 F1; avg 98.4–100.0; CLIPOpenAI much lower on 2 of 4 tasks
+    interpretation: learned evaluation can substitute for expensive human scoring
+    supported_claim: C3
+  - id: E3
+    research_question: RQ4/RQ6 — does the agent generalize to unseen visual conditions and open vocabulary?
+    setup: zero-shot evaluation on 27 unseen weather/lighting/terrain scenarios (Table 3); zero-shot + finetuned evaluation on 2 unseen tasks (Table 5); single agent for all 12 tasks (Table 4)
+    result: MineCLIP encoder more robust than CLIPOpenAI baseline; zero-shot novel-task success small but finetune-able far above from-scratch
+    interpretation: internet-scale pre-training transfers to the simulator's distribution shifts and open vocabulary
+    supported_claim: C4, C5
+narrative:
+  introduction_roles: [Context (specialist agent progress), Failure mode (tabula rasa, no generalization), Biological analogy (humans in open world), Three pillars (environment, knowledge, architecture), Solution (MineDojo framework), Contribution list (platform, knowledge base, agent + algorithm)]
+  introduction_move: argue by analogy to human open-world learning — the environment, the prior knowledge, and the architecture are all things humans have and agents lack; Minecraft is justified as the natural substrate ("no specific reward ... no fixed storyline"); each pillar becomes a paper section and a contribution
+  related_work_strategy: positioned as infrastructure + proof-of-concept — related work (§6) contrasts with MineRL-style benchmarks and video-language pre-training lines, claiming the first combination at internet scale
+  method_strategy: framework-first, algorithm-second — the simulator and database are the contributions; MineCLIP is explicitly "only one of the numerous possible ways" to use the data, framing the algorithm as a demonstration that the framework enables discovery
+  experiments_strategy: comparative reward-source study (Table 1) as the centerpiece, then metric validation (Table 2), then generalization batteries (Tables 3–5); multi-seed, multi-episode reporting; creative-task scoring by the learned metric itself (acknowledged circularity managed by human-F1 validation)
+  conclusion_strategy: recap of framework + algorithm results with open-source release as the closing act (Abstract, §7)
+reviewer_defense:
+  strengths: first internet-scale multimodal knowledge base for a game environment; learned rewards competitive with privileged hand-engineered ones; thorough validation of the learned metric against human judgment; massive open release (suite, data, code, models)
+  vulnerabilities: MineCLIP serves as both reward and success criterion on Creative tasks (circularity mitigated only on a subset with human labels); success rates highly variable across seeds (±40% on several tasks, Table 1); YouTube-filtered data (keyword filter) may bias rewards; still only 12–14 tasks actually solved; Wiki/Reddit corpora collected but unused for the presented agent
+  anticipated_attacks: '"domain gap YouTube→simulator must break the reward" — preempted by the zero-shot CLIP-robustness analogy and validated empirically (§4.2, Table 1); "learned metric judges its own agents" — Table 2 human-agreement study; "why Minecraft?" — open-endedness argument (§1) plus two-orders-of-magnitude task-suite comparison'
+writing:
+  paragraph_patterns: pillar-then-contribution structure; efficiency design choices enumerated as a numbered list with compute justifications; results subsections led by bolded claim sentences ("MineCLIP is competitive with manual reward")
+  transition_patterns: '"Here we take an initial step towards this goal by developing a proof of concept" — modest framing of the algorithm relative to the framework; explicit pointers to appendix for engineering details'
+  terminology_patterns: trinity/pillars metaphor; branded names MineDojo, MineCLIP; task taxonomy (Programmatic vs Creative) defined once and structuring all tables

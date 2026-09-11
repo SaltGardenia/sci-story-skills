@@ -1,0 +1,86 @@
+# thesis: This paper shows that co-training meta-RL agents to predict representations from human
+# natural-language task descriptions and library-learning program abstractions produces human-like
+# inductive biases (better on tasks humans find natural, worse on matched controls) whereas
+# low-abstraction controls (synthetic language, primitive-only programs) merely improve uniformly,
+# because abstract concepts compress description length in both language and programs — humans and
+# DreamCoder-style library learning abstract in the same way — and therefore proposes grounding
+# agents in these abstract representations as a mechanism for instilling human inductive biases.
+paper:
+  venue: NeurIPS
+  year: 2022
+  field: cognitive science meets ML / meta-reinforcement learning
+  task: instilling human-like inductive biases in meta-RL agents via auxiliary representation prediction
+  problem: '"meta-learning is a method to endow neural networks with useful inductive biases, [but] agents trained by meta-learning may sometimes acquire very different strategies from humans"; since networks are not interpretable "it can be difficult to tell if the resulting neural networks actually acquired this abstract knowledge, or whether they have instead learned statistical artifacts" (Abstract, §1)'
+  importance: '"These biases present one of the most salient differences between humans and neural network-based learners and may be one of the keys to building artificial agents with human-like generalization capabilities" (§1)'
+  source: full
+paradigm:
+  existing_approach: meta-learning over task distributions; auxiliary tasks in RL; neurosymbolic program induction with a pre-specified DSL built explicitly into the agent (§1)
+  core_assumption: inductive biases must either be learned implicitly from task distributions (with no guarantee of abstraction) or explicitly hand-built into a DSL
+  limitation: '"it can be hard to determine what specific concepts to build into a DSL for any arbitrary environment"; generic meta-RL agents can latch onto statistical artifacts instead of abstract rules (§1)'
+gap:
+  unresolved_problem: which representations, used as auxiliary co-training signals, steer agents toward human-like (rather than merely better) inductive biases — and what property of those representations matters? (§1)
+  evidence_for_gap: the framework of Kumar et al. [10] can build task distributions that "distinguish these subtle differences" between inductive biases — the experimental instrument exists but the representation question is open (§1)
+insight:
+  observation: '"Human-generated language descriptions and program induction models that add new learned primitives both contain abstract concepts that can compress description length" — humans verbalize boards with concepts like "an uneven U shape" (Fig. 1) and DreamCoder''s library learning compresses programs by adding primitives (Fig. 4); text and program description lengths correlate for library-learned programs (R=0.18, p<0.001) but not primitive-only programs (R=0.02, p=0.682) (Fig. 4C–D)'
+  central_insight: abstraction through compression is the common currency of human language and library-learned programs — "This indicates that humans use higher-order concepts to compress their descriptions in the same way that recent library learning approaches in program induction add new concepts to the DSL to compress program length" (§1; Fig. 4)
+  hypothesis: grounding agents on abstract (compressed) representations — human language, library-learning programs — will selectively transfer the human prior, while low-abstraction controls (synthetic templates, primitive-only programs, autoencoding the raw grid) will produce uniform improvement without the human-like selectivity (§3.4)
+method:
+  conceptual_change: treat language and programs not as interfaces or outputs but as repositories of human priors to be distilled into agents via auxiliary prediction losses; and separate "abstract" from "information-bearing" via matched controls
+  mechanism: '(1) elicit the human prior with Gibbs Sampling with People (GSP) on 4×4 binary grids; build a matched machine control distribution (neural-network-elicited with matched statistics); (2) construct a sequential search meta-RL task revealing board tiles; (3) four representations — human language (RoBERTa/SentenceTransformer embeddings of 500 boards'' descriptions), synthetic template language, DreamCoder programs with vs without library learning (grid-pointer DSL: move, left/right, pen-up/down, fork); (4) co-train PPO with auxiliary MSE loss on predicting the task embedding: loss = L_PPO + c_task·L_task(ψ̂_θ, ψ) (§3.4)'
+  formulation: grounding loss L_task = MSE between agent's predicted and actual task embedding; human-likeness operationalized as the performance pattern humans show — better on GSP boards than matched controls (Figs. 2–3)
+claims:
+  - id: C1
+    claim: grounding on human-generated language produces a human-like inductive bias — improved performance on GSP boards (p < 0.0001 vs baseline) and significantly reduced performance on machine controls (p = 0.021), matching the human pattern (empirical/causal)
+    importance: central
+    evidence: §3.4, Fig. 6B
+  - id: C2
+    claim: grounding on library-learning programs produces a human-like bias (GSP vs control difference p < 0.0001), while primitive-only programs do not (p = 0.11, non-significant) (empirical/causal)
+    importance: central
+    evidence: §3.4, Fig. 6B
+  - id: C3
+    claim: low-abstraction controls (autoencoder of the raw board, synthetic-language descriptions) improve performance uniformly rather than selectively — "it makes the agent more human-like" fails for them; synthetic-language agents even do better on control boards (p = 0.0016) (empirical)
+    importance: central
+    evidence: §3.4, Fig. 6B
+  - id: C4
+    claim: humans compress descriptions via abstract concepts in the same way library learning compresses programs — human language length correlates with library-program length (R=0.18, p<0.001) but not primitive-only length (R=0.02, p=0.682) (empirical/mechanistic)
+    importance: central
+    evidence: §1, Fig. 4C–D
+  - id: C5
+    claim: '"the abstraction supported by these representations is key" — description/program compression level predicts the degree of human-like bias acquired by the co-trained agent (theoretical interpretation of C1–C4)'
+    importance: central
+    evidence: Abstract, §3.4 closing paragraph, Fig. 4
+experiments:
+  - id: E1
+    research_question: RQ1-flavored — does grounding on human language make agents human-like?
+    setup: train PPO agents on human-board training set with auxiliary language-embedding prediction; evaluate on held-out human vs machine control boards; bootstrap independent-samples tests (§3.4, Fig. 6B)
+    baseline: baseline RL agent; autoencoder-grounded agent; synthetic-language-grounded agent
+    result: human-language agent selectively better on human boards; controls uniform or reversed pattern
+    interpretation: language content (not just any auxiliary signal) carries the human prior
+    supported_claim: C1, C3
+  - id: E2
+    research_question: RQ2-flavored — does program abstraction level matter?
+    setup: same protocol with DreamCoder program embeddings with vs without library learning (§3.4)
+    result: library-learning grounding human-like (p < 0.0001); primitive-only not significantly so (p = 0.11)
+    interpretation: learned abstractions, not programs per se, transfer the bias
+    supported_claim: C2
+  - id: E3
+    research_question: RQ3-flavored (mechanism probe) — do human language and library programs share an abstraction signature?
+    setup: correlate human text description lengths with program lengths (with/without library) across boards (§3.3 area, Fig. 4C–D)
+    result: significant correlation only for library-learned programs
+    interpretation: compression-by-abstraction is the shared property implicated in C5
+    supported_claim: C4, C5
+narrative:
+  introduction_roles: '[Context (human fast learning via inductive biases), Meta-learning as candidate but interpretable-failure caveat, Question (which representations?), Language and programs as prior repositories, Subtlety instrument (Kumar et al. framework), Findings preview (selective transfer + compression correspondence)]'
+  introduction_move: position the paper at the cognitive-science/ML boundary — human biases are the target, meta-learning the vehicle, and the contribution is the auxiliary-representation route; the intro promises a three-part result (performance up on human tasks, down on controls, compression correspondence) that maps to the abstract
+  related_work_strategy: woven into the intro — language supervision [16–22], program induction [23–26], neurosymbolic models [27–29], auxiliary tasks [11–13] — each cited as partial precedent for one ingredient
+  method_strategy: instrument-first — a full section (§2) builds the measurement apparatus (GSP human prior, matched control, search task) before any agent is trained, because the claims are about subtle behavioral patterns that require matched distributions to detect
+  experiments_strategy: '2×2 representation-family design (language: human/synthetic; programs: library/primitive-only) plus autoencoder control; human-likeness defined as a signature (differential performance), not an aggregate score; significance by bootstrap tests; the compression analysis (Fig. 4) supplies the mechanism'
+  conclusion_strategy: discussion (§5) interprets the abstraction-compression account, acknowledges scope (single 4×4 grid domain, specific meta-RL setup), and frames language/programs as interchangeable "repositories" of human priors
+reviewer_defense:
+  strengths: clean causal design — matched control distributions isolate the bias from raw difficulty; multiple pre-registered-style comparisons with explicit p-values; the language-program compression correspondence provides convergent evidence for the mechanism; grounded in established psych methods (GSP)
+  vulnerabilities: single small stimulus space (4×4 binary grids, 500 boards); "human-likeness" defined by one behavioral signature on one task family; RoBERTa embeddings and DreamCoder are fixed external systems whose own biases could contribute; effects modest in magnitude (R=0.18); the causal chain from compression to bias is argued, not intervened upon directly
+  anticipated_attacks: '"any auxiliary loss helps" — autoencoder and synthetic-language controls show uniform vs selective effects (C3); "humans might just describe better boards" — GSP prior is sampled from humans directly and matched controls control statistics (§2.1–2.2); "programs without library learning still beat baseline" — acknowledged (numerically better, p = 0.11) and interpreted as partial abstraction'
+writing:
+  paragraph_patterns: hypothesis-evidence-significance rhythm with explicit p-values in prose; figures carry the conceptual taxonomy (Fig. 1 four repositories, Fig. 4 abstraction examples with quoted descriptions)
+  transition_patterns: '"We now move to examining ..." between representation families; the discussion returns to the compression account tying all results together'
+  terminology_patterns: '"grounding" explicitly defined and distinguished from multimodal usage (§3.4); "repositories" metaphor for language/programs; library learning vs primitive-only as the abstraction contrast; GSP/methods named precisely'
